@@ -1,0 +1,309 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.screenshot-importer {
+  background: var(--color-bg);
+  border-radius: 16px;
+  width: 520px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.importer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.importer-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.close-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.close-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.close-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.importer-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+  letter-spacing: 0.3px;
+}
+
+/* 上传区域 */
+.upload-zone {
+  border: 2px dashed var(--color-border);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--color-secondary);
+}
+
+.upload-zone:hover {
+  border-color: var(--color-primary);
+  background: var(--color-active);
+}
+
+.upload-zone.dragging {
+  border-color: var(--color-primary);
+  background: var(--color-active);
+  transform: scale(1.01);
+}
+
+.upload-zone svg {
+  width: 40px;
+  height: 40px;
+  color: var(--color-text-muted);
+  margin-bottom: 12px;
+}
+
+.upload-zone p {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  margin: 0 0 4px 0;
+}
+
+.upload-zone span {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* 预览区域 */
+.preview-container {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.preview-image {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  background: var(--color-secondary);
+  display: block;
+}
+
+.preview-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+}
+
+.preview-name {
+  font-size: 12px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.reupload-btn {
+  font-size: 12px;
+  color: var(--color-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.reupload-btn:hover {
+  background: var(--color-active);
+}
+
+/* JSON输入 */
+.json-input {
+  width: 100%;
+  min-height: 200px;
+  padding: 12px;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.json-input:focus {
+  border-color: var(--color-primary);
+}
+
+.json-input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.json-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
+
+.action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 状态提示 */
+.status-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.status-message svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.status-message.error {
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
+}
+
+.status-message.success {
+  background: #F0FDF4;
+  color: #16A34A;
+  border: 1px solid #BBF7D0;
+}
+
+/* 底部按钮 */
+.importer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.cancel-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cancel-btn:hover {
+  background: var(--color-hover);
+}
+
+.generate-btn {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.generate-btn:hover {
+  background: #0E7490;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
+}
+
+.generate-btn:active {
+  transform: translateY(0);
+}
