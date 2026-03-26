@@ -374,6 +374,7 @@ function App() {
           setSelectedIds={setSelectedIds}
           onDrop={handleDrop}
           onUpdateShape={handleUpdateShape}
+          onSaveToHistory={saveToHistory}
           onCopy={handleCopy}
           onPaste={handlePaste}
           onUndo={handleUndo}
