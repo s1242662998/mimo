@@ -168,7 +168,7 @@ function SelectionBox({ shape }) {
   );
 }
 
-function ResizeHandles({ shape, onResize, onRotate, stageRef }) {
+function ResizeHandles({ shape, onResize, onResizeEnd, onRotate, onRotateEnd, stageRef }) {
   if (!shape) return null;
 
   const bounds = getShapeBounds(shape);
@@ -275,6 +275,7 @@ function ResizeHandles({ shape, onResize, onRotate, stageRef }) {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       stage.listening(true);
+      onResizeEnd?.();
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -310,6 +311,7 @@ function ResizeHandles({ shape, onResize, onRotate, stageRef }) {
       window.removeEventListener('mousemove', handleRotateMove);
       window.removeEventListener('mouseup', handleRotateUp);
       stage.listening(true);
+      onRotateEnd?.();
     };
 
     stage.listening(false);
@@ -394,7 +396,7 @@ function ResizeHandles({ shape, onResize, onRotate, stageRef }) {
   );
 }
 
-function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDoubleClick, stageRef }) {
+function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef }) {
   const shapeRef = useRef(null);
 
   const shapeProps = {
@@ -441,6 +443,7 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDou
         }
         return { ...prev, x: newX, y: newY };
       });
+      onDragEnd?.();
     },
     onMouseEnter: (e) => {
       const stage = e.target.getStage();
@@ -656,6 +659,7 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDou
             }}
             onDragEnd={(e) => {
               onChange({ ...shape, x: e.target.x() - textWidth / 2, y: e.target.y() - textHeight / 2 });
+              onDragEnd?.();
             }}
             onMouseEnter={shapeProps.onMouseEnter}
             onMouseLeave={shapeProps.onMouseLeave}
@@ -693,7 +697,9 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDou
         <ResizeHandles
           shape={shape}
           onResize={handleResize}
+          onResizeEnd={onResizeEnd}
           onRotate={handleRotate}
+          onRotateEnd={onRotateEnd}
           stageRef={stageRef}
         />
       )}
@@ -732,13 +738,14 @@ export default function Canvas({
   selectedIds,
   setSelectedIds,
   onDrop,
+  onUpdateShape,
+  onSaveToHistory,
   onCopy,
   onPaste,
   onUndo,
   onRedo,
   snapToGrid,
   showGuides,
-  onUpdateShape,
 }) {
   const stageRef = useRef(null);
   const containerRef = useRef(null);
@@ -947,13 +954,6 @@ export default function Canvas({
   }, [shapes, canvasSize]);
 
   const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Delete' || e.key === 'Backspace') {
-      if (selectedId) {
-        setShapes(prev => prev.filter(s => s.id !== selectedId));
-        setSelectedId(null);
-      }
-    }
-
     if (e.ctrlKey || e.metaKey) {
       if (e.key === 'c') {
         e.preventDefault();
@@ -995,15 +995,17 @@ export default function Canvas({
         ArrowRight: { x: step, y: 0 },
       }[e.key];
 
-      setShapes(prev =>
-        prev.map(s =>
+      setShapes(prev => {
+        const newShapes = prev.map(s =>
           s.id === selectedId
             ? { ...s, x: s.x + delta.x, y: s.y + delta.y }
             : s
-        )
-      );
+        );
+        onSaveToHistory?.(newShapes);
+        return newShapes;
+      });
     }
-  }, [selectedId, shapes, setShapes, setSelectedId, setSelectedIds, onCopy, onPaste, onUndo, onRedo]);
+  }, [selectedId, shapes, setShapes, setSelectedId, setSelectedIds, onCopy, onPaste, onUndo, onRedo, onSaveToHistory]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -1030,14 +1032,16 @@ export default function Canvas({
           text: editText,
         },
       };
-      setShapes((prev) =>
-        prev.map((s) => (s.id === newShape.id ? newShape : s))
-      );
+      setShapes((prev) => {
+        const newShapes = prev.map((s) => (s.id === newShape.id ? newShape : s));
+        onSaveToHistory?.(newShapes);
+        return newShapes;
+      });
       onUpdateShape?.(newShape);
     }
     setEditingShape(null);
     setEditText('');
-  }, [editingShape, editText, setShapes, onUpdateShape]);
+  }, [editingShape, editText, setShapes, onUpdateShape, onSaveToHistory]);
 
   // 取消编辑
   const handleCancelEdit = useCallback(() => {
@@ -1143,6 +1147,24 @@ export default function Canvas({
                     return prev.map((s) => (s.id === newShape.id ? newShape : s));
                   }
                   return prev.map((s) => (s.id === newShapeOrFn.id ? newShapeOrFn : s));
+                });
+              }}
+              onDragEnd={() => {
+                setShapes((prev) => {
+                  onSaveToHistory?.(prev);
+                  return prev;
+                });
+              }}
+              onResizeEnd={() => {
+                setShapes((prev) => {
+                  onSaveToHistory?.(prev);
+                  return prev;
+                });
+              }}
+              onRotateEnd={() => {
+                setShapes((prev) => {
+                  onSaveToHistory?.(prev);
+                  return prev;
                 });
               }}
               onDoubleClick={handleDoubleClick}
