@@ -146,6 +146,16 @@ const AlignBottomIcon = () => (
   </svg>
 );
 
+const AIAssistantIcon = ({ active }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a2 2 0 0 1 2 2c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2z" />
+    <path d="M19 8h-1.5a1.5 1.5 0 0 0-1.5 1.5v4.5A1.5 1.5 0 0 0 17.5 15.5h1a2.5 2.5 0 0 1 0 5H16" />
+    <path d="M5 8h1.5A1.5 1.5 0 0 1 8 9.5v4.5A1.5 1.5 0 0 1 6.5 15.5h-1a2.5 2.5 0 0 0 0 5h2.5" />
+    <path d="M12 6v14" />
+    <path d="M9 13h6" />
+  </svg>
+);
+
 export default function Toolbar({
   onDelete,
   onClear,
@@ -168,6 +178,8 @@ export default function Toolbar({
   hasSelection,
   onAlign,
   multiSelected,
+  showRagChat,
+  onToggleRagChat,
 }) {
   return (
     <div className="toolbar">
@@ -175,6 +187,19 @@ export default function Toolbar({
         <button onClick={onImport} title="导入截图">
           <ImportIcon />
           <span>导入</span>
+        </button>
+      </div>
+
+      <div className="toolbar-separator" />
+
+      <div className="toolbar-group">
+        <button 
+          className={`ai-assistant-btn ${showRagChat ? 'active' : ''}`}
+          onClick={onToggleRagChat} 
+          title="AI 助手"
+        >
+          <AIAssistantIcon active={showRagChat} />
+          <span>AI 助手</span>
         </button>
       </div>
 

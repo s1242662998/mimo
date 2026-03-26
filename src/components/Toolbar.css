@@ -62,6 +62,15 @@
   color: var(--color-primary);
 }
 
+.ai-assistant-btn.active {
+  background-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+.ai-assistant-btn.active:hover {
+  background-color: var(--color-primary-light) !important;
+}
+
 .toolbar-separator {
   width: 1px;
   height: 20px;

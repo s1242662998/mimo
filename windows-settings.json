@@ -1,42 +1,415 @@
 {
-  "screenshotWidth": 1152,
-  "screenshotHeight": 768,
+  "screenshotWidth": 1200,
+  "screenshotHeight": 800,
   "elements": [
     {
       "type": "rectangle",
       "x": 0,
       "y": 0,
-      "width": 1152,
-      "height": 768,
+      "width": 1200,
+      "height": 800,
+      "fill": "#F3F3F3"
+    },
+    {
+      "type": "rectangle",
+      "x": 0,
+      "y": 0,
+      "width": 1200,
+      "height": 32,
       "fill": "#FFFFFF"
     },
-    {"type": "text", "x": 576, "y": 50, "text": "Windows 设置", "fontSize": 32, "fill": "#000000", "width": 300},
-    {"type": "input", "x": 410, "y": 100, "width": 330, "height": 35, "fill": "#FFFFFF", "stroke": "#0078D4", "cornerRadius": 2},
-    {"type": "text", "x": 110, "y": 200, "text": "系统", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 110, "y": 225, "text": "显示、声音、通知、电源", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 370, "y": 200, "text": "设备", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 370, "y": 225, "text": "蓝牙、打印机、鼠标", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 630, "y": 200, "text": "移动设备", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 630, "y": 225, "text": "连接 Android 设备和 iPhone", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 890, "y": 200, "text": "网络和 Internet", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 890, "y": 225, "text": "WLAN、飞行模式、VPN", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 110, "y": 300, "text": "个性化", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 110, "y": 325, "text": "背景、锁屏、颜色", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 370, "y": 300, "text": "应用", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 370, "y": 325, "text": "卸载、默认值", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 630, "y": 300, "text": "帐户", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 630, "y": 325, "text": "你的帐户、电子邮件", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 890, "y": 300, "text": "时间和语言", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 890, "y": 325, "text": "语音、区域、日期", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 110, "y": 400, "text": "游戏", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 110, "y": 425, "text": "Game Bar、捕获、游戏模式", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 370, "y": 400, "text": "轻松使用", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 370, "y": 425, "text": "讲述人、放大镜、高对比度", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 630, "y": 400, "text": "搜索", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 630, "y": 425, "text": "查找我的文件、权限", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 890, "y": 400, "text": "隐私", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 890, "y": 425, "text": "位置、摄像头、麦克风", "fontSize": 12, "fill": "#666666"},
-    {"type": "text", "x": 110, "y": 500, "text": "更新和安全", "fontSize": 16, "fill": "#000000"},
-    {"type": "text", "x": 110, "y": 525, "text": "Windows 更新、恢复、备份", "fontSize": 12, "fill": "#666666"}
+    {
+      "type": "text",
+      "x": 16,
+      "y": 8,
+      "text": "设置",
+      "fontSize": 12,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 1096,
+      "y": 8,
+      "text": "—",
+      "fontSize": 12,
+      "fill": "#000000"
+    },
+    {
+      "type": "rectangle",
+      "x": 1136,
+      "y": 8,
+      "width": 12,
+      "height": 12,
+      "fill": "transparent",
+      "stroke": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 1176,
+      "y": 8,
+      "text": "✕",
+      "fontSize": 12,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 526,
+      "y": 80,
+      "text": "Windows 设置",
+      "fontSize": 24,
+      "fill": "#000000"
+    },
+    {
+      "type": "input",
+      "x": 428,
+      "y": 126,
+      "width": 344,
+      "height": 32,
+      "placeholder": "查找设置",
+      "fill": "#FFFFFF",
+      "stroke": "#CCCCCC",
+      "cornerRadius": 0
+    },
+    {
+      "type": "text",
+      "x": 750,
+      "y": 134,
+      "text": "🔍",
+      "fontSize": 16,
+      "fill": "#666666"
+    },
+    {
+      "type": "rectangle",
+      "x": 0,
+      "y": 200,
+      "width": 1200,
+      "height": 600,
+      "fill": "#FFFFFF"
+    },
+    {
+      "type": "image",
+      "x": 68,
+      "y": 226,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 120,
+      "y": 226,
+      "text": "系统",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 120,
+      "y": 250,
+      "text": "显示、声音、通知、电源",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 346,
+      "y": 226,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 398,
+      "y": 226,
+      "text": "设备",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 398,
+      "y": 250,
+      "text": "蓝牙、打印机、鼠标",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 624,
+      "y": 226,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 676,
+      "y": 226,
+      "text": "移动设备",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 676,
+      "y": 250,
+      "text": "连接 Android 设备和 iPhone",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 902,
+      "y": 226,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 954,
+      "y": 226,
+      "text": "网络和 Internet",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 954,
+      "y": 250,
+      "text": "WLAN、飞行模式、VPN",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 68,
+      "y": 334,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 120,
+      "y": 334,
+      "text": "个性化",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 120,
+      "y": 358,
+      "text": "背景、锁屏、颜色",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 346,
+      "y": 334,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 398,
+      "y": 334,
+      "text": "应用",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 398,
+      "y": 358,
+      "text": "卸载、默认值",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 624,
+      "y": 334,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 676,
+      "y": 334,
+      "text": "帐户",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 676,
+      "y": 358,
+      "text": "你的帐户、电子邮件、同步设置、工作、家庭",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 902,
+      "y": 334,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 954,
+      "y": 334,
+      "text": "时间和语言",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 954,
+      "y": 358,
+      "text": "语音、区域、日期",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 68,
+      "y": 442,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 120,
+      "y": 442,
+      "text": "游戏",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 120,
+      "y": 466,
+      "text": "Game Bar, 捕获, 游戏模式",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 346,
+      "y": 442,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 398,
+      "y": 442,
+      "text": "轻松使用",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 398,
+      "y": 466,
+      "text": "讲述人、放大镜、高对比度",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 624,
+      "y": 442,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 676,
+      "y": 442,
+      "text": "搜索",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 676,
+      "y": 466,
+      "text": "查找我的文件、权限",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 902,
+      "y": 442,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 954,
+      "y": 442,
+      "text": "隐私",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 954,
+      "y": 466,
+      "text": "位置、摄像头、麦克风",
+      "fontSize": 12,
+      "fill": "#666666"
+    },
+    {
+      "type": "image",
+      "x": 68,
+      "y": 550,
+      "width": 32,
+      "height": 32,
+      "fill": "transparent",
+      "stroke": "#0078D7"
+    },
+    {
+      "type": "text",
+      "x": 120,
+      "y": 550,
+      "text": "更新和安全",
+      "fontSize": 16,
+      "fill": "#000000"
+    },
+    {
+      "type": "text",
+      "x": 120,
+      "y": 574,
+      "text": "Windows 更新、恢复、备份",
+      "fontSize": 12,
+      "fill": "#666666"
+    }
   ]
 }

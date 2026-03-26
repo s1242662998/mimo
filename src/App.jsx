@@ -4,6 +4,7 @@ import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import PropertiesPanel from './components/PropertiesPanel';
 import ScreenshotImporter from './components/ScreenshotImporter';
+import ChatWindow from './rag/ChatWindow';
 import './App.css';
 
 let shapeIdCounter = 0;
@@ -14,6 +15,7 @@ function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [showImporter, setShowImporter] = useState(false);
+  const [showRagChat, setShowRagChat] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [showGuides, setShowGuides] = useState(true);
 
@@ -360,6 +362,8 @@ function App() {
           hasSelection={!!selectedId || selectedIds.length > 0}
           onAlign={handleAlign}
           multiSelected={selectedIds.length > 1}
+          showRagChat={showRagChat}
+          onToggleRagChat={() => setShowRagChat(!showRagChat)}
         />
         <Canvas
           shapes={shapes}
@@ -388,6 +392,10 @@ function App() {
           onClose={() => setShowImporter(false)}
           onImport={handleImport}
         />
+      )}
+
+      {showRagChat && (
+        <ChatWindow onClose={() => setShowRagChat(false)} />
       )}
     </div>
   );
