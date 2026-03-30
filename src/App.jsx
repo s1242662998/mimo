@@ -319,15 +319,117 @@ function App() {
     saveToHistory(newShapes);
   }, [selectedId, selectedIds, shapes, saveToHistory]);
 
+  // 成组功能
+  const handleGroup = useCallback(() => {
+    if (selectedIds.length < 2) return;
+
+    const selectedShapes = shapes.filter(s => selectedIds.includes(s.id));
+
+    // 计算组的边界框（圆形的x,y是圆心坐标，矩形的x,y是左上角坐标）
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    selectedShapes.forEach(shape => {
+      const props = shape.props || {};
+      if (shape.type === 'circle') {
+        // 圆形：x,y 是圆心坐标
+        const radius = props.radius || 40;
+        minX = Math.min(minX, shape.x - radius);
+        minY = Math.min(minY, shape.y - radius);
+        maxX = Math.max(maxX, shape.x + radius);
+        maxY = Math.max(maxY, shape.y + radius);
+      } else if (shape.type === 'text') {
+        // 文本：x,y 是左上角坐标，使用 width 和 fontSize * lineHeight 估算高度
+        const width = props.width || 150;
+        const fontSize = props.fontSize || 16;
+        const lineHeight = props.lineHeight || 1.4;
+        const height = fontSize * lineHeight;
+        minX = Math.min(minX, shape.x);
+        minY = Math.min(minY, shape.y);
+        maxX = Math.max(maxX, shape.x + width);
+        maxY = Math.max(maxY, shape.y + height);
+      } else {
+        // 其他形状（矩形、按钮、输入框等）：x,y 是左上角坐标
+        const width = props.width || 100;
+        const height = props.height || 100;
+        minX = Math.min(minX, shape.x);
+        minY = Math.min(minY, shape.y);
+        maxX = Math.max(maxX, shape.x + width);
+        maxY = Math.max(maxY, shape.y + height);
+      }
+    });
+
+    // 创建组，子组件坐标转换为相对于组的坐标
+    const group = {
+      id: `group-${++shapeIdCounter}`,
+      type: 'group',
+      x: minX,
+      y: minY,
+      props: {
+        width: maxX - minX,
+        height: maxY - minY,
+      },
+      rotation: 0,
+      visible: true,
+      locked: false,
+      children: selectedShapes.map(s => ({
+        ...s,
+        // 圆形存储圆心相对于组左上角的偏移量，矩形存储左上角的偏移量
+        x: s.x - minX,
+        y: s.y - minY,
+      })),
+    };
+
+    // 移除被成组的组件，添加组
+    const newShapes = [...shapes.filter(s => !selectedIds.includes(s.id)), group];
+    setShapes(newShapes);
+    setSelectedId(group.id);
+    setSelectedIds([group.id]);
+    saveToHistory(newShapes);
+  }, [selectedIds, shapes, saveToHistory]);
+
+  // 解组功能
+  const handleUngroup = useCallback(() => {
+    if (!selectedId) return;
+
+    const selectedShape = shapes.find(s => s.id === selectedId);
+    if (!selectedShape || selectedShape.type !== 'group') return;
+
+    // 将子组件坐标转换回绝对坐标
+    const ungroupedShapes = selectedShape.children.map(child => ({
+      ...child,
+      x: selectedShape.x + child.x,
+      y: selectedShape.y + child.y,
+      id: `${child.id.split('-')[0]}-${++shapeIdCounter}`,
+    }));
+
+    // 移除组，添加子组件
+    const newShapes = [...shapes.filter(s => s.id !== selectedId), ...ungroupedShapes];
+    setShapes(newShapes);
+    setSelectedId(ungroupedShapes[0]?.id || null);
+    setSelectedIds(ungroupedShapes.map(s => s.id));
+    saveToHistory(newShapes);
+  }, [selectedId, shapes, saveToHistory]);
+
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Delete' || e.key === 'Backspace') {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       handleDelete();
     }
-  }, [handleDelete]);
+    // Ctrl+G 成组
+    if ((e.ctrlKey || e.metaKey) && e.key === 'g' && !e.shiftKey) {
+      e.preventDefault();
+      handleGroup();
+    }
+    // Ctrl+Shift+G 解组
+    if ((e.ctrlKey || e.metaKey) && e.key === 'g' && e.shiftKey) {
+      e.preventDefault();
+      handleUngroup();
+    }
+  }, [handleDelete, handleGroup, handleUngroup]);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
+  const canGroup = selectedIds.length >= 2;
+  const canUngroup = selectedShape?.type === 'group';
 
   return (
     <div className="app-container" onKeyDown={handleKeyDown} tabIndex={0}>
@@ -353,8 +455,12 @@ function App() {
           onCopy={handleCopy}
           onPaste={handlePaste}
           onDuplicate={handleDuplicate}
+          onGroup={handleGroup}
+          onUngroup={handleUngroup}
           canUndo={canUndo}
           canRedo={canRedo}
+          canGroup={canGroup}
+          canUngroup={canUngroup}
           snapToGrid={snapToGrid}
           onToggleSnapToGrid={() => setSnapToGrid(!snapToGrid)}
           showGuides={showGuides}

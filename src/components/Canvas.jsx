@@ -1,4 +1,4 @@
-import { Stage, Layer, Rect, Circle, Line, Text, RegularPolygon, Transformer, Group } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Ellipse, Line, Text, RegularPolygon, Transformer, Group } from 'react-konva';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import './Canvas.css';
 
@@ -488,6 +488,48 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
           y: newBounds.y,
           props: newProps,
         };
+      } else if (shape.type === 'group') {
+        // 组缩放：跟随组框比例缩放所有子组件
+        const oldWidth = shape.props.width || 1;
+        const oldHeight = shape.props.height || 1;
+        const scaleX = newBounds.width / oldWidth;
+        const scaleY = newBounds.height / oldHeight;
+
+        const scaledChildren = shape.children.map(child => {
+          const childProps = child.props || {};
+          const scaledChild = {
+            ...child,
+            x: child.x * scaleX,
+            y: child.y * scaleY,
+            props: { ...childProps },
+          };
+
+          // 缩放子组件的尺寸
+          if (child.type === 'circle') {
+            scaledChild.props.radius = (childProps.radius || 40) * scaleX;
+            scaledChild.props.radiusY = (childProps.radiusY || childProps.radius || 40) * scaleY;
+          } else if (child.type === 'text') {
+            scaledChild.props.width = (childProps.width || 150) * scaleX;
+            scaledChild.props.fontSize = (childProps.fontSize || 16) * scaleX;
+          } else {
+            scaledChild.props.width = (childProps.width || 100) * scaleX;
+            scaledChild.props.height = (childProps.height || 100) * scaleY;
+          }
+
+          return scaledChild;
+        });
+
+        return {
+          ...shape,
+          x: newBounds.x,
+          y: newBounds.y,
+          props: {
+            ...shape.props,
+            width: newBounds.width,
+            height: newBounds.height,
+          },
+          children: scaledChildren,
+        };
       } else if (shape.type !== 'line') {
         newProps.width = newBounds.width;
         newProps.height = newBounds.height;
@@ -682,6 +724,103 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
                 opacity={shape.props.opacity}
               />
             )}
+          </Group>
+        );
+      }
+      case 'group': {
+        // 渲染组内的子组件
+        return (
+          <Group
+            x={shape.x}
+            y={shape.y}
+            draggable
+            onClick={shapeProps.onClick}
+            onTap={shapeProps.onTap}
+            onDragMove={(e) => {
+              onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+            }}
+            onDragEnd={(e) => {
+              onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+            }}
+            onMouseEnter={shapeProps.onMouseEnter}
+            onMouseLeave={shapeProps.onMouseLeave}
+          >
+            {/* 组的背景框（可选，用于可视化） */}
+            <Rect
+              ref={shapeRef}
+              x={0}
+              y={0}
+              width={shape.props.width || 100}
+              height={shape.props.height || 100}
+              fill="transparent"
+              stroke="#0891B2"
+              strokeWidth={1}
+              dash={[4, 4]}
+              listening={false}
+            />
+            {/* 渲染子组件 */}
+            {shape.children?.map((child) => {
+              const childProps = child.props || {};
+              const childType = child.id?.split('-')[0];
+              
+              if (childType === 'circle') {
+                // 圆形：child.x, child.y 是圆心相对于组左上角的偏移量，直接作为圆心坐标
+                // 如果有 radiusY，使用 Ellipse；否则使用 Circle
+                if (childProps.radiusY !== undefined) {
+                  return (
+                    <Ellipse
+                      key={child.id}
+                      x={child.x}
+                      y={child.y}
+                      radiusX={childProps.radius || 40}
+                      radiusY={childProps.radiusY}
+                      fill={childProps.fill || '#F1F5F9'}
+                      stroke={childProps.stroke}
+                      strokeWidth={childProps.strokeWidth || 0}
+                    />
+                  );
+                }
+                return (
+                  <Circle
+                    key={child.id}
+                    x={child.x}
+                    y={child.y}
+                    radius={childProps.radius || 40}
+                    fill={childProps.fill || '#F1F5F9'}
+                    stroke={childProps.stroke}
+                    strokeWidth={childProps.strokeWidth || 0}
+                  />
+                );
+              } else if (childType === 'text') {
+                return (
+                  <Text
+                    key={child.id}
+                    x={child.x}
+                    y={child.y}
+                    text={childProps.text || '文本'}
+                    fontSize={childProps.fontSize || 16}
+                    fontFamily={childProps.fontFamily || 'Inter'}
+                    fill={childProps.fill || '#0F172A'}
+                    width={childProps.width || 150}
+                  />
+                );
+              } else {
+                // 默认矩形
+                return (
+                  <Rect
+                    key={child.id}
+                    x={child.x}
+                    y={child.y}
+                    width={childProps.width || 100}
+                    height={childProps.height || 100}
+                    fill={childProps.fill || '#F1F5F9'}
+                    stroke={childProps.stroke}
+                    strokeWidth={childProps.strokeWidth || 0}
+                    cornerRadius={childProps.cornerRadius || 0}
+                  />
+                );
+              }
+            })}
           </Group>
         );
       }

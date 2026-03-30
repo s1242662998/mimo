@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { componentList } from './componentList';
 import './ComponentPanel.css';
 
@@ -87,6 +88,16 @@ const Icons = {
       <line x1="1" y1="1" x2="23" y2="23" />
     </svg>
   ),
+  ChevronRight: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="8 4 14 10 8 16" />
+    </svg>
+  ),
+  ChevronDown: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="4 8 10 14 16 8" />
+    </svg>
+  ),
 };
 
 const IconMap = {
@@ -98,6 +109,7 @@ const IconMap = {
   circle: Icons.Circle,
   triangle: Icons.Triangle,
   line: Icons.Line,
+  group: Icons.Layers,
 };
 
 const TypeNameMap = {
@@ -142,9 +154,13 @@ function LayerItem({
   onDragEnd,
   onToggleVisibility,
   onToggleLock,
+  isExpanded,
+  onToggleExpand,
+  selectedIds,
 }) {
-  const Icon = IconMap[shape.id.split('-')[0]] || Icons.Rect;
-  const typeName = TypeNameMap[shape.id.split('-')[0]] || '形状';
+  const isGroup = shape.type === 'group';
+  const Icon = isGroup ? Icons.Layers : (IconMap[shape.id.split('-')[0]] || Icons.Rect);
+  const typeName = isGroup ? '组' : (TypeNameMap[shape.id.split('-')[0]] || '形状');
   const isVisible = shape.visible !== false;
   const isLocked = shape.locked === true;
 
@@ -157,45 +173,77 @@ function LayerItem({
   };
 
   return (
-    <div
-      className={`layer-item ${isSelected ? 'selected' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${!isVisible ? 'hidden-layer' : ''}`}
-      draggable={!isLocked}
-      onDragStart={(e) => onDragStart(e, index)}
-      onDragOver={onDragOver}
-      onDrop={(e) => onDrop(e, index)}
-      onDragEnd={onDragEnd}
-      onClick={handleClick}
-    >
-      <div className="layer-drag-handle">
-        <Icons.DragHandle />
+    <>
+      <div
+        className={`layer-item ${isSelected ? 'selected' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${!isVisible ? 'hidden-layer' : ''} ${isGroup ? 'group-item' : ''}`}
+        draggable={!isLocked}
+        onDragStart={(e) => onDragStart(e, index)}
+        onDragOver={onDragOver}
+        onDrop={(e) => onDrop(e, index)}
+        onDragEnd={onDragEnd}
+        onClick={handleClick}
+      >
+        {isGroup && (
+          <button
+            className="layer-expand-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand(shape.id);
+            }}
+          >
+            {isExpanded ? <Icons.ChevronDown /> : <Icons.ChevronRight />}
+          </button>
+        )}
+        {!isGroup && <div className="layer-drag-handle">
+          <Icons.DragHandle />
+        </div>}
+        <div className="layer-icon">
+          <Icon />
+        </div>
+        <span className="layer-name">{typeName} {isGroup ? `(${shape.children?.length || 0})` : ''}</span>
+        <div className="layer-actions">
+          <button
+            className={`layer-action-btn ${!isVisible ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleVisibility(shape.id);
+            }}
+            title={isVisible ? '隐藏' : '显示'}
+          >
+            {isVisible ? <Icons.Eye /> : <Icons.EyeOff />}
+          </button>
+          <button
+            className={`layer-action-btn ${isLocked ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleLock(shape.id);
+            }}
+            title={isLocked ? '解锁' : '锁定'}
+          >
+            {isLocked ? <Icons.Lock /> : <Icons.Unlock />}
+          </button>
+        </div>
       </div>
-      <div className="layer-icon">
-        <Icon />
-      </div>
-      <span className="layer-name">{typeName}</span>
-      <div className="layer-actions">
-        <button
-          className={`layer-action-btn ${!isVisible ? 'active' : ''}`}
+      {isGroup && isExpanded && shape.children?.map((child, childIndex) => (
+        <div
+          key={child.id}
+          className={`layer-item layer-child-item ${selectedIds?.includes(child.id) ? 'selected multi-selected' : ''} ${child.visible === false ? 'hidden-layer' : ''}`}
           onClick={(e) => {
-            e.stopPropagation();
-            onToggleVisibility(shape.id);
+            if (e.ctrlKey || e.metaKey) {
+              onMultiSelect(child.id);
+            } else {
+              onSelect(child.id);
+            }
           }}
-          title={isVisible ? '隐藏' : '显示'}
         >
-          {isVisible ? <Icons.Eye /> : <Icons.EyeOff />}
-        </button>
-        <button
-          className={`layer-action-btn ${isLocked ? 'active' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleLock(shape.id);
-          }}
-          title={isLocked ? '解锁' : '锁定'}
-        >
-          {isLocked ? <Icons.Lock /> : <Icons.Unlock />}
-        </button>
-      </div>
-    </div>
+          <div className="layer-drag-handle" style={{ width: 24 }}></div>
+          <div className="layer-icon">
+            {IconMap[child.id?.split('-')[0]] ? (() => { const ChildIcon = IconMap[child.id.split('-')[0]]; return <ChildIcon />; })() : <Icons.Rect />}
+          </div>
+          <span className="layer-name">{TypeNameMap[child.id?.split('-')[0]] || '形状'}</span>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -207,6 +255,15 @@ export default function ComponentPanel({
   onSelectMultiple,
   onReorder,
 }) {
+  const [expandedGroups, setExpandedGroups] = useState({});
+
+  const handleToggleExpand = (groupId) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupId]: !prev[groupId]
+    }));
+  };
+
   const handleLayerDragStart = (e, index) => {
     e.dataTransfer.setData('layerIndex', index.toString());
     e.dataTransfer.effectAllowed = 'move';
@@ -296,6 +353,9 @@ export default function ComponentPanel({
                   onDragEnd={handleLayerDragEnd}
                   onToggleVisibility={handleToggleVisibility}
                   onToggleLock={handleToggleLock}
+                  isExpanded={expandedGroups[shape.id] !== false}
+                  onToggleExpand={handleToggleExpand}
+                  selectedIds={selectedIds}
                 />
               );
             })

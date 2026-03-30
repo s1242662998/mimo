@@ -257,3 +257,38 @@
   width: 12px;
   height: 12px;
 }
+
+/* Group styles */
+.layer-item.group-item {
+  background: var(--color-secondary);
+}
+
+.layer-expand-btn {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.layer-expand-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-primary);
+}
+
+.layer-expand-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.layer-child-item {
+  padding-left: 32px !important;
+  background: var(--color-bg);
+}
