@@ -1093,6 +1093,23 @@ export default function Canvas({
   }, [shapes, canvasSize]);
 
   const handleKeyDown = useCallback((e) => {
+    // 检查事件是否发生在输入框、文本域内或被选中的文本
+    if (e.target.tagName === 'INPUT' || 
+        e.target.tagName === 'TEXTAREA' || 
+        e.target.isContentEditable ||
+        window.getSelection().toString().length > 0) {
+      
+      // 如果按下了 Ctrl+C 且有选中文本，让浏览器原生处理复制
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && window.getSelection().toString().length > 0) {
+        return;
+      }
+      
+      // 如果只是在输入框中，不拦截
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        return;
+      }
+    }
+
     if (e.ctrlKey || e.metaKey) {
       if (e.key === 'c') {
         e.preventDefault();

@@ -31,15 +31,31 @@
   gap: 8px;
 }
 
-.rag-provider-select {
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--color-border);
-  font-size: 12px;
-  background-color: var(--color-bg-canvas);
-  color: var(--color-text);
-  outline: none;
+.rag-settings-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
   cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rag-settings-btn:hover {
+  background-color: var(--color-hover);
+  color: var(--color-text);
+}
+
+.rag-settings-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* 隐藏原本的 select，因为移到设置面板了 */
+.rag-provider-select {
+  display: none;
 }
 
 .rag-close-btn {
@@ -99,6 +115,8 @@
   font-size: 13px;
   line-height: 1.5;
   word-break: break-word;
+  white-space: pre-wrap; /* 保持换行和空格，适合代码和 JSON */
+  overflow-x: auto; /* 防止长代码块撑破容器 */
 }
 
 .rag-message.user .rag-message-content {
@@ -119,8 +137,80 @@
   background-color: var(--color-bg);
   border-top: 1px solid var(--color-border);
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rag-input-controls {
+  display: flex;
   align-items: flex-end;
   gap: 8px;
+}
+
+.rag-upload-btn {
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.rag-upload-btn:hover {
+  background-color: var(--color-hover);
+  color: var(--color-text);
+}
+
+.rag-upload-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.rag-image-preview {
+  position: relative;
+  width: fit-content;
+  margin-bottom: 8px;
+}
+
+.rag-image-preview img {
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  object-fit: cover;
+}
+
+.rag-remove-image-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--color-text);
+  color: var(--color-bg);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.rag-remove-image-btn:hover {
+  background-color: #ef4444;
+}
+
+.rag-message-image {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(0,0,0,0.1);
 }
 
 .rag-chat-input-area textarea {
@@ -170,4 +260,139 @@
 .rag-send-btn svg {
   width: 18px;
   height: 18px;
+}
+
+/* Settings Panel */
+.rag-settings-panel {
+  flex: 1;
+  padding: 20px;
+  background-color: var(--color-bg);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rag-settings-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--color-text);
+}
+
+.rag-settings-subtitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 8px 0;
+  color: var(--color-text);
+}
+
+.rag-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rag-settings-group label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.rag-provider-select-full,
+.rag-settings-input {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 13px;
+  background-color: var(--color-bg-canvas);
+  color: var(--color-text);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rag-provider-select-full:focus,
+.rag-settings-input:focus {
+  border-color: var(--color-primary);
+}
+
+.rag-settings-divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 8px 0;
+}
+
+.rag-settings-add-btn,
+.rag-settings-save-btn {
+  padding: 8px 16px;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.rag-settings-add-btn:hover,
+.rag-settings-save-btn:hover {
+  opacity: 0.9;
+}
+
+.rag-settings-remove-btn,
+.rag-settings-cancel-btn {
+  padding: 8px 16px;
+  background-color: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rag-settings-cancel-btn {
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+.rag-settings-remove-btn:hover {
+  background-color: #fef2f2;
+}
+
+.rag-settings-cancel-btn:hover {
+  background-color: var(--color-hover);
+  color: var(--color-text);
+}
+
+.rag-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+/* Loading Dots */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--color-text-muted);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(1) { animation-delay: -0.32s; }
+.dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
 }
