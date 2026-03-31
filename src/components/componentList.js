@@ -9,6 +9,9 @@ export const componentList = [
       height: 36,
       fill: '#0891B2',
       cornerRadius: 8,
+      fontSize: 14,
+      fontFamily: 'Inter',
+      textColor: '#FFFFFF',
     },
   },
   {
@@ -79,6 +82,9 @@ export const componentList = [
       stroke: '#0891B2',
       strokeWidth: 1,
       cornerRadius: 8,
+      fontSize: 14,
+      fontFamily: 'Inter',
+      textColor: '#0F172A',
     },
   },
   {
@@ -91,19 +97,9 @@ export const componentList = [
       fill: '#DCFCE7',
       stroke: '#22C55E',
       strokeWidth: 1,
-    },
-  },
-  {
-    id: 'triangle',
-    name: '三角形',
-    description: '三角形形状',
-    type: 'triangle',
-    props: {
-      width: 80,
-      height: 70,
-      fill: '#FEF3C7',
-      stroke: '#F59E0B',
-      strokeWidth: 1,
+      fontSize: 14,
+      fontFamily: 'Inter',
+      textColor: '#0F172A',
     },
   },
   {

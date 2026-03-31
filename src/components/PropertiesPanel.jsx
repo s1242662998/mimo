@@ -3,10 +3,19 @@ import './PropertiesPanel.css';
 
 const propertyConfigs = {
   button: [
+    { key: 'text', label: '文字', type: 'text' },
     { key: 'width', label: '宽度', type: 'number', min: 20, max: 800 },
     { key: 'height', label: '高度', type: 'number', min: 10, max: 400 },
     { key: 'fill', label: '填充', type: 'color' },
     { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 50 },
+    { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 72 },
+    { key: 'fontFamily', label: '字体', type: 'select', options: [
+      { value: 'Inter', label: 'Inter' },
+      { value: 'Arial', label: 'Arial' },
+      { value: 'Helvetica', label: 'Helvetica' },
+      { value: 'system-ui', label: 'System UI' },
+    ]},
+    { key: 'textColor', label: '文字颜色', type: 'color' },
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
   ],
   input: [
@@ -96,32 +105,50 @@ const propertyConfigs = {
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
   ],
   rectangle: [
+    { key: 'text', label: '文字', type: 'text' },
     { key: 'width', label: '宽度', type: 'number', min: 10, max: 800 },
     { key: 'height', label: '高度', type: 'number', min: 10, max: 600 },
     { key: 'fill', label: '填充', type: 'color' },
     { key: 'stroke', label: '边框', type: 'color' },
     { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 20 },
     { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 100 },
+    { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 72 },
+    { key: 'fontFamily', label: '字体', type: 'select', options: [
+      { value: 'Inter', label: 'Inter' },
+      { value: 'Arial', label: 'Arial' },
+      { value: 'Helvetica', label: 'Helvetica' },
+      { value: 'system-ui', label: 'System UI' },
+    ]},
+    { key: 'textColor', label: '文字颜色', type: 'color' },
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
   ],
   circle: [
+    { key: 'text', label: '文字', type: 'text' },
     { key: 'radius', label: '半径', type: 'number', min: 5, max: 300 },
     { key: 'fill', label: '填充', type: 'color' },
     { key: 'stroke', label: '边框', type: 'color' },
     { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 20 },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
-  ],
-  triangle: [
-    { key: 'width', label: '宽度', type: 'number', min: 10, max: 600 },
-    { key: 'height', label: '高度', type: 'number', min: 10, max: 600 },
-    { key: 'fill', label: '填充', type: 'color' },
-    { key: 'stroke', label: '边框', type: 'color' },
-    { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 20 },
+    { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 72 },
+    { key: 'fontFamily', label: '字体', type: 'select', options: [
+      { value: 'Inter', label: 'Inter' },
+      { value: 'Arial', label: 'Arial' },
+      { value: 'Helvetica', label: 'Helvetica' },
+      { value: 'system-ui', label: 'System UI' },
+    ]},
+    { key: 'textColor', label: '文字颜色', type: 'color' },
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
   ],
   line: [
     { key: 'stroke', label: '颜色', type: 'color' },
     { key: 'strokeWidth', label: '宽度', type: 'number', min: 1, max: 20 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
+  icon: [
+    { key: 'width', label: '宽度', type: 'number', min: 8, max: 200 },
+    { key: 'height', label: '高度', type: 'number', min: 8, max: 200 },
+    { key: 'stroke', label: '描边颜色', type: 'color' },
+    { key: 'strokeWidth', label: '描边宽度', type: 'number', min: 0.5, max: 10, step: 0.5 },
+    { key: 'fill', label: '填充颜色', type: 'color' },
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
   ],
 };
@@ -133,8 +160,8 @@ const TypeNameMap = {
   image: '图片',
   rectangle: '矩形',
   circle: '圆形',
-  triangle: '三角形',
   line: '线条',
+  icon: '图标',
 };
 
 function PropertyInput({ config, value, onChange }) {
@@ -146,19 +173,23 @@ function PropertyInput({ config, value, onChange }) {
   };
 
   if (config.type === 'color') {
+    // 处理透明值
+    const isTransparent = !value || value === 'transparent' || value === 'none';
+    const colorValue = isTransparent ? '#000000' : value;
+    
     return (
       <div className="property-color">
         <input
           type="color"
-          value={value || '#000000'}
+          value={colorValue}
           onChange={(e) => onChange(config.key, e.target.value)}
         />
         <input
           type="text"
-          value={value || ''}
+          value={isTransparent ? 'transparent' : value}
           onChange={(e) => onChange(config.key, e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="#000000"
+          placeholder="transparent"
         />
       </div>
     );
@@ -261,7 +292,9 @@ export default function PropertiesPanel({ selectedShape, onUpdate }) {
     );
   }
 
-  const shapeType = selectedShape.id.split('-')[0];
+  // 获取形状类型，对于 icon 类型需要特殊处理
+  const idPrefix = selectedShape.id.split('-')[0];
+  const shapeType = selectedShape.type || idPrefix;
   const properties = propertyConfigs[shapeType] || [];
   const typeName = TypeNameMap[shapeType] || '形状';
 

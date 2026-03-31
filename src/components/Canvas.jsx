@@ -1,4 +1,4 @@
-import { Stage, Layer, Rect, Circle, Ellipse, Line, Text, RegularPolygon, Transformer, Group } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Ellipse, Line, Text, Path, Transformer, Group } from 'react-konva';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import './Canvas.css';
 
@@ -414,13 +414,13 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
     },
     onDblClick: (e) => {
       e.cancelBubble = true;
-      if (shape.type === 'text' || shape.id.startsWith('input')) {
+      if (['text', 'rect', 'circle'].includes(shape.type)) {
         onDoubleClick?.(shape);
       }
     },
     onDblTap: (e) => {
       e.cancelBubble = true;
-      if (shape.type === 'text' || shape.id.startsWith('input')) {
+      if (['text', 'rect', 'circle'].includes(shape.type)) {
         onDoubleClick?.(shape);
       }
     },
@@ -637,47 +637,156 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
           );
         }
         // 普通矩形
-        if (rotation) {
+        {
+          const width = shape.props.width || 100;
+          const height = shape.props.height || 100;
+          const fontSize = shape.props.fontSize || 14;
+          const textColor = shape.props.textColor || '#0F172A';
+          const centerX = shape.x + width / 2;
+          const centerY = shape.y + height / 2;
+          
           return (
             <Group
-              x={shape.x + shape.props.width / 2}
-              y={shape.y + shape.props.height / 2}
+              x={centerX}
+              y={centerY}
               rotation={rotation}
               draggable
               onClick={shapeProps.onClick}
               onTap={shapeProps.onTap}
+              onDblClick={shapeProps.onDblClick}
+              onDblTap={shapeProps.onDblTap}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x() - shape.props.width / 2, y: e.target.y() - shape.props.height / 2 });
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
               }}
               onDragEnd={(e) => {
-                onChange({ ...shape, x: e.target.x() - shape.props.width / 2, y: e.target.y() - shape.props.height / 2 });
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                onDragEnd?.();
               }}
               onMouseEnter={shapeProps.onMouseEnter}
               onMouseLeave={shapeProps.onMouseLeave}
             >
               <Rect
                 ref={shapeRef}
-                x={-shape.props.width / 2}
-                y={-shape.props.height / 2}
-                {...shape.props}
+                x={-width / 2}
+                y={-height / 2}
+                width={width}
+                height={height}
+                fill={shape.props.fill}
+                stroke={shape.props.stroke}
+                strokeWidth={shape.props.strokeWidth}
+                cornerRadius={shape.props.cornerRadius}
+                opacity={shape.props.opacity}
               />
+              {!isEditing && (
+                <Text
+                  text={shape.props.text || ''}
+                  x={-width / 2}
+                  y={-fontSize / 2}
+                  width={width}
+                  fontSize={fontSize}
+                  fontFamily={shape.props.fontFamily || 'Inter'}
+                  fill={textColor}
+                  align="center"
+                  listening={false}
+                />
+              )}
             </Group>
           );
         }
-        return <Rect ref={shapeRef} {...shapeProps} />;
-      case 'circle':
-        return <Circle ref={shapeRef} {...shapeProps} />;
-      case 'triangle':
+      case 'circle': {
+        const radius = shape.props.radius || 40;
+        const fontSize = shape.props.fontSize || 14;
         return (
-          <RegularPolygon
-            ref={shapeRef}
-            {...shapeProps}
-            sides={3}
-            radius={shape.props.width / 2 || 40}
-          />
+          <Group
+            x={shape.x}
+            y={shape.y}
+            rotation={rotation}
+            draggable
+            onClick={shapeProps.onClick}
+            onTap={shapeProps.onTap}
+            onDblClick={shapeProps.onDblClick}
+            onDblTap={shapeProps.onDblTap}
+            onDragMove={(e) => {
+              onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+            }}
+            onDragEnd={(e) => {
+              onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+              onDragEnd?.();
+            }}
+            onMouseEnter={shapeProps.onMouseEnter}
+            onMouseLeave={shapeProps.onMouseLeave}
+          >
+            <Circle
+              ref={shapeRef}
+              radius={radius}
+              fill={shape.props.fill}
+              stroke={shape.props.stroke}
+              strokeWidth={shape.props.strokeWidth}
+              opacity={shape.props.opacity}
+            />
+            {!isEditing && (
+              <Text
+                text={shape.props.text || ''}
+                x={-radius}
+                y={-fontSize / 2}
+                width={radius * 2}
+                fontSize={fontSize}
+                fontFamily={shape.props.fontFamily || 'Inter'}
+                fill={shape.props.textColor || '#0F172A'}
+                align="center"
+                listening={false}
+              />
+            )}
+          </Group>
         );
+      }
       case 'line':
         return <Line ref={shapeRef} {...shapeProps} />;
+      case 'icon': {
+        const iconWidth = shape.props.width || 24;
+        const iconHeight = shape.props.height || 24;
+        const iconPath = shape.props.iconPath || '';
+        const iconStroke = shape.props.stroke || '#64748B';
+        const iconStrokeWidth = shape.props.strokeWidth || 2;
+        const iconFill = shape.props.fill || '#FFFFFF';
+        const centerX = shape.x + iconWidth / 2;
+        const centerY = shape.y + iconHeight / 2;
+        
+        return (
+          <Group
+            x={centerX}
+            y={centerY}
+            rotation={rotation}
+            draggable
+            onClick={shapeProps.onClick}
+            onTap={shapeProps.onTap}
+            onDragMove={(e) => {
+              onChange({ ...shape, x: e.target.x() - iconWidth / 2, y: e.target.y() - iconHeight / 2 });
+            }}
+            onDragEnd={(e) => {
+              onChange({ ...shape, x: e.target.x() - iconWidth / 2, y: e.target.y() - iconHeight / 2 });
+              onDragEnd?.();
+            }}
+            onMouseEnter={shapeProps.onMouseEnter}
+            onMouseLeave={shapeProps.onMouseLeave}
+          >
+            <Path
+              ref={shapeRef}
+              data={iconPath}
+              x={-iconWidth / 2}
+              y={-iconHeight / 2}
+              scaleX={iconWidth / 24}
+              scaleY={iconHeight / 24}
+              stroke={iconStroke}
+              strokeWidth={iconStrokeWidth}
+              fill={iconFill}
+              lineCap="round"
+              lineJoin="round"
+              opacity={shape.props.opacity}
+            />
+          </Group>
+        );
+      }
       case 'text': {
         const textWidth = shape.props.width || 150;
         const fontSize = shape.props.fontSize || 16;
@@ -1211,9 +1320,11 @@ export default function Canvas({
 
     const bounds = getShapeBounds(editingShape);
     const isInput = editingShape.id.startsWith('input');
-    const textColor = isInput
-      ? (editingShape.props.textColor || '#0F172A')
-      : (editingShape.props.fill || '#0F172A');
+    const isTextType = editingShape.type === 'text';
+    const isCircle = editingShape.type === 'circle';
+    const textColor = isTextType
+      ? (editingShape.props.fill || '#0F172A')
+      : (editingShape.props.textColor || '#0F172A');
 
     const fontWeight = editingShape.props.fontWeight || '400';
     const fontStyle = editingShape.props.fontStyle || 'normal';
@@ -1221,12 +1332,40 @@ export default function Canvas({
     const rotation = editingShape.rotation || 0;
     const fontSize = editingShape.props.fontSize || 16;
     const lineHeight = editingShape.props.lineHeight || 1.4;
-    const padding = isInput ? 12 : 0;
+    const inputPadding = isInput ? 12 : 0;
 
     // 计算旋转中心点（相对于编辑框左上角）
     const borderOffset = 8; // 为 resize handles 留出空间
-    const width = (editingShape.props.width || 150) * scale - borderOffset * 2;
-    const height = (isInput ? (editingShape.props.height || 40) : fontSize * lineHeight) * scale - borderOffset * 2;
+    
+    // 根据组件类型计算宽度和高度
+    let componentWidth, componentHeight;
+    if (isCircle) {
+      componentWidth = (editingShape.props.radius || 40) * 2;
+      componentHeight = componentWidth;
+    } else if (isTextType) {
+      componentWidth = editingShape.props.width || 150;
+      componentHeight = fontSize * lineHeight;
+    } else {
+      // rect 类型（包括 button、rectangle、input）
+      componentWidth = editingShape.props.width || 150;
+      componentHeight = editingShape.props.height || 40;
+    }
+
+    const width = componentWidth * scale - borderOffset * 2;
+    const height = componentHeight * scale - borderOffset * 2;
+
+    // 确定文本对齐方式
+    let textAlign = 'center';
+    if (isInput) {
+      textAlign = editingShape.props.textAlign || 'left';
+    } else if (isTextType) {
+      textAlign = editingShape.props.align || 'left';
+    }
+
+    // 计算垂直居中的 padding
+    const scaledFontSize = fontSize * scale;
+    const textHeight = scaledFontSize * lineHeight;
+    const verticalPadding = isInput ? inputPadding * scale : Math.max(0, (height - textHeight) / 2);
 
     return {
       position: 'absolute',
@@ -1234,16 +1373,16 @@ export default function Canvas({
       top: bounds.y * scale + position.y + borderOffset,
       width: width,
       height: height,
-      fontSize: `${fontSize * scale}px`,
+      fontSize: `${scaledFontSize}px`,
       fontFamily: editingShape.props.fontFamily || 'Inter',
       color: textColor,
       fontWeight: fontWeight,
       fontStyle: fontStyle,
       textDecoration: textDecoration,
-      textAlign: editingShape.props.align || editingShape.props.textAlign || 'left',
+      textAlign: textAlign,
       border: 'none',
-      borderRadius: isInput ? `${8 * scale}px` : '0',
-      padding: `${padding * scale}px`,
+      borderRadius: isInput ? `${8 * scale}px` : (isCircle ? `${width / 2}px` : '0'),
+      padding: `${verticalPadding}px ${inputPadding * scale}px`,
       outline: 'none',
       background: isInput ? 'white' : 'transparent',
       zIndex: 1000,

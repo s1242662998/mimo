@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { componentList } from './componentList';
+import { iconLibrary, iconCategories } from '../data/icons';
 import './ComponentPanel.css';
 
 const Icons = {
@@ -110,6 +111,7 @@ const IconMap = {
   triangle: Icons.Triangle,
   line: Icons.Line,
   group: Icons.Layers,
+  icon: Icons.Image,
 };
 
 const TypeNameMap = {
@@ -121,6 +123,7 @@ const TypeNameMap = {
   circle: '圆形',
   triangle: '三角形',
   line: '线条',
+  icon: '图标',
 };
 
 function DraggableItem({ component }) {
@@ -137,6 +140,111 @@ function DraggableItem({ component }) {
         {Icon && <Icon />}
       </div>
       <span>{component.name}</span>
+    </div>
+  );
+}
+
+function DraggableIcon({ icon }) {
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData('component', JSON.stringify({
+      id: `icon-${icon.id}`,
+      name: icon.name,
+      type: 'icon',
+      props: {
+        iconId: icon.id,
+        iconPath: icon.path,
+        width: 24,
+        height: 24,
+        stroke: '#64748B',
+        strokeWidth: 2,
+        fill: '#FFFFFF',
+      },
+    }));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  return (
+    <div className="icon-item" draggable onDragStart={handleDragStart} title={icon.name}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d={icon.path} />
+      </svg>
+      <span className="icon-name">{icon.name}</span>
+    </div>
+  );
+}
+
+function IconLibraryPanel() {
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchText, setSearchText] = useState('');
+
+  const filteredIcons = iconLibrary.filter(icon => {
+    const matchesCategory = selectedCategory === 'all' || icon.category === selectedCategory;
+    const matchesSearch = icon.name.toLowerCase().includes(searchText.toLowerCase()) ||
+                         icon.id.toLowerCase().includes(searchText.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const groupedIcons = {};
+  filteredIcons.forEach(icon => {
+    if (!groupedIcons[icon.category]) {
+      groupedIcons[icon.category] = [];
+    }
+    groupedIcons[icon.category].push(icon);
+  });
+
+  return (
+    <div className="panel-section icon-library-section">
+      <div className="panel-section-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
+        </svg>
+        <span>图标库</span>
+      </div>
+      <div className="icon-library-content">
+        <input
+          type="text"
+          className="icon-search"
+          placeholder="搜索图标..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+        />
+        <div className="icon-categories">
+          <button
+            className={`category-btn ${selectedCategory === 'all' ? 'active' : ''}`}
+            onClick={() => setSelectedCategory('all')}
+          >
+            全部
+          </button>
+          {Object.entries(iconCategories).map(([key, label]) => (
+            <button
+              key={key}
+              className={`category-btn ${selectedCategory === key ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="icon-list">
+          {Object.entries(groupedIcons).map(([category, icons]) => (
+            <div key={category} className="icon-category-group">
+              {selectedCategory === 'all' && (
+                <div className="icon-category-title">{iconCategories[category] || category}</div>
+              )}
+              <div className="icon-grid">
+                {icons.map(icon => (
+                  <DraggableIcon key={icon.id} icon={icon} />
+                ))}
+              </div>
+            </div>
+          ))}
+          {filteredIcons.length === 0 && (
+            <div className="icon-empty">未找到匹配的图标</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -325,6 +433,8 @@ export default function ComponentPanel({
           ))}
         </div>
       </div>
+
+      <IconLibraryPanel />
 
       <div className="panel-section layers-section">
         <div className="panel-section-header">
