@@ -1325,9 +1325,11 @@ export default function Canvas({
     const isInput = editingShape.id.startsWith('input');
     const isTextType = editingShape.type === 'text';
     const isCircle = editingShape.type === 'circle';
-    const textColor = isInputOrButton
-      ? (isInput ? (editingShape.props.textColor || '#0F172A') : (editingShape.props.textColor || '#FFFFFF'))
-      : (editingShape.props.fill || '#0F172A');
+    
+    // HEAD 版本的颜色逻辑
+    const textColor = isTextType
+      ? (editingShape.props.fill || '#0F172A')
+      : (editingShape.props.textColor || '#0F172A');
 
     const fontWeight = editingShape.props.fontWeight || '400';
     const fontStyle = editingShape.props.fontStyle || 'normal';
@@ -1337,7 +1339,7 @@ export default function Canvas({
     const lineHeight = editingShape.props.lineHeight || 1.4;
     const inputPadding = isInput ? 12 : 0;
 
-    // 计算旋转中心点（相对于编辑框左上角）
+    // HEAD 版本的尺寸计算逻辑
     const borderOffset = 8; // 为 resize handles 留出空间
     
     // 根据组件类型计算宽度和高度
@@ -1357,7 +1359,7 @@ export default function Canvas({
     const width = componentWidth * scale - borderOffset * 2;
     const height = componentHeight * scale - borderOffset * 2;
 
-    // 确定文本对齐方式
+    // HEAD 版本的对齐方式逻辑
     let textAlign = 'center';
     if (isInput) {
       textAlign = editingShape.props.textAlign || 'left';
@@ -1365,7 +1367,7 @@ export default function Canvas({
       textAlign = editingShape.props.align || 'left';
     }
 
-    // 计算垂直居中的 padding
+    // HEAD 版本的垂直居中 padding 逻辑
     const scaledFontSize = fontSize * scale;
     const textHeight = scaledFontSize * lineHeight;
     const verticalPadding = isInput ? inputPadding * scale : Math.max(0, (height - textHeight) / 2);
@@ -1384,7 +1386,7 @@ export default function Canvas({
       textDecoration: textDecoration,
       textAlign: textAlign,
       border: 'none',
-      borderRadius: isInputOrButton ? `${8 * scale}px` : (isCircle ? `${width / 2}px` : '0'),
+      borderRadius: isInput ? `${8 * scale}px` : (isCircle ? `${width / 2}px` : '0'),
       padding: `${verticalPadding}px ${inputPadding * scale}px`,
       outline: 'none',
       background: isInputOrButton ? (isInput ? 'white' : 'transparent') : 'transparent',
