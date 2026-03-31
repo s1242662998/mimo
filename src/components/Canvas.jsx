@@ -414,21 +414,13 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
     },
     onDblClick: (e) => {
       e.cancelBubble = true;
-<<<<<<< HEAD
-      if (['text', 'rect', 'circle'].includes(shape.type)) {
-=======
-      if (shape.type === 'text' || shape.id.startsWith('input') || shape.id.startsWith('button')) {
->>>>>>> f0c9cea4c0171786d05bf8fbcae363659971f771
+      if (['text', 'rect', 'circle'].includes(shape.type) || shape.id.startsWith('input') || shape.id.startsWith('button')) {
         onDoubleClick?.(shape);
       }
     },
     onDblTap: (e) => {
       e.cancelBubble = true;
-<<<<<<< HEAD
-      if (['text', 'rect', 'circle'].includes(shape.type)) {
-=======
-      if (shape.type === 'text' || shape.id.startsWith('input') || shape.id.startsWith('button')) {
->>>>>>> f0c9cea4c0171786d05bf8fbcae363659971f771
+      if (['text', 'rect', 'circle'].includes(shape.type) || shape.id.startsWith('input') || shape.id.startsWith('button')) {
         onDoubleClick?.(shape);
       }
     },
@@ -1331,17 +1323,11 @@ export default function Canvas({
     const bounds = getShapeBounds(editingShape);
     const isInputOrButton = editingShape.id.startsWith('input') || editingShape.id.startsWith('button');
     const isInput = editingShape.id.startsWith('input');
-<<<<<<< HEAD
     const isTextType = editingShape.type === 'text';
     const isCircle = editingShape.type === 'circle';
-    const textColor = isTextType
-      ? (editingShape.props.fill || '#0F172A')
-      : (editingShape.props.textColor || '#0F172A');
-=======
     const textColor = isInputOrButton
       ? (isInput ? (editingShape.props.textColor || '#0F172A') : (editingShape.props.textColor || '#FFFFFF'))
       : (editingShape.props.fill || '#0F172A');
->>>>>>> f0c9cea4c0171786d05bf8fbcae363659971f771
 
     const fontWeight = editingShape.props.fontWeight || '400';
     const fontStyle = editingShape.props.fontStyle || 'normal';
@@ -1349,7 +1335,6 @@ export default function Canvas({
     const rotation = editingShape.rotation || 0;
     const fontSize = editingShape.props.fontSize || 16;
     const lineHeight = editingShape.props.lineHeight || 1.4;
-<<<<<<< HEAD
     const inputPadding = isInput ? 12 : 0;
 
     // 计算旋转中心点（相对于编辑框左上角）
@@ -1384,14 +1369,6 @@ export default function Canvas({
     const scaledFontSize = fontSize * scale;
     const textHeight = scaledFontSize * lineHeight;
     const verticalPadding = isInput ? inputPadding * scale : Math.max(0, (height - textHeight) / 2);
-=======
-    const padding = isInputOrButton ? 12 : 0;
-
-    // 计算旋转中心点（相对于编辑框左上角）
-    const borderOffset = 8; // 为 resize handles 留出空间
-    const width = (editingShape.props.width || 150) * scale - borderOffset * 2;
-    const height = (isInputOrButton ? (editingShape.props.height || 40) : fontSize * lineHeight) * scale - borderOffset * 2;
->>>>>>> f0c9cea4c0171786d05bf8fbcae363659971f771
 
     return {
       position: 'absolute',
@@ -1405,17 +1382,10 @@ export default function Canvas({
       fontWeight: fontWeight,
       fontStyle: fontStyle,
       textDecoration: textDecoration,
-<<<<<<< HEAD
       textAlign: textAlign,
       border: 'none',
-      borderRadius: isInput ? `${8 * scale}px` : (isCircle ? `${width / 2}px` : '0'),
+      borderRadius: isInputOrButton ? `${8 * scale}px` : (isCircle ? `${width / 2}px` : '0'),
       padding: `${verticalPadding}px ${inputPadding * scale}px`,
-=======
-      textAlign: editingShape.props.align || editingShape.props.textAlign || (isInputOrButton && !isInput ? 'center' : 'left'),
-      border: 'none',
-      borderRadius: isInputOrButton ? `${8 * scale}px` : '0',
-      padding: `${padding * scale}px`,
->>>>>>> f0c9cea4c0171786d05bf8fbcae363659971f771
       outline: 'none',
       background: isInputOrButton ? (isInput ? 'white' : 'transparent') : 'transparent',
       zIndex: 1000,
