@@ -13,11 +13,12 @@ function getShapeBounds(shape) {
 
   if (type === 'circle') {
     const radius = props.radius || 40;
+    const radiusY = props.radiusY !== undefined ? props.radiusY : radius;
     width = radius * 2;
-    height = width;
+    height = radiusY * 2;
     // Circle的x,y是圆心，需要转换为左上角
     boundsX = x - radius;
-    boundsY = y - radius;
+    boundsY = y - radiusY;
   } else if (type === 'line') {
     const points = props.points || [0, 0, 100, 0];
     width = Math.abs(points[2] - points[0]) || 100;
@@ -470,11 +471,14 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
       const newProps = { ...shape.props };
 
       if (shape.type === 'circle') {
-        newProps.radius = Math.min(newBounds.width, newBounds.height) / 2;
+        const radiusX = newBounds.width / 2;
+        const radiusY = newBounds.height / 2;
+        newProps.radius = radiusX;
+        newProps.radiusY = radiusY;
         return {
           ...shape,
-          x: newBounds.x + newProps.radius,
-          y: newBounds.y + newProps.radius,
+          x: newBounds.x + radiusX,
+          y: newBounds.y + radiusY,
           props: newProps,
         };
       } else if (shape.type === 'text') {
@@ -697,7 +701,9 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
         }
       case 'circle': {
         const radius = shape.props.radius || 40;
+        const radiusY = shape.props.radiusY !== undefined ? shape.props.radiusY : radius;
         const fontSize = shape.props.fontSize || 14;
+        const isEllipse = shape.props.radiusY !== undefined;
         return (
           <Group
             x={shape.x}
@@ -718,14 +724,26 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
             onMouseEnter={shapeProps.onMouseEnter}
             onMouseLeave={shapeProps.onMouseLeave}
           >
-            <Circle
-              ref={shapeRef}
-              radius={radius}
-              fill={shape.props.fill}
-              stroke={shape.props.stroke}
-              strokeWidth={shape.props.strokeWidth}
-              opacity={shape.props.opacity}
-            />
+            {isEllipse ? (
+              <Ellipse
+                ref={shapeRef}
+                radiusX={radius}
+                radiusY={radiusY}
+                fill={shape.props.fill}
+                stroke={shape.props.stroke}
+                strokeWidth={shape.props.strokeWidth}
+                opacity={shape.props.opacity}
+              />
+            ) : (
+              <Circle
+                ref={shapeRef}
+                radius={radius}
+                fill={shape.props.fill}
+                stroke={shape.props.stroke}
+                strokeWidth={shape.props.strokeWidth}
+                opacity={shape.props.opacity}
+              />
+            )}
             {!isEditing && (
               <Text
                 text={shape.props.text || ''}
@@ -1345,8 +1363,10 @@ export default function Canvas({
     // 根据组件类型计算宽度和高度
     let componentWidth, componentHeight;
     if (isCircle) {
-      componentWidth = (editingShape.props.radius || 40) * 2;
-      componentHeight = componentWidth;
+      const radius = editingShape.props.radius || 40;
+      const radiusY = editingShape.props.radiusY !== undefined ? editingShape.props.radiusY : radius;
+      componentWidth = radius * 2;
+      componentHeight = radiusY * 2;
     } else if (isTextType) {
       componentWidth = editingShape.props.width || 150;
       componentHeight = fontSize * lineHeight;
