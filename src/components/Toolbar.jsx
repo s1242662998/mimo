@@ -156,6 +156,23 @@ const AIAssistantIcon = ({ active }) => (
   </svg>
 );
 
+const GroupIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="8" height="8" rx="1" />
+    <rect x="13" y="13" width="8" height="8" rx="1" />
+    <path d="M11 7h6a2 2 0 0 1 2 2v6" />
+  </svg>
+);
+
+const UngroupIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="8" height="8" rx="1" />
+    <rect x="13" y="13" width="8" height="8" rx="1" />
+    <path d="M7 11v-4" />
+    <path d="M17 13v4" />
+  </svg>
+);
+
 export default function Toolbar({
   onDelete,
   onClear,
@@ -169,8 +186,12 @@ export default function Toolbar({
   onCopy,
   onPaste,
   onDuplicate,
+  onGroup,
+  onUngroup,
   canUndo,
   canRedo,
+  canGroup,
+  canUngroup,
   snapToGrid,
   onToggleSnapToGrid,
   showGuides,
@@ -297,6 +318,20 @@ export default function Toolbar({
             </button>
             <button onClick={() => onAlign?.('bottom')} disabled={!multiSelected} title="底对齐">
               <AlignBottomIcon />
+            </button>
+          </div>
+        </>
+      )}
+
+      {(canGroup || canUngroup) && (
+        <>
+          <div className="toolbar-separator" />
+          <div className="toolbar-group">
+            <button onClick={onGroup} disabled={!canGroup} title="成组 (Ctrl+G)">
+              <GroupIcon />
+            </button>
+            <button onClick={onUngroup} disabled={!canUngroup} title="解组 (Ctrl+Shift+G)">
+              <UngroupIcon />
             </button>
           </div>
         </>
