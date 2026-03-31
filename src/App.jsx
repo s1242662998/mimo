@@ -63,7 +63,11 @@ function App() {
   const saveToHistory = useCallback((newShapes) => {
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push(JSON.parse(JSON.stringify(newShapes)));
+      try {
+        newHistory.push(JSON.parse(JSON.stringify(newShapes || [])));
+      } catch (e) {
+        newHistory.push([]);
+      }
       if (newHistory.length > MAX_HISTORY) {
         newHistory.shift();
       }
@@ -431,6 +435,119 @@ function App() {
   const canGroup = selectedIds.length >= 2;
   const canUngroup = selectedShape?.type === 'group';
 
+  // 处理 AI 发出的精准修改指令
+  const handleAiAction = useCallback((action) => {
+    const { type, targetIds, updates, newShape, batchUpdates, elements } = action;
+
+    // 辅助函数：将 AI 格式的形状转换为 Konva 需要的格式
+    const convertAiShape = (el, index = 0) => {
+      const { type: jsonType, x, y, ...restProps } = el;
+      
+      const typeMap = {
+        text: 'text',
+        button: 'rect',
+        input: 'rect',
+        rectangle: 'rect',
+        circle: 'circle',
+        image: 'rect',
+      };
+      const elType = typeMap[jsonType] || jsonType || 'rect';
+      
+      const props = { ...restProps };
+      if (jsonType === 'input' || jsonType === 'button' || jsonType === 'image' || jsonType === 'rectangle') {
+        if (props.stroke && props.strokeWidth === undefined) {
+          props.strokeWidth = 1;
+        }
+      }
+      if (jsonType === 'text') {
+         props.fontFamily = props.fontFamily || 'Inter';
+      }
+      
+      return {
+        id: `${jsonType}-${shapeIdCounter++}`,
+        type: elType,
+        x: x || 0,
+        y: y || 0,
+        props: props
+      };
+    };
+
+    setShapes(prevShapes => {
+      let nextShapes = [...prevShapes];
+
+      if (type === 'replace_all' && elements && Array.isArray(elements)) {
+        // 直接根据截图生成的元素替换整个画布
+        nextShapes = elements.map((el, index) => convertAiShape(el, index));
+        setSelectedIds([]);
+        setSelectedId(null);
+      } else if (type === 'update') {
+        // 更新指定 ID 的组件
+        nextShapes = nextShapes.map(shape => {
+          if ((targetIds && targetIds.includes(shape.id)) || (targetIds && targetIds.includes('all'))) {
+            let updatedShape = { ...shape };
+            
+            if (updates) {
+              // 基础属性覆盖 (注意需要更新到 shape.props 里面)
+              if (updates.fill) updatedShape.props.fill = updates.fill;
+              if (updates.stroke) updatedShape.props.stroke = updates.stroke;
+              if (updates.text) updatedShape.props.text = updates.text;
+              
+              // 坐标是在 shape 顶层
+              if (updates.x !== undefined) updatedShape.x = updates.x;
+              if (updates.y !== undefined) updatedShape.y = updates.y;
+              
+              // 缩放处理 (也是在 shape.props 里面)
+              if (updates.scale) {
+                if (shape.type === 'circle') {
+                  updatedShape.props.radius = (updatedShape.props.radius || 40) * updates.scale;
+                } else {
+                  updatedShape.props.width = (updatedShape.props.width || 100) * updates.scale;
+                  updatedShape.props.height = (updatedShape.props.height || 100) * updates.scale;
+                }
+              }
+            }
+            
+            return updatedShape;
+          }
+          return shape;
+        });
+      } else if (type === 'batch_update' && batchUpdates) {
+        // 批量精细更新（如重新布局）
+        nextShapes = nextShapes.map(shape => {
+          const specificUpdate = batchUpdates.find(u => u.id === shape.id);
+          if (specificUpdate && specificUpdate.updates) {
+            let updatedShape = { ...shape };
+            const up = specificUpdate.updates;
+            
+            if (up.fill) updatedShape.props.fill = up.fill;
+            if (up.stroke) updatedShape.props.stroke = up.stroke;
+            if (up.text) updatedShape.props.text = up.text;
+            if (up.x !== undefined) updatedShape.x = up.x;
+            if (up.y !== undefined) updatedShape.y = up.y;
+            
+            return updatedShape;
+          }
+          return shape;
+        });
+      } else if (type === 'delete') {
+        // 删除指定 ID 的组件
+        nextShapes = nextShapes.filter(shape => !targetIds.includes(shape.id));
+        // 清理选中状态
+        if (targetIds.includes(selectedId)) setSelectedId(null);
+        setSelectedIds(prev => prev.filter(id => !targetIds.includes(id)));
+      } else if (type === 'add') {
+        // 添加新组件
+        if (newShape) {
+          nextShapes.push(convertAiShape(newShape));
+        }
+      }
+
+      return nextShapes;
+    });
+
+    saveToHistory();
+  }, [saveToHistory, selectedId]);
+
   return (
     <div className="app-container" onKeyDown={handleKeyDown} tabIndex={0}>
       <ComponentPanel
@@ -502,7 +619,11 @@ function App() {
       )}
 
       {showRagChat && (
-        <ChatWindow onClose={() => setShowRagChat(false)} />
+        <ChatWindow 
+          onClose={() => setShowRagChat(false)} 
+          canvasShapes={shapes}
+          onAiAction={handleAiAction}
+        />
       )}
     </div>
   );

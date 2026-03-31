@@ -115,8 +115,7 @@
   font-size: 13px;
   line-height: 1.5;
   word-break: break-word;
-  white-space: pre-wrap; /* 保持换行和空格，适合代码和 JSON */
-  overflow-x: auto; /* 防止长代码块撑破容器 */
+  white-space: pre-wrap;
 }
 
 .rag-message.user .rag-message-content {
@@ -130,6 +129,70 @@
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-bottom-left-radius: 2px;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* 代码块样式 */
+.rag-code-block-container {
+  margin: 8px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-canvas);
+}
+
+.rag-code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 10px;
+  background-color: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.rag-code-language {
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.rag-code-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  transition: all 0.2s;
+}
+
+.rag-code-copy-btn:hover {
+  background-color: var(--color-hover);
+  color: var(--color-text);
+}
+
+.rag-code-copy-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.rag-code-block {
+  margin: 0;
+  padding: 10px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre;
+}
+
+.rag-code-block code {
+  color: var(--color-text);
 }
 
 .rag-chat-input-area {
@@ -367,10 +430,27 @@
 
 .rag-settings-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 12px;
   margin-top: auto;
   padding-top: 20px;
+}
+
+.rag-settings-clear-btn {
+  padding: 8px 12px;
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rag-settings-clear-btn:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background-color: #fef2f2;
 }
 
 /* Loading Dots */
