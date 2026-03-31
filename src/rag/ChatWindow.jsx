@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './ChatWindow.css';
 
 const DEFAULT_PROVIDERS = [
@@ -7,10 +7,22 @@ const DEFAULT_PROVIDERS = [
   { id: 'openai-gpt-4', name: 'OpenAI (GPT-4)', baseUrl: 'https://api.openai.com/v1', isDefault: true }
 ];
 
-export default function ChatWindow({ onClose }) {
-  const [messages, setMessages] = useState([
-    { id: 1, role: 'assistant', content: '你好！我是 RAG 助手，请问有什么可以帮你的？' }
-  ]);
+export default function ChatWindow({ onClose, canvasShapes, onAiAction }) {
+  const [messages, setMessages] = useState(() => {
+    try {
+      const savedMessages = localStorage.getItem('rag_chat_history');
+      if (savedMessages && savedMessages !== 'undefined') {
+        const parsed = JSON.parse(savedMessages);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse chat history from localStorage", e);
+    }
+    return [{ id: 1, role: 'assistant', content: '你好！我是 RAG 助手，请问有什么可以帮你的？' }];
+  });
+  
   const [input, setInput] = useState('');
   
   // 模型配置相关状态
@@ -28,24 +40,38 @@ export default function ChatWindow({ onClose }) {
   // 图片上传相关状态
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
 
   // 初始化从 localStorage 加载配置
   useEffect(() => {
-    const savedProviders = localStorage.getItem('rag_custom_providers');
-    if (savedProviders) {
-      setProviders([...DEFAULT_PROVIDERS, ...JSON.parse(savedProviders)]);
-    }
-    
-    const savedKeys = localStorage.getItem('rag_api_keys');
-    if (savedKeys) {
-      setApiKeys(JSON.parse(savedKeys));
-    }
-    
-    const savedSelected = localStorage.getItem('rag_selected_provider');
-    if (savedSelected) {
-      setSelectedProviderId(savedSelected);
+    try {
+      const savedProviders = localStorage.getItem('rag_custom_providers');
+      if (savedProviders && savedProviders !== 'undefined') {
+        setProviders([...DEFAULT_PROVIDERS, ...JSON.parse(savedProviders)]);
+      }
+      
+      const savedKeys = localStorage.getItem('rag_api_keys');
+      if (savedKeys && savedKeys !== 'undefined') {
+        setApiKeys(JSON.parse(savedKeys));
+      }
+      
+      const savedSelected = localStorage.getItem('rag_selected_provider');
+      if (savedSelected && savedSelected !== 'undefined') {
+        setSelectedProviderId(savedSelected);
+      }
+    } catch (e) {
+      console.error("Failed to parse localStorage data", e);
     }
   }, []);
+
+  // 监听 messages 变化并保存到 localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('rag_chat_history', JSON.stringify(messages));
+    } catch (e) {
+      console.error("Failed to save chat history to localStorage", e);
+    }
+  }, [messages]);
 
   const handleSaveSettings = () => {
     localStorage.setItem('rag_api_keys', JSON.stringify(apiKeys));
@@ -171,6 +197,14 @@ export default function ChatWindow({ onClose }) {
     setIsLoading(true);
 
     try {
+      // 组装画布上下文信息
+      const simplifiedShapes = canvasShapes?.map(s => ({
+        id: s.id, type: s.type, x: s.x, y: s.y, fill: s.fill, 
+        ...(s.text ? {text: s.text} : {}),
+        ...(s.radius ? {radius: s.radius} : {width: s.width, height: s.height})
+      })) || [];
+      const canvasContext = `当前画布上的元素列表：${JSON.stringify(simplifiedShapes)}`;
+
       // 组装发给 OpenAI 格式 API 的消息历史
       const apiMessages = newMessagesList.map(msg => {
         if (msg.image && selectedProviderId === 'mimo-v2-omni') {
@@ -199,15 +233,41 @@ export default function ChatWindow({ onClose }) {
         };
       });
 
+      // 补充画布上下文到最近的一条用户消息中
+      if (apiMessages.length > 0) {
+        const lastMsg = apiMessages[apiMessages.length - 1];
+        if (typeof lastMsg.content === 'string') {
+          lastMsg.content = `${lastMsg.content}\n\n${canvasContext}`;
+        } else if (Array.isArray(lastMsg.content)) {
+          lastMsg.content.push({ type: 'text', text: canvasContext });
+        }
+      }
+
       // 如果是 MiMo，加上推荐的 system prompt
       if (selectedProviderId.startsWith('mimo')) {
         const today = new Date();
         const dateStr = today.toISOString().split('T')[0];
         const weekStr = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][today.getDay()];
         
+        const systemPrompt = `You are MiMo, an AI assistant developed by Xiaomi. Today's date: ${dateStr} ${weekStr}. Your knowledge cutoff date is December 2024.
+
+IMPORTANT INSTRUCTIONS:
+1. If the user asks to modify, update, move, or re-layout existing elements on the canvas, YOU MUST use the 'modify_canvas_shapes' tool.
+2. If the user uploads a UI screenshot and asks you to generate or parse it, YOU MUST use the 'modify_canvas_shapes' tool with type='replace_all' to directly draw it on the canvas. DO NOT just output JSON text.
+3. Keep your reasoning brief to avoid hitting the maximum token limit.
+
+SCREENSHOT PARSING RULES (When generating UI from image):
+- Supported types: 'text', 'button', 'input', 'rectangle', 'circle', 'image'
+- text: requires x, y, text (optional: fontSize, fill, width)
+- button/input/rectangle/image: requires x, y, width, height (optional: fill, stroke, cornerRadius, text/placeholder)
+- circle: requires x, y, radius (optional: fill, stroke)
+- Coordinate system: (0,0) is top-left.
+- Colors MUST be in HEX format (e.g., #FFFFFF).
+- Z-index: Background elements first, foreground elements last.`;
+
         apiMessages.unshift({
           role: 'system',
-          content: `You are MiMo, an AI assistant developed by Xiaomi. Today's date: ${dateStr} ${weekStr}. Your knowledge cutoff date is December 2024.\n\nIMPORTANT: Please provide the final JSON output directly. Keep your reasoning brief to avoid hitting the maximum token limit.`
+          content: systemPrompt
         });
       }
 
@@ -223,15 +283,64 @@ export default function ChatWindow({ onClose }) {
         headers['Authorization'] = `Bearer ${apiKey}`;
       }
 
+      const requestBody = {
+        model: currentProvider.id,
+        messages: apiMessages,
+        max_completion_tokens: 8192,
+        temperature: 0.7,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "modify_canvas_shapes",
+              description: "修改或重新布局画布上的组件，或根据截图生成全新画布。当用户要求修改元素，或者上传截图要求生成UI时调用此工具。",
+              parameters: {
+                type: "object",
+                properties: {
+                  type: {
+                    type: "string",
+                    enum: ["update", "delete", "add", "batch_update", "replace_all"],
+                    description: "操作类型。修改用 update/batch_update，从截图生成新画布必须使用 replace_all。"
+                  },
+                  targetIds: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "要操作的组件 ID 列表。仅在 update/delete 时需要。"
+                  },
+                  updates: {
+                    type: "object",
+                    description: "仅在 type='update' 时需要。包含要更新的属性。"
+                  },
+                  batchUpdates: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        updates: { type: "object" }
+                      }
+                    },
+                    description: "仅在 type='batch_update' 时需要。"
+                  },
+                  elements: {
+                    type: "array",
+                    items: {
+                      type: "object"
+                    },
+                    description: "仅在 type='replace_all' 时需要。这是解析截图后生成的完整组件数组，格式需严格遵守 SCREENSHOT PARSING RULES。"
+                  }
+                },
+                required: ["type"]
+              }
+            }
+          }
+        ]
+      };
+
       const response = await fetch(`${currentProvider.baseUrl}/chat/completions`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          model: currentProvider.id,
-          messages: apiMessages,
-          max_completion_tokens: 8192, // 再次增大 token 限制，防止复杂推理过程被截断
-          temperature: 0.7,
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -246,11 +355,39 @@ export default function ChatWindow({ onClose }) {
       let replyContent = messageObj.content || '';
       const reasoningContent = messageObj.reasoning_content || '';
       
-      // 如果没有普通内容但有思考过程（通常是因为被长度截断了），则显示思考过程
-      if (!replyContent && reasoningContent) {
-        replyContent = `[模型正在思考，但因长度限制未完成最终输出]\n\n思考过程：\n${reasoningContent}`;
-      } else if (!replyContent && !reasoningContent) {
-        replyContent = JSON.stringify(data); // 兜底显示原始 JSON
+      // 处理工具调用
+      if (messageObj.tool_calls && messageObj.tool_calls.length > 0) {
+        for (const toolCall of messageObj.tool_calls) {
+          if (toolCall.function.name === 'modify_canvas_shapes') {
+            try {
+              const args = JSON.parse(toolCall.function.arguments);
+              if (onAiAction) {
+                onAiAction(args);
+                
+                // 构建详细的执行反馈内容
+                let actionFeedback = `✅ **已执行画布修改操作**\n\n`;
+                
+                if (reasoningContent) {
+                  actionFeedback += `🤔 **AI 分析过程：**\n${reasoningContent}\n\n`;
+                }
+                
+                actionFeedback += `🛠️ **执行的具体指令：**\n\`\`\`json\n${JSON.stringify(args, null, 2)}\n\`\`\``;
+                
+                replyContent = actionFeedback;
+              }
+            } catch (e) {
+              console.error("解析工具参数失败", e);
+              replyContent = `❌ 解析工具参数失败：${e.message}\n\n原始数据：\n\`\`\`json\n${toolCall.function.arguments}\n\`\`\``;
+            }
+          }
+        }
+      } else {
+        // 如果没有普通内容但有思考过程（通常是因为被长度截断了），则显示思考过程
+        if (!replyContent && reasoningContent) {
+          replyContent = `[模型正在思考，但因长度限制未完成最终输出]\n\n思考过程：\n${reasoningContent}`;
+        } else if (!replyContent && !reasoningContent) {
+          replyContent = JSON.stringify(data); // 兜底显示原始 JSON
+        }
       }
 
       setMessages(prev => [...prev, {
@@ -321,6 +458,103 @@ export default function ChatWindow({ onClose }) {
         break;
       }
     }
+  };
+
+  const copyToClipboard = (text, id) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+    });
+  };
+
+  const renderMessageContent = (msg) => {
+    // 简单的 Markdown 粗体解析
+    let formattedContent = msg.content;
+    
+    // 1. 先尝试匹配 ``` 包裹的标准代码块
+    const parts = formattedContent.split(/(```[\s\S]*?```)/g);
+    
+    // 如果没有任何标准代码块，但内容看起来像是一个完整的 JSON（以 { 或 [ 开头和结尾）
+    if (parts.length === 1 && msg.content.trim().startsWith('{') && msg.content.trim().endsWith('}')) {
+       const codeId = `${msg.id}-code-raw-json`;
+       return (
+         <div className="rag-code-block-container">
+           <div className="rag-code-block-header">
+             <span className="rag-code-language">json</span>
+             <button 
+               className="rag-code-copy-btn"
+               onClick={() => copyToClipboard(msg.content.trim(), codeId)}
+             >
+               {copiedId === codeId ? (
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                   <polyline points="20 6 9 17 4 12" />
+                 </svg>
+               ) : (
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                 </svg>
+               )}
+               {copiedId === codeId ? '已复制' : '复制'}
+             </button>
+           </div>
+           <pre className="rag-code-block">
+             <code>{msg.content.trim()}</code>
+           </pre>
+         </div>
+       );
+    }
+
+    return parts.map((part, index) => {
+      if (part.startsWith('```') && part.endsWith('```')) {
+        const lines = part.split('\n');
+        const language = lines[0].replace('```', '').trim();
+        const codeContent = lines.slice(1, -1).join('\n');
+        const codeId = `${msg.id}-code-${index}`;
+
+        return (
+          <div key={index} className="rag-code-block-container">
+            <div className="rag-code-block-header">
+              <span className="rag-code-language">{language || 'code'}</span>
+              <button 
+                className="rag-code-copy-btn"
+                onClick={() => copyToClipboard(codeContent, codeId)}
+              >
+                {copiedId === codeId ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                )}
+                {copiedId === codeId ? '已复制' : '复制'}
+              </button>
+            </div>
+            <pre className="rag-code-block">
+              <code>{codeContent}</code>
+            </pre>
+          </div>
+        );
+      }
+      
+      // 普通文本（支持简单的 Markdown 粗体渲染）
+      const renderBoldText = (text) => {
+        const textParts = text.split(/(\*\*[\s\S]*?\*\*)/g);
+        return textParts.map((t, i) => {
+          if (t.startsWith('**') && t.endsWith('**')) {
+            return <strong key={i}>{t.slice(2, -2)}</strong>;
+          }
+          return <span key={i}>{t}</span>;
+        });
+      };
+
+      return <span key={index}>{renderBoldText(part)}</span>;
+    });
   };
 
   return (
@@ -414,6 +648,19 @@ export default function ChatWindow({ onClose }) {
           )}
 
           <div className="rag-settings-actions">
+            <button 
+              onClick={() => {
+                if (window.confirm('确定要清空所有对话历史吗？此操作不可恢复。')) {
+                  setMessages([{ id: 1, role: 'assistant', content: '你好！我是 RAG 助手，请问有什么可以帮你的？' }]);
+                  localStorage.removeItem('rag_chat_history');
+                  setShowSettings(false);
+                }
+              }} 
+              className="rag-settings-clear-btn"
+            >
+              清空对话历史
+            </button>
+            <div style={{ flex: 1 }}></div>
             <button onClick={() => setShowSettings(false)} className="rag-settings-cancel-btn">取消</button>
             <button onClick={handleSaveSettings} className="rag-settings-save-btn">保存设置</button>
           </div>
@@ -431,7 +678,7 @@ export default function ChatWindow({ onClose }) {
                       className="rag-message-image" 
                     />
                   )}
-                  {msg.content}
+                  {renderMessageContent(msg)}
                 </div>
               </div>
             ))}
