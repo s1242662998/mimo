@@ -71,6 +71,16 @@
   background-color: var(--color-primary-light) !important;
 }
 
+.preview-btn.active {
+  background-color: #10B981 !important; /* 绿色代表播放/演示状态 */
+  color: white !important;
+  border-color: #10B981 !important;
+}
+
+.preview-btn.active:hover {
+  background-color: #059669 !important;
+}
+
 .toolbar-separator {
   width: 1px;
   height: 20px;
