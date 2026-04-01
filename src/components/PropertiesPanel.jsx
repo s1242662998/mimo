@@ -357,7 +357,37 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
       <div className="properties-content">
         <div className="properties-type">
           <span className="type-label">{typeName}</span>
-          <span className="type-id">{selectedShape.id}</span>
+          <div className="type-id-container">
+            <input 
+              type="text" 
+              className="type-id-input" 
+              value={selectedShape.id} 
+              title="组件 ID (可修改)"
+              onChange={(e) => {
+                const newId = e.target.value.trim();
+                if (newId) {
+                  onUpdate({ ...selectedShape, id: newId });
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                  e.stopPropagation(); // 防止触发删除组件快捷键
+                }
+              }}
+            />
+            <button 
+              className="copy-id-btn" 
+              onClick={() => {
+                navigator.clipboard.writeText(selectedShape.id);
+              }}
+              title="复制 ID"
+            >
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="state-toggle-container">

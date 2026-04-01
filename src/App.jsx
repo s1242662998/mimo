@@ -197,10 +197,22 @@ function App() {
   }, [shapes]);
 
   const handleUpdateShapeWithHistory = useCallback((updatedShape) => {
-    const newShapes = shapes.map((s) => (s.id === updatedShape.id ? updatedShape : s));
+    // 检查 ID 是否有变化，如果有变化且新 ID 已存在，则拒绝更新
+    if (selectedId && updatedShape.id !== selectedId) {
+      if (shapes.some(s => s.id === updatedShape.id)) {
+        alert('该组件 ID 已存在，请使用其他 ID。');
+        return;
+      }
+      
+      // 更新 selectedId 为新 ID
+      setSelectedId(updatedShape.id);
+      setSelectedIds(prev => prev.map(id => id === selectedId ? updatedShape.id : id));
+    }
+
+    const newShapes = shapes.map((s) => (s.id === selectedId ? updatedShape : s));
     setShapes(newShapes);
     saveToHistory(newShapes);
-  }, [shapes, saveToHistory]);
+  }, [shapes, saveToHistory, selectedId]);
 
   const handleImport = useCallback((importedShapes) => {
     const newShapes = [...shapes, ...importedShapes];
@@ -450,7 +462,7 @@ function App() {
 
     // 辅助函数：将 AI 格式的形状转换为 Konva 需要的格式
     const convertAiShape = (el, index = 0) => {
-      const { type: jsonType, x, y, ...restProps } = el;
+      const { type: jsonType, x, y, visible, hoverProps, interactions, ...restProps } = el;
       
       const typeMap = {
         text: 'text',
@@ -473,10 +485,13 @@ function App() {
       }
       
       return {
-        id: `${jsonType}-${shapeIdCounter++}`,
+        id: el.id || `${jsonType}-${shapeIdCounter++}`,
         type: elType,
         x: x || 0,
         y: y || 0,
+        visible: visible !== false, // 默认显示
+        hoverProps: hoverProps || {},
+        interactions: interactions || [],
         props: props
       };
     };
@@ -484,7 +499,11 @@ function App() {
     setShapes(prevShapes => {
       let nextShapes = [...prevShapes];
 
-      if (type === 'replace_all' && elements && Array.isArray(elements)) {
+      if (type === 'replace_all') {
+        if (!elements || !Array.isArray(elements)) {
+          console.error('replace_all requires elements array');
+          return nextShapes;
+        }
         // 直接根据截图生成的元素替换整个画布
         nextShapes = elements.map((el, index) => convertAiShape(el, index));
         setSelectedIds([]);
@@ -504,6 +523,10 @@ function App() {
               // 坐标是在 shape 顶层
               if (updates.x !== undefined) updatedShape.x = updates.x;
               if (updates.y !== undefined) updatedShape.y = updates.y;
+              
+              // 交互与悬浮状态处理
+              if (updates.hoverProps !== undefined) updatedShape.hoverProps = { ...updatedShape.hoverProps, ...updates.hoverProps };
+              if (updates.interactions !== undefined) updatedShape.interactions = updates.interactions;
               
               // 缩放处理 (也是在 shape.props 里面)
               if (updates.scale) {
@@ -533,6 +556,9 @@ function App() {
             if (up.text) updatedShape.props.text = up.text;
             if (up.x !== undefined) updatedShape.x = up.x;
             if (up.y !== undefined) updatedShape.y = up.y;
+            
+            if (up.hoverProps !== undefined) updatedShape.hoverProps = { ...updatedShape.hoverProps, ...up.hoverProps };
+            if (up.interactions !== undefined) updatedShape.interactions = up.interactions;
             
             return updatedShape;
           }

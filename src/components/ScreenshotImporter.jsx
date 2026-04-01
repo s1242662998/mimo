@@ -54,8 +54,13 @@ function convertType(jsonType) {
 }
 
 function convertToShapes(data) {
+  // 如果是旧版的 update 格式或包含 action 类型的 JSON，拦截提示
+  if (data && data.type === 'update') {
+    throw new Error('当前面板仅支持导入 "截图生成 (replace_all/elements)" 的数据结构，更新组件请在右侧 AI 助手聊天框中直接输入指令。');
+  }
+
   if (!data || !Array.isArray(data.elements)) {
-    throw new Error('JSON 格式错误：缺少 elements 数组');
+    throw new Error('JSON 格式错误：缺少 elements 数组。如果您想更新现有组件，请关闭此弹窗并在右侧 AI 助手中直接发送指令。');
   }
 
   const timestamp = Date.now();

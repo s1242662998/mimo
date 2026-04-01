@@ -253,8 +253,13 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction }) {
 
 IMPORTANT INSTRUCTIONS:
 1. If the user asks to modify, update, move, or re-layout existing elements on the canvas, YOU MUST use the 'modify_canvas_shapes' tool.
-2. If the user uploads a UI screenshot and asks you to generate or parse it, YOU MUST use the 'modify_canvas_shapes' tool with type='replace_all' to directly draw it on the canvas. DO NOT just output JSON text.
-3. Keep your reasoning brief to avoid hitting the maximum token limit.
+2. If the user uploads a UI screenshot and asks you to generate or parse it, YOU MUST use the 'modify_canvas_shapes' tool with type='replace_all' to directly draw it on the canvas. 
+3. DO NOT output raw JSON code blocks in your chat response unless the user explicitly asks for JSON code. Just use the tool silently to complete the task and tell the user it's done.
+4. Keep your reasoning brief to avoid hitting the maximum token limit.
+
+CANVAS INTERACTION RULES (When adding hover or click events):
+- To add a hover effect (e.g. change color when hovering), add a 'hoverProps' object in updates: \`"hoverProps": { "fill": "#FF0000", "scale": 1.1 }\`
+- To add a click interaction (e.g. toggle visibility of another element), add an 'interactions' array: \`"interactions": [{ "trigger": "onClick", "action": "toggleVisibility", "targetId": "target-element-id" }]\`
 
 SCREENSHOT PARSING RULES (When generating UI from image):
 - Supported types: 'text', 'button', 'input', 'rectangle', 'circle', 'image'
@@ -309,7 +314,7 @@ SCREENSHOT PARSING RULES (When generating UI from image):
                   },
                   updates: {
                     type: "object",
-                    description: "仅在 type='update' 时需要。包含要更新的属性。"
+                    description: "仅在 type='update' 时需要。包含要更新的属性（包括 hoverProps 和 interactions）。"
                   },
                   batchUpdates: {
                     type: "array",
@@ -328,6 +333,10 @@ SCREENSHOT PARSING RULES (When generating UI from image):
                       type: "object"
                     },
                     description: "仅在 type='replace_all' 时需要。这是解析截图后生成的完整组件数组，格式需严格遵守 SCREENSHOT PARSING RULES。"
+                  },
+                  newShape: {
+                    type: "object",
+                    description: "仅在 type='add' 时需要。包含要添加的组件对象。"
                   }
                 },
                 required: ["type"]

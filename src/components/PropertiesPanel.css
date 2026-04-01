@@ -57,7 +57,8 @@
 }
 
 .properties-type {
-  padding: 12px 16px;
+  padding: 16px;
+  background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
@@ -65,15 +66,59 @@
 }
 
 .type-label {
-  font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text);
 }
 
-.type-id {
+.type-id-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-bg-subtle, #f1f5f9);
+  padding: 4px 6px;
+  border-radius: 4px;
+  max-width: 140px;
+}
+
+.type-id-input {
   font-size: 11px;
-  color: var(--color-text-muted);
   font-family: monospace;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  width: 100%;
+  padding: 2px 4px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.type-id-input:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.type-id-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.copy-id-btn {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.copy-id-btn:hover {
+  background: var(--color-border);
+  color: var(--color-text);
 }
 
 .properties-section {
