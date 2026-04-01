@@ -435,6 +435,15 @@ function App() {
   const canGroup = selectedIds.length >= 2;
   const canUngroup = selectedShape?.type === 'group';
 
+  // 处理交互动作
+  const handleExecuteInteraction = useCallback((interaction) => {
+    if (interaction.action === 'toggleVisibility' && interaction.targetId) {
+      setShapes(prev => prev.map(s =>
+        s.id === interaction.targetId ? { ...s, visible: s.visible === false ? true : false } : s
+      ));
+    }
+  }, []);
+
   // 处理 AI 发出的精准修改指令
   const handleAiAction = useCallback((action) => {
     const { type, targetIds, updates, newShape, batchUpdates, elements } = action;
@@ -604,10 +613,12 @@ function App() {
           onRedo={handleRedo}
           snapToGrid={snapToGrid}
           showGuides={showGuides}
+          onExecuteInteraction={handleExecuteInteraction}
         />
       </main>
       <PropertiesPanel
         selectedShape={selectedShape}
+        shapes={shapes}
         onUpdate={handleUpdateShapeWithHistory}
       />
 

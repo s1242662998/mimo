@@ -7,6 +7,7 @@ const propertyConfigs = {
     { key: 'width', label: '宽度', type: 'number', min: 20, max: 800 },
     { key: 'height', label: '高度', type: 'number', min: 10, max: 400 },
     { key: 'fill', label: '填充', type: 'color' },
+    { key: 'scale', label: '缩放', type: 'number', min: 0.1, max: 5, step: 0.05, defaultValue: 1 },
     { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 50 },
     { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 72 },
     { key: 'fontFamily', label: '字体', type: 'select', options: [
@@ -101,6 +102,7 @@ const propertyConfigs = {
     { key: 'fill', label: '背景', type: 'color' },
     { key: 'stroke', label: '边框', type: 'color' },
     { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 10 },
+    { key: 'scale', label: '缩放', type: 'number', min: 0.1, max: 5, step: 0.05, defaultValue: 1 },
     { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 50 },
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
   ],
@@ -111,6 +113,7 @@ const propertyConfigs = {
     { key: 'fill', label: '填充', type: 'color' },
     { key: 'stroke', label: '边框', type: 'color' },
     { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 20 },
+    { key: 'scale', label: '缩放', type: 'number', min: 0.1, max: 5, step: 0.05, defaultValue: 1 },
     { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 100 },
     { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 72 },
     { key: 'fontFamily', label: '字体', type: 'select', options: [
@@ -128,6 +131,7 @@ const propertyConfigs = {
     { key: 'fill', label: '填充', type: 'color' },
     { key: 'stroke', label: '边框', type: 'color' },
     { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 20 },
+    { key: 'scale', label: '缩放', type: 'number', min: 0.1, max: 5, step: 0.05, defaultValue: 1 },
     { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 72 },
     { key: 'fontFamily', label: '字体', type: 'select', options: [
       { value: 'Inter', label: 'Inter' },
@@ -149,6 +153,7 @@ const propertyConfigs = {
     { key: 'stroke', label: '描边颜色', type: 'color' },
     { key: 'strokeWidth', label: '描边宽度', type: 'number', min: 0.5, max: 10, step: 0.5 },
     { key: 'fill', label: '填充颜色', type: 'color' },
+    { key: 'scale', label: '缩放', type: 'number', min: 0.1, max: 5, step: 0.05, defaultValue: 1 },
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
   ],
 };
@@ -198,8 +203,8 @@ function PropertyInput({ config, value, onChange }) {
   if (config.type === 'number') {
     const step = config.step || 1;
     const displayValue = step < 1
-      ? (value ?? config.min ?? 0)
-      : Math.round(value || 0);
+      ? (value ?? config.defaultValue ?? config.min ?? 0)
+      : Math.round(value ?? config.defaultValue ?? 0);
 
     return (
       <input
@@ -261,15 +266,22 @@ function PropertyInput({ config, value, onChange }) {
   return null;
 }
 
-export default function PropertiesPanel({ selectedShape, onUpdate }) {
+export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }) {
+  const [editMode, setEditMode] = useState('default');
+  
   const [localProps, setLocalProps] = useState(() => {
     return selectedShape ? { ...selectedShape.props } : {};
+  });
+
+  const [localHoverProps, setLocalHoverProps] = useState(() => {
+    return selectedShape ? { ...(selectedShape.hoverProps || {}) } : {};
   });
 
   useEffect(() => {
     if (selectedShape) {
       const timer = setTimeout(() => {
         setLocalProps({ ...selectedShape.props });
+        setLocalHoverProps({ ...(selectedShape.hoverProps || {}) });
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -294,14 +306,23 @@ export default function PropertiesPanel({ selectedShape, onUpdate }) {
 
   // 获取形状类型，对于 icon 类型需要特殊处理
   const idPrefix = selectedShape.id.split('-')[0];
-  const shapeType = selectedShape.type || idPrefix;
+  let shapeType = selectedShape.type === 'rect' ? idPrefix : selectedShape.type;
+  if (!propertyConfigs[shapeType]) {
+    shapeType = 'rectangle'; // 降级到基础矩形
+  }
   const properties = propertyConfigs[shapeType] || [];
   const typeName = TypeNameMap[shapeType] || '形状';
 
   const handleChange = (key, value) => {
-    const newProps = { ...localProps, [key]: value };
-    setLocalProps(newProps);
-    onUpdate({ ...selectedShape, props: newProps });
+    if (editMode === 'hover') {
+      const newHoverProps = { ...localHoverProps, [key]: value };
+      setLocalHoverProps(newHoverProps);
+      onUpdate({ ...selectedShape, hoverProps: newHoverProps });
+    } else {
+      const newProps = { ...localProps, [key]: value };
+      setLocalProps(newProps);
+      onUpdate({ ...selectedShape, props: newProps });
+    }
   };
 
   const handlePositionChange = (axis, value) => {
@@ -310,6 +331,22 @@ export default function PropertiesPanel({ selectedShape, onUpdate }) {
 
   const handleRotationChange = (value) => {
     onUpdate({ ...selectedShape, rotation: parseFloat(value) || 0 });
+  };
+
+  const handleAddInteraction = () => {
+    const newInteractions = [...(selectedShape.interactions || []), { trigger: 'onClick', action: 'toggleVisibility', targetId: '' }];
+    onUpdate({ ...selectedShape, interactions: newInteractions });
+  };
+
+  const handleUpdateInteraction = (index, key, value) => {
+    const newInteractions = [...(selectedShape.interactions || [])];
+    newInteractions[index] = { ...newInteractions[index], [key]: value };
+    onUpdate({ ...selectedShape, interactions: newInteractions });
+  };
+
+  const handleRemoveInteraction = (index) => {
+    const newInteractions = (selectedShape.interactions || []).filter((_, i) => i !== index);
+    onUpdate({ ...selectedShape, interactions: newInteractions });
   };
 
   return (
@@ -323,50 +360,69 @@ export default function PropertiesPanel({ selectedShape, onUpdate }) {
           <span className="type-id">{selectedShape.id}</span>
         </div>
 
-        <div className="properties-section">
-          <div className="section-title">变换</div>
-          <div className="property-row">
-            <label>X</label>
-            <input
-              type="number"
-              className="property-number"
-              value={Math.round(selectedShape.x)}
-              onChange={(e) => handlePositionChange('x', e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Delete' || e.key === 'Backspace') e.stopPropagation();
-              }}
-            />
+        <div className="state-toggle-container">
+          <div className="state-toggle">
+            <button 
+              className={editMode === 'default' ? 'active' : ''} 
+              onClick={() => setEditMode('default')}
+            >
+              默认状态
+            </button>
+            <button 
+              className={editMode === 'hover' ? 'active' : ''} 
+              onClick={() => setEditMode('hover')}
+            >
+              悬浮状态
+            </button>
           </div>
-          <div className="property-row">
-            <label>Y</label>
-            <input
-              type="number"
-              className="property-number"
-              value={Math.round(selectedShape.y)}
-              onChange={(e) => handlePositionChange('y', e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Delete' || e.key === 'Backspace') e.stopPropagation();
-              }}
-            />
-          </div>
-          <div className="property-row">
-            <label>旋转</label>
-            <div className="property-rotation">
+        </div>
+
+        {editMode === 'default' && (
+          <div className="properties-section">
+            <div className="section-title">变换</div>
+            <div className="property-row">
+              <label>X</label>
               <input
                 type="number"
                 className="property-number"
-                value={Math.round(selectedShape.rotation || 0)}
-                min={-360}
-                max={360}
-                onChange={(e) => handleRotationChange(e.target.value)}
+                value={Math.round(selectedShape.x)}
+                onChange={(e) => handlePositionChange('x', e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Delete' || e.key === 'Backspace') e.stopPropagation();
                 }}
               />
-              <span className="unit">°</span>
+            </div>
+            <div className="property-row">
+              <label>Y</label>
+              <input
+                type="number"
+                className="property-number"
+                value={Math.round(selectedShape.y)}
+                onChange={(e) => handlePositionChange('y', e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Delete' || e.key === 'Backspace') e.stopPropagation();
+                }}
+              />
+            </div>
+            <div className="property-row">
+              <label>旋转</label>
+              <div className="property-rotation">
+                <input
+                  type="number"
+                  className="property-number"
+                  value={Math.round(selectedShape.rotation || 0)}
+                  min={-360}
+                  max={360}
+                  onChange={(e) => handleRotationChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Delete' || e.key === 'Backspace') e.stopPropagation();
+                  }}
+                />
+                <span className="unit">°</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="properties-section">
           <div className="section-title">样式</div>
@@ -375,55 +431,104 @@ export default function PropertiesPanel({ selectedShape, onUpdate }) {
               <label>{config.label}</label>
               <PropertyInput
                 config={config}
-                value={localProps[config.key]}
+                value={editMode === 'hover' ? localHoverProps[config.key] : localProps[config.key]}
                 onChange={handleChange}
               />
             </div>
           ))}
         </div>
 
-        <div className="properties-section">
-          <div className="section-title">快捷操作</div>
-          <div className="quick-actions">
-            <button
-              className="quick-action-btn"
-              onClick={() => {
-                const newProps = { ...localProps };
-                if (newProps.width) newProps.width = Math.round(newProps.width * 0.5);
-                if (newProps.height) newProps.height = Math.round(newProps.height * 0.5);
-                if (newProps.radius) newProps.radius = Math.round(newProps.radius * 0.5);
-                setLocalProps(newProps);
-                onUpdate({ ...selectedShape, props: newProps });
-              }}
-              title="缩小50%"
-            >
-              50%
-            </button>
-            <button
-              className="quick-action-btn"
-              onClick={() => {
-                const newProps = { ...localProps };
-                if (newProps.width) newProps.width = Math.round(newProps.width * 2);
-                if (newProps.height) newProps.height = Math.round(newProps.height * 2);
-                if (newProps.radius) newProps.radius = Math.round(newProps.radius * 2);
-                setLocalProps(newProps);
-                onUpdate({ ...selectedShape, props: newProps });
-              }}
-              title="放大200%"
-            >
-              200%
-            </button>
-            <button
-              className="quick-action-btn"
-              onClick={() => {
-                onUpdate({ ...selectedShape, rotation: 0 });
-              }}
-              title="重置旋转"
-            >
-              重置角度
+        {editMode === 'default' && (
+          <div className="properties-section">
+            <div className="section-title">快捷操作</div>
+            <div className="quick-actions">
+              <button
+                className="quick-action-btn"
+                onClick={() => {
+                  const newProps = { ...localProps };
+                  if (newProps.width) newProps.width = Math.round(newProps.width * 0.5);
+                  if (newProps.height) newProps.height = Math.round(newProps.height * 0.5);
+                  if (newProps.radius) newProps.radius = Math.round(newProps.radius * 0.5);
+                  setLocalProps(newProps);
+                  onUpdate({ ...selectedShape, props: newProps });
+                }}
+                title="缩小50%"
+              >
+                50%
+              </button>
+              <button
+                className="quick-action-btn"
+                onClick={() => {
+                  const newProps = { ...localProps };
+                  if (newProps.width) newProps.width = Math.round(newProps.width * 2);
+                  if (newProps.height) newProps.height = Math.round(newProps.height * 2);
+                  if (newProps.radius) newProps.radius = Math.round(newProps.radius * 2);
+                  setLocalProps(newProps);
+                  onUpdate({ ...selectedShape, props: newProps });
+                }}
+                title="放大200%"
+              >
+                200%
+              </button>
+              <button
+                className="quick-action-btn"
+                onClick={() => {
+                  onUpdate({ ...selectedShape, rotation: 0 });
+                }}
+                title="重置旋转"
+              >
+                重置角度
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="properties-section interactions-section">
+          <div className="section-title">交互 (Interactions)</div>
+          <div className="interactions-list">
+            {(selectedShape.interactions || []).map((ix, idx) => (
+              <div key={idx} className="interaction-item">
+                <div className="interaction-header">
+                  <span className="interaction-badge">交互 {idx + 1}</span>
+                  <button className="remove-interaction-btn" onClick={() => handleRemoveInteraction(idx)}>
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="interaction-body">
+                  <div className="interaction-field">
+                    <label>触发</label>
+                    <select value={ix.trigger} onChange={(e) => handleUpdateInteraction(idx, 'trigger', e.target.value)} className="property-select">
+                      <option value="onClick">点击 (Alt+Click)</option>
+                    </select>
+                  </div>
+                  <div className="interaction-field">
+                    <label>动作</label>
+                    <select value={ix.action} onChange={(e) => handleUpdateInteraction(idx, 'action', e.target.value)} className="property-select">
+                      <option value="toggleVisibility">切换显示/隐藏</option>
+                    </select>
+                  </div>
+                  <div className="interaction-field">
+                    <label>目标</label>
+                    <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
+                      <option value="">请选择目标...</option>
+                      {shapes.filter(s => s.id !== selectedShape.id).map(s => (
+                        <option key={s.id} value={s.id}>
+                          {TypeNameMap[s.type || s.id.split('-')[0]] || '组件'} ({s.id})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button className="add-interaction-btn" onClick={handleAddInteraction}>
+              + 添加交互
             </button>
           </div>
         </div>
+
       </div>
     </aside>
   );

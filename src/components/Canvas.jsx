@@ -397,21 +397,40 @@ function ResizeHandles({ shape, onResize, onResizeEnd, onRotate, onRotateEnd, st
   );
 }
 
-function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef }) {
+function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction }) {
   const shapeRef = useRef(null);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const activeProps = isHovered && shape.hoverProps ? { ...shape.props, ...shape.hoverProps } : shape.props;
 
   const shapeProps = {
-    ...shape.props,
+    ...activeProps,
     x: shape.x,
     y: shape.y,
     draggable: true,
     onClick: (e) => {
       e.cancelBubble = true;
-      onSelect(shape.id);
+      if (e.evt.altKey && shape.interactions?.length > 0) {
+        shape.interactions.forEach(interaction => {
+          if (interaction.trigger === 'onClick') {
+            onExecuteInteraction?.(interaction);
+          }
+        });
+      } else {
+        onSelect(shape.id);
+      }
     },
     onTap: (e) => {
       e.cancelBubble = true;
-      onSelect(shape.id);
+      if (e.evt.altKey && shape.interactions?.length > 0) {
+        shape.interactions.forEach(interaction => {
+          if (interaction.trigger === 'onClick') {
+            onExecuteInteraction?.(interaction);
+          }
+        });
+      } else {
+        onSelect(shape.id);
+      }
     },
     onDblClick: (e) => {
       e.cancelBubble = true;
@@ -447,10 +466,12 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
       onDragEnd?.();
     },
     onMouseEnter: (e) => {
+      setIsHovered(true);
       const stage = e.target.getStage();
-      if (stage) stage.container().style.cursor = 'move';
+      if (stage) stage.container().style.cursor = (e.evt.altKey && shape.interactions?.length > 0) ? 'pointer' : 'move';
     },
     onMouseLeave: (e) => {
+      setIsHovered(false);
       const stage = e.target.getStage();
       if (stage) stage.container().style.cursor = 'default';
     },
@@ -567,25 +588,25 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
       case 'rect':
         // 输入框或按钮类型需要显示内部文本
         if (shape.id.startsWith('input') || shape.id.startsWith('button')) {
-          const displayText = shape.props.text || shape.props.placeholder || '';
+          const displayText = activeProps.text || activeProps.placeholder || '';
           const textColor = shape.id.startsWith('input') 
-            ? (shape.props.textColor || '#0F172A')
-            : (shape.props.textColor || '#FFFFFF'); // 按钮默认白色文字
-          const isPlaceholder = shape.id.startsWith('input') && !shape.props.text;
-          const fontSize = shape.props.fontSize || 14;
+            ? (activeProps.textColor || '#0F172A')
+            : (activeProps.textColor || '#FFFFFF'); // 按钮默认白色文字
+          const isPlaceholder = shape.id.startsWith('input') && !activeProps.text;
+          const fontSize = activeProps.fontSize || 14;
           const padding = 12;
-          const width = shape.props.width || 200;
-          const height = shape.props.height || 40;
+          const width = activeProps.width || 200;
+          const height = activeProps.height || 40;
           const centerX = shape.x + width / 2;
           const centerY = shape.y + height / 2;
 
           // 根据对齐方式计算文本位置
           let textX = padding;
           let align = 'left';
-          if (shape.props.textAlign === 'center') {
+          if (activeProps.textAlign === 'center') {
             textX = 0;
             align = 'center';
-          } else if (shape.props.textAlign === 'right') {
+          } else if (activeProps.textAlign === 'right') {
             textX = 0;
             align = 'right';
           }
@@ -593,6 +614,9 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
           // 使用Group包裹，支持旋转
           return (
             <Group
+
+            scaleX={activeProps.scale || 1}
+            scaleY={activeProps.scale || 1}
               x={centerX}
               y={centerY}
               rotation={rotation}
@@ -616,11 +640,11 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
                 y={-height / 2}
                 width={width}
                 height={height}
-                fill={shape.props.fill}
-                stroke={shape.props.stroke}
-                strokeWidth={shape.props.strokeWidth}
-                cornerRadius={shape.props.cornerRadius}
-                opacity={shape.props.opacity}
+                fill={activeProps.fill}
+                stroke={activeProps.stroke}
+                strokeWidth={activeProps.strokeWidth}
+                cornerRadius={activeProps.cornerRadius}
+                opacity={activeProps.opacity}
               />
               {!isEditing && (
                 <Text
@@ -629,13 +653,13 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
                   y={-height / 2 + (height - fontSize) / 2}
                   width={align === 'left' ? width - padding * 2 : width}
                   fontSize={fontSize}
-                  fontFamily={shape.props.fontFamily || 'Inter'}
+                  fontFamily={activeProps.fontFamily || 'Inter'}
                   fill={isPlaceholder ? '#94A3B8' : textColor}
-                  fontStyle={shape.props.fontStyle === 'italic' ? 'italic' : 'normal'}
-                  fontWeight={String(shape.props.fontWeight || '400')}
-                  textDecoration={shape.props.textDecoration || 'none'}
+                  fontStyle={activeProps.fontStyle === 'italic' ? 'italic' : 'normal'}
+                  fontWeight={String(activeProps.fontWeight || '400')}
+                  textDecoration={activeProps.textDecoration || 'none'}
                   align={align}
-                  lineHeight={shape.props.lineHeight || 1.4}
+                  lineHeight={activeProps.lineHeight || 1.4}
                   listening={false}
                 />
               )}
@@ -644,15 +668,18 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
         }
         // 普通矩形
         {
-          const width = shape.props.width || 100;
-          const height = shape.props.height || 100;
-          const fontSize = shape.props.fontSize || 14;
-          const textColor = shape.props.textColor || '#0F172A';
+          const width = activeProps.width || 100;
+          const height = activeProps.height || 100;
+          const fontSize = activeProps.fontSize || 14;
+          const textColor = activeProps.textColor || '#0F172A';
           const centerX = shape.x + width / 2;
           const centerY = shape.y + height / 2;
           
           return (
             <Group
+
+            scaleX={activeProps.scale || 1}
+            scaleY={activeProps.scale || 1}
               x={centerX}
               y={centerY}
               rotation={rotation}
@@ -677,20 +704,20 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
                 y={-height / 2}
                 width={width}
                 height={height}
-                fill={shape.props.fill}
-                stroke={shape.props.stroke}
-                strokeWidth={shape.props.strokeWidth}
-                cornerRadius={shape.props.cornerRadius}
-                opacity={shape.props.opacity}
+                fill={activeProps.fill}
+                stroke={activeProps.stroke}
+                strokeWidth={activeProps.strokeWidth}
+                cornerRadius={activeProps.cornerRadius}
+                opacity={activeProps.opacity}
               />
               {!isEditing && (
                 <Text
-                  text={shape.props.text || ''}
+                  text={activeProps.text || ''}
                   x={-width / 2}
                   y={-fontSize / 2}
                   width={width}
                   fontSize={fontSize}
-                  fontFamily={shape.props.fontFamily || 'Inter'}
+                  fontFamily={activeProps.fontFamily || 'Inter'}
                   fill={textColor}
                   align="center"
                   listening={false}
@@ -700,12 +727,15 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
           );
         }
       case 'circle': {
-        const radius = shape.props.radius || 40;
-        const radiusY = shape.props.radiusY !== undefined ? shape.props.radiusY : radius;
-        const fontSize = shape.props.fontSize || 14;
-        const isEllipse = shape.props.radiusY !== undefined;
+        const radius = activeProps.radius || 40;
+        const radiusY = activeProps.radiusY !== undefined ? activeProps.radiusY : radius;
+        const fontSize = activeProps.fontSize || 14;
+        const isEllipse = activeProps.radiusY !== undefined;
         return (
           <Group
+
+            scaleX={activeProps.scale || 1}
+            scaleY={activeProps.scale || 1}
             x={shape.x}
             y={shape.y}
             rotation={rotation}
@@ -729,30 +759,30 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
                 ref={shapeRef}
                 radiusX={radius}
                 radiusY={radiusY}
-                fill={shape.props.fill}
-                stroke={shape.props.stroke}
-                strokeWidth={shape.props.strokeWidth}
-                opacity={shape.props.opacity}
+                fill={activeProps.fill}
+                stroke={activeProps.stroke}
+                strokeWidth={activeProps.strokeWidth}
+                opacity={activeProps.opacity}
               />
             ) : (
               <Circle
                 ref={shapeRef}
                 radius={radius}
-                fill={shape.props.fill}
-                stroke={shape.props.stroke}
-                strokeWidth={shape.props.strokeWidth}
-                opacity={shape.props.opacity}
+                fill={activeProps.fill}
+                stroke={activeProps.stroke}
+                strokeWidth={activeProps.strokeWidth}
+                opacity={activeProps.opacity}
               />
             )}
             {!isEditing && (
               <Text
-                text={shape.props.text || ''}
+                text={activeProps.text || ''}
                 x={-radius}
                 y={-fontSize / 2}
                 width={radius * 2}
                 fontSize={fontSize}
-                fontFamily={shape.props.fontFamily || 'Inter'}
-                fill={shape.props.textColor || '#0F172A'}
+                fontFamily={activeProps.fontFamily || 'Inter'}
+                fill={activeProps.textColor || '#0F172A'}
                 align="center"
                 listening={false}
               />
@@ -763,17 +793,20 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
       case 'line':
         return <Line ref={shapeRef} {...shapeProps} />;
       case 'icon': {
-        const iconWidth = shape.props.width || 24;
-        const iconHeight = shape.props.height || 24;
-        const iconPath = shape.props.iconPath || '';
-        const iconStroke = shape.props.stroke || '#64748B';
-        const iconStrokeWidth = shape.props.strokeWidth || 2;
-        const iconFill = shape.props.fill || '#FFFFFF';
+        const iconWidth = activeProps.width || 24;
+        const iconHeight = activeProps.height || 24;
+        const iconPath = activeProps.iconPath || '';
+        const iconStroke = activeProps.stroke || '#64748B';
+        const iconStrokeWidth = activeProps.strokeWidth || 2;
+        const iconFill = activeProps.fill || '#FFFFFF';
         const centerX = shape.x + iconWidth / 2;
         const centerY = shape.y + iconHeight / 2;
         
         return (
           <Group
+
+            scaleX={activeProps.scale || 1}
+            scaleY={activeProps.scale || 1}
             x={centerX}
             y={centerY}
             rotation={rotation}
@@ -802,21 +835,24 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
               fill={iconFill}
               lineCap="round"
               lineJoin="round"
-              opacity={shape.props.opacity}
+              opacity={activeProps.opacity}
             />
           </Group>
         );
       }
       case 'text': {
-        const textWidth = shape.props.width || 150;
-        const fontSize = shape.props.fontSize || 16;
-        const lineHeight = shape.props.lineHeight || 1.4;
+        const textWidth = activeProps.width || 150;
+        const fontSize = activeProps.fontSize || 16;
+        const lineHeight = activeProps.lineHeight || 1.4;
         const textHeight = fontSize * lineHeight;
         const centerX = shape.x + textWidth / 2;
         const centerY = shape.y + textHeight / 2;
         // 使用Group包裹以支持正确的旋转
         return (
           <Group
+
+            scaleX={activeProps.scale || 1}
+            scaleY={activeProps.scale || 1}
             x={centerX}
             y={centerY}
             rotation={rotation}
@@ -840,17 +876,17 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
                 ref={shapeRef}
                 x={-textWidth / 2}
                 y={-textHeight / 2}
-                text={shape.props.text}
+                text={activeProps.text}
                 width={textWidth}
                 fontSize={fontSize}
-                fontFamily={shape.props.fontFamily}
-                fill={shape.props.fill}
-                fontStyle={shape.props.fontStyle === 'italic' ? 'italic' : 'normal'}
-                fontWeight={String(shape.props.fontWeight || '400')}
-                textDecoration={shape.props.textDecoration || 'none'}
-                align={shape.props.align || 'left'}
+                fontFamily={activeProps.fontFamily}
+                fill={activeProps.fill}
+                fontStyle={activeProps.fontStyle === 'italic' ? 'italic' : 'normal'}
+                fontWeight={String(activeProps.fontWeight || '400')}
+                textDecoration={activeProps.textDecoration || 'none'}
+                align={activeProps.align || 'left'}
                 lineHeight={lineHeight}
-                opacity={shape.props.opacity}
+                opacity={activeProps.opacity}
               />
             )}
           </Group>
@@ -860,6 +896,9 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
         // 渲染组内的子组件
         return (
           <Group
+
+            scaleX={activeProps.scale || 1}
+            scaleY={activeProps.scale || 1}
             x={shape.x}
             y={shape.y}
             draggable
@@ -879,8 +918,8 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
               ref={shapeRef}
               x={0}
               y={0}
-              width={shape.props.width || 100}
-              height={shape.props.height || 100}
+              width={activeProps.width || 100}
+              height={activeProps.height || 100}
               fill="transparent"
               stroke="#0891B2"
               strokeWidth={1}
@@ -1014,6 +1053,7 @@ export default function Canvas({
   onRedo,
   snapToGrid,
   showGuides,
+  onExecuteInteraction,
 }) {
   const stageRef = useRef(null);
   const containerRef = useRef(null);
@@ -1452,7 +1492,7 @@ export default function Canvas({
               selectedId={selectedId}
             />
           )}
-          {shapes.map((shape) => (
+          {shapes.filter(s => s.visible !== false).map((shape) => (
             <ShapeRenderer
               key={shape.id}
               shape={shape}
@@ -1489,6 +1529,7 @@ export default function Canvas({
               }}
               onDoubleClick={handleDoubleClick}
               stageRef={stageRef}
+              onExecuteInteraction={onExecuteInteraction}
             />
           ))}
           <SelectionRectangle startPos={selectionStart} currentPos={selectionEnd} />
