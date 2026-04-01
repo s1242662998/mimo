@@ -1,5 +1,5 @@
 .properties-panel {
-  width: 240px;
+  width: 280px;
   background: var(--color-bg);
   border-left: 1px solid var(--color-border);
   display: flex;
@@ -223,6 +223,33 @@
 
 .property-color input[type="text"]:focus {
   border-color: var(--color-primary);
+}
+
+.eye-dropper-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.eye-dropper-btn:hover {
+  background: var(--color-hover);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.eye-dropper-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .property-range {
@@ -453,4 +480,59 @@
 
 .add-interaction-btn:hover {
   background: rgba(8, 145, 178, 0.05);
+}
+
+/* Image Upload */
+.image-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.image-upload-btn,
+.image-remove-btn {
+  width: 100%;
+  height: 32px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.image-upload-btn {
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  color: white;
+}
+
+.image-upload-btn:hover {
+  background: #0e7490;
+  border-color: #0e7490;
+}
+
+.image-remove-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.image-remove-btn:hover {
+  background: rgba(255, 0, 0, 0.05);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.image-preview {
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  margin-top: 4px;
+}
+
+.image-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
 }

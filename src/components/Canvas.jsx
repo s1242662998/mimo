@@ -1,4 +1,4 @@
-import { Stage, Layer, Rect, Circle, Ellipse, Line, Text, Path, Transformer, Group } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Ellipse, Line, Text, Path, Transformer, Group, Image as KonvaImage } from 'react-konva';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import './Canvas.css';
 
@@ -6,6 +6,69 @@ const HANDLE_SIZE = 8;
 const ROTATE_HANDLE_OFFSET = 20;
 const SNAP_THRESHOLD = 5;
 const GRID_SIZE = 10;
+
+function ImageShape({ shape, activeProps, shapeRef, rotation, shapeProps, onChange, onDragEnd }) {
+  const width = activeProps.width || 120;
+  const height = activeProps.height || 80;
+  const centerX = shape.x + width / 2;
+  const centerY = shape.y + height / 2;
+  const [imageObj, setImageObj] = useState(null);
+
+  useEffect(() => {
+    if (activeProps.imageData) {
+      const img = new window.Image();
+      img.src = activeProps.imageData;
+      img.onload = () => setImageObj(img);
+    } else {
+      setImageObj(null);
+    }
+  }, [activeProps.imageData]);
+
+  return (
+    <Group
+      scaleX={activeProps.scale || 1}
+      scaleY={activeProps.scale || 1}
+      x={centerX}
+      y={centerY}
+      rotation={rotation}
+      draggable
+      onClick={shapeProps.onClick}
+      onTap={shapeProps.onTap}
+      onDragMove={(e) => {
+        onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+      }}
+      onDragEnd={(e) => {
+        onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+        onDragEnd?.();
+      }}
+      onMouseEnter={shapeProps.onMouseEnter}
+      onMouseLeave={shapeProps.onMouseLeave}
+    >
+      <Rect
+        ref={shapeRef}
+        x={-width / 2}
+        y={-height / 2}
+        width={width}
+        height={height}
+        fill={activeProps.fill}
+        stroke={activeProps.stroke}
+        strokeWidth={activeProps.strokeWidth}
+        cornerRadius={activeProps.cornerRadius}
+        opacity={activeProps.opacity}
+      />
+      {imageObj && (
+        <KonvaImage
+          x={-width / 2}
+          y={-height / 2}
+          width={width}
+          height={height}
+          image={imageObj}
+          cornerRadius={activeProps.cornerRadius}
+        />
+      )}
+    </Group>
+  );
+}
 
 function getShapeBounds(shape) {
   const { x, y, props, type } = shape;
@@ -589,6 +652,18 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
     const rotation = shape.rotation || 0;
 
     switch (shape.type) {
+      case 'image':
+        return (
+          <ImageShape
+            shape={shape}
+            activeProps={activeProps}
+            shapeRef={shapeRef}
+            rotation={rotation}
+            shapeProps={shapeProps}
+            onChange={onChange}
+            onDragEnd={onDragEnd}
+          />
+        );
       case 'rect':
         // 输入框或按钮类型需要显示内部文本
         if (shape.id.startsWith('input') || shape.id.startsWith('button')) {

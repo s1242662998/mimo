@@ -60,7 +60,7 @@ export const componentList = [
     id: 'image',
     name: '图片',
     description: '图片占位符',
-    type: 'rect',
+    type: 'image',
     props: {
       width: 120,
       height: 80,
@@ -68,6 +68,7 @@ export const componentList = [
       stroke: '#E2E8F0',
       strokeWidth: 1,
       cornerRadius: 8,
+      imageData: null,
     },
   },
   {

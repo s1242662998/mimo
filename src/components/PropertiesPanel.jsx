@@ -1,5 +1,93 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './PropertiesPanel.css';
+
+function ColorInput({ config, value, onChange }) {
+  const [localValue, setLocalValue] = useState(value);
+  const isDragging = useRef(false);
+  const lastUpdateRef = useRef(0);
+  
+  useEffect(() => {
+    if (!isDragging.current) {
+      setLocalValue(value);
+    }
+  }, [value]);
+
+  const isTransparent = !localValue || localValue === 'transparent' || localValue === 'none';
+  const colorValue = isTransparent ? '#000000' : localValue;
+
+  const handleMouseDown = () => {
+    isDragging.current = true;
+    lastUpdateRef.current = Date.now();
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+    onChange(config.key, localValue);
+  };
+
+  const handleInput = (e) => {
+    const newValue = e.target.value;
+    setLocalValue(newValue);
+    
+    // 节流更新，每50ms最多更新一次
+    const now = Date.now();
+    if (now - lastUpdateRef.current >= 50) {
+      lastUpdateRef.current = now;
+      onChange(config.key, newValue);
+    }
+  };
+
+  const handleEyeDropper = async () => {
+    if (!window.EyeDropper) {
+      alert('您的浏览器不支持取色器功能');
+      return;
+    }
+    try {
+      const eyeDropper = new window.EyeDropper();
+      const result = await eyeDropper.open();
+      setLocalValue(result.sRGBHex);
+      onChange(config.key, result.sRGBHex);
+    } catch (e) {
+      // 用户取消取色
+    }
+  };
+
+  return (
+    <div className="property-color">
+      <input
+        type="color"
+        value={colorValue}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onInput={handleInput}
+        onChange={handleInput}
+      />
+      <input
+        type="text"
+        value={isTransparent ? 'transparent' : localValue}
+        onChange={(e) => {
+          setLocalValue(e.target.value);
+          onChange(config.key, e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.stopPropagation();
+          }
+        }}
+        placeholder="transparent"
+      />
+      <button
+        className="eye-dropper-btn"
+        onClick={handleEyeDropper}
+        title="取色器"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20.71 4.29a2 2 0 0 0-2.82 0l-8.29 8.29-1-1a1 1 0 0 0-1.42 0l-3.17 3.17a1 1 0 0 0 0-1.42l1 1-4.29 4.29a1 1 0 0 0 0 1.42l1.17 1.17a1 1 0 0 0 1.42 0l4.29-4.29 1 1a1 1 0 0 0 1.42 0l3.17-3.17a1 1 0 0 0 0-1.42l-1-1 8.29-8.29a2 2 0 0 0 0-2.82z"/>
+        </svg>
+      </button>
+    </div>
+  );
+}
 
 const propertyConfigs = {
   button: [
@@ -178,26 +266,7 @@ function PropertyInput({ config, value, onChange }) {
   };
 
   if (config.type === 'color') {
-    // 处理透明值
-    const isTransparent = !value || value === 'transparent' || value === 'none';
-    const colorValue = isTransparent ? '#000000' : value;
-    
-    return (
-      <div className="property-color">
-        <input
-          type="color"
-          value={colorValue}
-          onChange={(e) => onChange(config.key, e.target.value)}
-        />
-        <input
-          type="text"
-          value={isTransparent ? 'transparent' : value}
-          onChange={(e) => onChange(config.key, e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="transparent"
-        />
-      </div>
-    );
+    return <ColorInput config={config} value={value} onChange={onChange} />;
   }
 
   if (config.type === 'number') {
@@ -467,6 +536,49 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
             </div>
           ))}
         </div>
+
+        {shapeType === 'image' && (
+          <div className="properties-section">
+            <div className="section-title">图片</div>
+            <div className="image-upload-section">
+              <input
+                type="file"
+                id="image-upload"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      handleChange('imageData', event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
+              <button
+                className="image-upload-btn"
+                onClick={() => document.getElementById('image-upload').click()}
+              >
+                {localProps.imageData ? '更换图片' : '上传图片'}
+              </button>
+              {localProps.imageData && (
+                <button
+                  className="image-remove-btn"
+                  onClick={() => handleChange('imageData', null)}
+                >
+                  移除图片
+                </button>
+              )}
+              {localProps.imageData && (
+                <div className="image-preview">
+                  <img src={localProps.imageData} alt="预览" />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {editMode === 'default' && (
           <div className="properties-section">

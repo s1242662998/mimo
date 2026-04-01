@@ -470,7 +470,7 @@ function App() {
         input: 'rect',
         rectangle: 'rect',
         circle: 'circle',
-        image: 'rect',
+        image: 'image',
       };
       const elType = typeMap[jsonType] || jsonType || 'rect';
       

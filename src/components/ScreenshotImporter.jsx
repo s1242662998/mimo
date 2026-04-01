@@ -48,7 +48,7 @@ function convertType(jsonType) {
     input: 'rect',
     rectangle: 'rect',
     circle: 'circle',
-    image: 'rect',
+    image: 'image',
   };
   return typeMap[jsonType] || 'rect';
 }

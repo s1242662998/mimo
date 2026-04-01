@@ -308,7 +308,7 @@ function LayerItem({
         <div className="layer-icon">
           <Icon />
         </div>
-        <span className="layer-name">{typeName} {isGroup ? `(${shape.children?.length || 0})` : ''}</span>
+        <span className="layer-name" title={shape.id}>{typeName}（{shape.id}）</span>
         <div className="layer-actions">
           <button
             className={`layer-action-btn ${!isVisible ? 'active' : ''}`}
@@ -348,7 +348,7 @@ function LayerItem({
           <div className="layer-icon">
             {IconMap[child.id?.split('-')[0]] ? (() => { const ChildIcon = IconMap[child.id.split('-')[0]]; return <ChildIcon />; })() : <Icons.Rect />}
           </div>
-          <span className="layer-name">{TypeNameMap[child.id?.split('-')[0]] || '形状'}</span>
+          <span className="layer-name" title={child.id}>{TypeNameMap[child.id?.split('-')[0]] || '形状'}（{child.id}）</span>
         </div>
       ))}
     </>
