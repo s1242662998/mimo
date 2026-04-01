@@ -193,57 +193,47 @@ function IconLibraryPanel() {
   });
 
   return (
-    <div className="panel-section icon-library-section">
-      <div className="panel-section-header">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-          <circle cx="8.5" cy="8.5" r="1.5" />
-          <polyline points="21 15 16 10 5 21" />
-        </svg>
-        <span>图标库</span>
-      </div>
-      <div className="icon-library-content">
-        <input
-          type="text"
-          className="icon-search"
-          placeholder="搜索图标..."
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-        />
-        <div className="icon-categories">
+    <div className="icon-library-content">
+      <input
+        type="text"
+        className="icon-search"
+        placeholder="搜索图标..."
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+      />
+      <div className="icon-categories">
+        <button
+          className={`category-btn ${selectedCategory === 'all' ? 'active' : ''}`}
+          onClick={() => setSelectedCategory('all')}
+        >
+          全部
+        </button>
+        {Object.entries(iconCategories).map(([key, label]) => (
           <button
-            className={`category-btn ${selectedCategory === 'all' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('all')}
+            key={key}
+            className={`category-btn ${selectedCategory === key ? 'active' : ''}`}
+            onClick={() => setSelectedCategory(key)}
           >
-            全部
+            {label}
           </button>
-          {Object.entries(iconCategories).map(([key, label]) => (
-            <button
-              key={key}
-              className={`category-btn ${selectedCategory === key ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="icon-list">
-          {Object.entries(groupedIcons).map(([category, icons]) => (
-            <div key={category} className="icon-category-group">
-              {selectedCategory === 'all' && (
-                <div className="icon-category-title">{iconCategories[category] || category}</div>
-              )}
-              <div className="icon-grid">
-                {icons.map(icon => (
-                  <DraggableIcon key={icon.id} icon={icon} />
-                ))}
-              </div>
+        ))}
+      </div>
+      <div className="icon-list">
+        {Object.entries(groupedIcons).map(([category, icons]) => (
+          <div key={category} className="icon-category-group">
+            {selectedCategory === 'all' && (
+              <div className="icon-category-title">{iconCategories[category] || category}</div>
+            )}
+            <div className="icon-grid">
+              {icons.map(icon => (
+                <DraggableIcon key={icon.id} icon={icon} />
+              ))}
             </div>
-          ))}
-          {filteredIcons.length === 0 && (
-            <div className="icon-empty">未找到匹配的图标</div>
-          )}
-        </div>
+          </div>
+        ))}
+        {filteredIcons.length === 0 && (
+          <div className="icon-empty">未找到匹配的图标</div>
+        )}
       </div>
     </div>
   );
@@ -265,6 +255,7 @@ function LayerItem({
   isExpanded,
   onToggleExpand,
   selectedIds,
+  onFocusShape,
 }) {
   const isGroup = shape.type === 'group';
   const Icon = isGroup ? Icons.Layers : (IconMap[shape.id.split('-')[0]] || Icons.Rect);
@@ -280,6 +271,12 @@ function LayerItem({
     }
   };
 
+  const handleDoubleClick = () => {
+    if (onFocusShape) {
+      onFocusShape(shape.id);
+    }
+  };
+
   return (
     <>
       <div
@@ -290,6 +287,7 @@ function LayerItem({
         onDrop={(e) => onDrop(e, index)}
         onDragEnd={onDragEnd}
         onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
       >
         {isGroup && (
           <button
@@ -332,7 +330,7 @@ function LayerItem({
           </button>
         </div>
       </div>
-      {isGroup && isExpanded && shape.children?.map((child, childIndex) => (
+      {isGroup && isExpanded && shape.children?.map((child) => (
         <div
           key={child.id}
           className={`layer-item layer-child-item ${selectedIds?.includes(child.id) ? 'selected multi-selected' : ''} ${child.visible === false ? 'hidden-layer' : ''}`}
@@ -341,6 +339,11 @@ function LayerItem({
               onMultiSelect(child.id);
             } else {
               onSelect(child.id);
+            }
+          }}
+          onDoubleClick={() => {
+            if (onFocusShape) {
+              onFocusShape(child.id);
             }
           }}
         >
@@ -362,13 +365,26 @@ export default function ComponentPanel({
   onSelect,
   onSelectMultiple,
   onReorder,
+  onFocusShape,
 }) {
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [expandedSections, setExpandedSections] = useState({
+    components: true,
+    icons: true,
+    layers: true
+  });
 
   const handleToggleExpand = (groupId) => {
     setExpandedGroups(prev => ({
       ...prev,
       [groupId]: !prev[groupId]
+    }));
+  };
+
+  const handleToggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
     }));
   };
 
@@ -424,53 +440,83 @@ export default function ComponentPanel({
   return (
     <aside className="component-panel">
       <div className="panel-section">
-        <div className="panel-section-header">
+        <div className="panel-section-header" onClick={() => handleToggleSection('components')}>
+          <span className={`section-chevron ${expandedSections.components ? 'expanded' : ''}`}>
+            <Icons.ChevronRight />
+          </span>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="6" height="6" rx="1" />
+            <rect x="11" y="3" width="6" height="6" rx="1" />
+            <rect x="3" y="11" width="6" height="6" rx="1" />
+            <rect x="11" y="11" width="6" height="6" rx="1" />
+          </svg>
           <span>组件</span>
         </div>
-        <div className="component-list">
-          {componentList.map((comp) => (
-            <DraggableItem key={comp.id} component={comp} />
-          ))}
-        </div>
+        {expandedSections.components && (
+          <div className="component-list">
+            {componentList.map((comp) => (
+              <DraggableItem key={comp.id} component={comp} />
+            ))}
+          </div>
+        )}
       </div>
 
-      <IconLibraryPanel />
+      <div className="panel-section">
+        <div className="panel-section-header" onClick={() => handleToggleSection('icons')}>
+          <span className={`section-chevron ${expandedSections.icons ? 'expanded' : ''}`}>
+            <Icons.ChevronRight />
+          </span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span>图标库</span>
+        </div>
+        {expandedSections.icons && <IconLibraryPanel />}
+      </div>
 
       <div className="panel-section layers-section">
-        <div className="panel-section-header">
+        <div className="panel-section-header" onClick={() => handleToggleSection('layers')}>
+          <span className={`section-chevron ${expandedSections.layers ? 'expanded' : ''}`}>
+            <Icons.ChevronRight />
+          </span>
           <Icons.Layers />
           <span>图层</span>
           <span className="layer-count">{shapes.length}</span>
         </div>
-        <div className="layer-list">
-          {shapes.length === 0 ? (
-            <div className="layer-empty">暂无元素</div>
-          ) : (
-            [...shapes].reverse().map((shape, reversedIndex) => {
-              const actualIndex = shapes.length - 1 - reversedIndex;
-              return (
-                <LayerItem
-                  key={shape.id}
-                  shape={shape}
-                  index={actualIndex}
-                  isSelected={shape.id === selectedId}
-                  isMultiSelected={selectedIds?.includes(shape.id)}
-                  onSelect={onSelect}
-                  onMultiSelect={handleMultiSelect}
-                  onDragStart={handleLayerDragStart}
-                  onDragOver={handleLayerDragOver}
-                  onDrop={handleLayerDrop}
-                  onDragEnd={handleLayerDragEnd}
-                  onToggleVisibility={handleToggleVisibility}
-                  onToggleLock={handleToggleLock}
-                  isExpanded={expandedGroups[shape.id] !== false}
-                  onToggleExpand={handleToggleExpand}
-                  selectedIds={selectedIds}
-                />
-              );
-            })
-          )}
-        </div>
+        {expandedSections.layers && (
+          <div className="layer-list">
+            {shapes.length === 0 ? (
+              <div className="layer-empty">暂无元素</div>
+            ) : (
+              [...shapes].reverse().map((shape, reversedIndex) => {
+                const actualIndex = shapes.length - 1 - reversedIndex;
+                return (
+                  <LayerItem
+                    key={shape.id}
+                    shape={shape}
+                    index={actualIndex}
+                    isSelected={shape.id === selectedId}
+                    isMultiSelected={selectedIds?.includes(shape.id)}
+                    onSelect={onSelect}
+                    onMultiSelect={handleMultiSelect}
+                    onDragStart={handleLayerDragStart}
+                    onDragOver={handleLayerDragOver}
+                    onDrop={handleLayerDrop}
+                    onDragEnd={handleLayerDragEnd}
+                    onToggleVisibility={handleToggleVisibility}
+                    onToggleLock={handleToggleLock}
+                    isExpanded={expandedGroups[shape.id] !== false}
+                    onToggleExpand={handleToggleExpand}
+                    selectedIds={selectedIds}
+                    onFocusShape={onFocusShape}
+                  />
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
     </aside>
   );

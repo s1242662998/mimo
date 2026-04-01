@@ -1385,6 +1385,8 @@ export default function Canvas({
   showGuides,
   onExecuteInteraction,
   isPreviewMode,
+  focusShapeId,
+  onFocusComplete,
 }) {
   const stageRef = useRef(null);
   const containerRef = useRef(null);
@@ -1412,6 +1414,49 @@ export default function Canvas({
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
   }, []);
+
+  // 定位到指定组件
+  useEffect(() => {
+    if (!focusShapeId) return;
+    
+    const shape = shapes.find(s => s.id === focusShapeId);
+    if (!shape) return;
+
+    // 获取组件的中心位置
+    let shapeCenterX = shape.x;
+    let shapeCenterY = shape.y;
+
+    if (shape.type === 'circle') {
+      // 圆形的x,y是圆心
+      shapeCenterX = shape.x;
+      shapeCenterY = shape.y;
+    } else if (shape.type === 'text') {
+      const width = shape.props?.width || 150;
+      const fontSize = shape.props?.fontSize || 16;
+      const lineHeight = shape.props?.lineHeight || 1.4;
+      const height = fontSize * lineHeight;
+      shapeCenterX = shape.x + width / 2;
+      shapeCenterY = shape.y + height / 2;
+    } else {
+      // 矩形、按钮、输入框等：x,y是左上角
+      const width = shape.props?.width || 100;
+      const height = shape.props?.height || 100;
+      shapeCenterX = shape.x + width / 2;
+      shapeCenterY = shape.y + height / 2;
+    }
+
+    // 计算新的位置，使组件居中显示
+    const newPosition = {
+      x: canvasSize.width / 2 - shapeCenterX * scale,
+      y: canvasSize.height / 2 - shapeCenterY * scale,
+    };
+
+    setPosition(newPosition);
+    
+    if (onFocusComplete) {
+      onFocusComplete();
+    }
+  }, [focusShapeId, shapes, canvasSize, scale, onFocusComplete]);
 
   const handleWheel = useCallback((e) => {
     e.evt.preventDefault();

@@ -5,13 +5,42 @@ import Toolbar from './components/Toolbar';
 import PropertiesPanel from './components/PropertiesPanel';
 import ScreenshotImporter from './components/ScreenshotImporter';
 import ChatWindow from './rag/ChatWindow';
+import PagePanel from './components/PagePanel';
 import './App.css';
 
 let shapeIdCounter = 0;
 const MAX_HISTORY = 50;
 
 function App() {
-  const [shapes, setShapes] = useState([]);
+  // 页面管理
+  const [pages, setPages] = useState(() => {
+    const saved = localStorage.getItem('prototyper-pages');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.pages && parsed.pages.length > 0) {
+          return parsed.pages;
+        }
+      } catch (e) {
+        console.error('Failed to load pages from localStorage:', e);
+      }
+    }
+    return [{ id: 'page-1', name: '页面 1', shapes: [] }];
+  });
+  
+  const [currentPageId, setCurrentPageId] = useState(() => {
+    const saved = localStorage.getItem('prototyper-pages');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.currentPageId || 'page-1';
+      } catch {
+        return 'page-1';
+      }
+    }
+    return 'page-1';
+  });
+
   const [selectedId, setSelectedId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [showImporter, setShowImporter] = useState(false);
@@ -19,6 +48,7 @@ function App() {
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [showGuides, setShowGuides] = useState(true);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [focusShapeId, setFocusShapeId] = useState(null);
 
   // 撤销/重做历史
   const [history, setHistory] = useState([[]]);
@@ -27,9 +57,43 @@ function App() {
   // 剪贴板
   const clipboardRef = useRef([]);
 
+  // 获取当前页面
+  const currentPage = useMemo(() => {
+    return pages.find(p => p.id === currentPageId) || pages[0];
+  }, [pages, currentPageId]);
+
+  // 获取当前页面的shapes
+  const shapes = useMemo(() => {
+    return currentPage?.shapes || [];
+  }, [currentPage]);
+
+  // 设置当前页面的shapes
+  const setShapes = useCallback((newShapesOrUpdater) => {
+    setPages(prevPages => {
+      return prevPages.map(page => {
+        if (page.id === currentPageId) {
+          const newShapes = typeof newShapesOrUpdater === 'function' 
+            ? newShapesOrUpdater(page.shapes)
+            : newShapesOrUpdater;
+          return { ...page, shapes: newShapes };
+        }
+        return page;
+      });
+    });
+  }, [currentPageId]);
+
   const selectedShape = useMemo(() => {
     return shapes.find((s) => s.id === selectedId) || null;
   }, [shapes, selectedId]);
+
+  // 数据持久化
+  useEffect(() => {
+    const data = {
+      pages,
+      currentPageId
+    };
+    localStorage.setItem('prototyper-pages', JSON.stringify(data));
+  }, [pages, currentPageId]);
 
   // 监听图层面板的visibility和lock事件
   useEffect(() => {
@@ -60,13 +124,96 @@ function App() {
     };
   }, []);
 
+  // 页面管理函数
+  const handleCreatePage = useCallback(() => {
+    const newPageId = `page-${Date.now()}`;
+    const newPage = {
+      id: newPageId,
+      name: `页面 ${pages.length + 1}`,
+      shapes: []
+    };
+    setPages(prev => [...prev, newPage]);
+    setCurrentPageId(newPageId);
+    setSelectedId(null);
+    setSelectedIds([]);
+    setHistory([[]]);
+    setHistoryIndex(0);
+  }, [pages.length]);
+
+  const handleDeletePage = useCallback((pageId) => {
+    if (pages.length <= 1) {
+      alert('至少需要保留一个页面');
+      return;
+    }
+    if (confirm('确定要删除此页面吗？')) {
+      const pageIndex = pages.findIndex(p => p.id === pageId);
+      const newPages = pages.filter(p => p.id !== pageId);
+      setPages(newPages);
+      
+      // 如果删除的是当前页面，切换到其他页面
+      if (currentPageId === pageId) {
+        const newCurrentIndex = pageIndex > 0 ? pageIndex - 1 : 0;
+        setCurrentPageId(newPages[newCurrentIndex].id);
+        setSelectedId(null);
+        setSelectedIds([]);
+        setHistory([[]]);
+        setHistoryIndex(0);
+      }
+    }
+  }, [pages, currentPageId]);
+
+  const handleRenamePage = useCallback((pageId, newName) => {
+    setPages(prev => prev.map(p => 
+      p.id === pageId ? { ...p, name: newName } : p
+    ));
+  }, []);
+
+  const handleSwitchPage = useCallback((pageId) => {
+    if (pageId === currentPageId) return;
+    setCurrentPageId(pageId);
+    setSelectedId(null);
+    setSelectedIds([]);
+    setHistory([[]]);
+    setHistoryIndex(0);
+  }, [currentPageId]);
+
+  const handleDuplicatePage = useCallback((pageId) => {
+    const pageToDuplicate = pages.find(p => p.id === pageId);
+    if (!pageToDuplicate) return;
+    
+    const newPageId = `page-${Date.now()}`;
+    const duplicatedShapes = JSON.parse(JSON.stringify(pageToDuplicate.shapes));
+    
+    // 为复制的形状生成新ID
+    duplicatedShapes.forEach(shape => {
+      shape.id = `${shape.id.split('-')[0]}-${++shapeIdCounter}`;
+    });
+    
+    const newPage = {
+      id: newPageId,
+      name: `${pageToDuplicate.name} - 副本`,
+      shapes: duplicatedShapes
+    };
+    
+    setPages(prev => [...prev, newPage]);
+    setCurrentPageId(newPageId);
+    setSelectedId(null);
+    setSelectedIds([]);
+  }, [pages]);
+
+  // 定位到组件位置
+  const handleFocusShape = useCallback((shapeId) => {
+    setFocusShapeId(shapeId);
+    setSelectedId(shapeId);
+  }, []);
+
   // 保存到历史记录
   const saveToHistory = useCallback((newShapes) => {
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1);
       try {
         newHistory.push(JSON.parse(JSON.stringify(newShapes || [])));
-      } catch (e) {
+      } catch {
         newHistory.push([]);
       }
       if (newHistory.length > MAX_HISTORY) {
@@ -481,7 +628,7 @@ function App() {
     const { type, targetIds, updates, newShape, batchUpdates, elements } = action;
 
     // 辅助函数：将 AI 格式的形状转换为 Konva 需要的格式
-    const convertAiShape = (el, index = 0) => {
+    const convertAiShape = (el) => {
       const { type: jsonType, x, y, visible, hoverProps, interactions, ...restProps } = el;
       
       const typeMap = {
@@ -608,14 +755,26 @@ function App() {
 
   return (
     <div className="app-container" onKeyDown={handleKeyDown} tabIndex={0}>
-      <ComponentPanel
-        shapes={shapes}
-        selectedId={selectedId}
-        selectedIds={selectedIds}
-        onSelect={setSelectedId}
-        onSelectMultiple={setSelectedIds}
-        onReorder={handleReorder}
-      />
+      <div className="left-panels">
+        <PagePanel
+          pages={pages}
+          currentPageId={currentPageId}
+          onCreatePage={handleCreatePage}
+          onDeletePage={handleDeletePage}
+          onRenamePage={handleRenamePage}
+          onSwitchPage={handleSwitchPage}
+          onDuplicatePage={handleDuplicatePage}
+        />
+        <ComponentPanel
+          shapes={shapes}
+          selectedId={selectedId}
+          selectedIds={selectedIds}
+          onSelect={setSelectedId}
+          onSelectMultiple={setSelectedIds}
+          onReorder={handleReorder}
+          onFocusShape={handleFocusShape}
+        />
+      </div>
       <main className="canvas-container">
         <Toolbar
           onDelete={handleDelete}
@@ -666,6 +825,8 @@ function App() {
           showGuides={showGuides}
           onExecuteInteraction={handleExecuteInteraction}
           isPreviewMode={isPreviewMode}
+          focusShapeId={focusShapeId}
+          onFocusComplete={() => setFocusShapeId(null)}
         />
       </main>
       <PropertiesPanel
