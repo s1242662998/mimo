@@ -397,7 +397,7 @@ function ResizeHandles({ shape, onResize, onResizeEnd, onRotate, onRotateEnd, st
   );
 }
 
-function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction }) {
+function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction }) {
   const shapeRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -416,6 +416,8 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
             onExecuteInteraction?.(interaction);
           }
         });
+      } else if (e.evt.ctrlKey || e.evt.metaKey) {
+        onSelectMultiple?.(shape.id);
       } else {
         onSelect(shape.id);
       }
@@ -428,6 +430,8 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
             onExecuteInteraction?.(interaction);
           }
         });
+      } else if (e.evt.ctrlKey || e.evt.metaKey) {
+        onSelectMultiple?.(shape.id);
       } else {
         onSelect(shape.id);
       }
@@ -914,18 +918,20 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
             onMouseLeave={shapeProps.onMouseLeave}
           >
             {/* 组的背景框（可选，用于可视化） */}
-            <Rect
-              ref={shapeRef}
-              x={0}
-              y={0}
-              width={activeProps.width || 100}
-              height={activeProps.height || 100}
-              fill="transparent"
-              stroke="#0891B2"
-              strokeWidth={1}
-              dash={[4, 4]}
-              listening={false}
-            />
+            {isSelected && (
+              <Rect
+                ref={shapeRef}
+                x={0}
+                y={0}
+                width={activeProps.width || 100}
+                height={activeProps.height || 100}
+                fill="transparent"
+                stroke="#0891B2"
+                strokeWidth={1}
+                dash={[4, 4]}
+                listening={false}
+              />
+            )}
             {/* 渲染子组件 */}
             {shape.children?.map((child) => {
               const childProps = child.props || {};
@@ -1000,7 +1006,7 @@ function ShapeRenderer({ shape, isSelected, isEditing, onSelect, onChange, onDra
   return (
     <>
       {renderShape()}
-      {isSelected && (
+      {isSelected && !isMultiSelected && (
         <ResizeHandles
           shape={shape}
           onResize={handleResize}
@@ -1034,6 +1040,255 @@ function SelectionRectangle({ startPos, currentPos }) {
       dash={[4, 4]}
       listening={false}
     />
+  );
+}
+
+function MultiSelectionHandles({ shapes, selectedIds, onShapesChange, onSaveToHistory, stageRef }) {
+  const startPosRef = useRef(null);
+  const startShapesRef = useRef(null);
+  const handleRef = useRef(null);
+
+  if (!selectedIds || selectedIds.length < 2) return null;
+
+  const selectedShapes = shapes.filter(s => selectedIds.includes(s.id));
+  if (selectedShapes.length < 2) return null;
+
+  // 计算所有选中组件的边界框
+  const getMultiSelectionBounds = () => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    selectedShapes.forEach(shape => {
+      const bounds = getShapeBounds(shape);
+      minX = Math.min(minX, bounds.x);
+      minY = Math.min(minY, bounds.y);
+      maxX = Math.max(maxX, bounds.x + bounds.width);
+      maxY = Math.max(maxY, bounds.y + bounds.height);
+    });
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  };
+
+  const bounds = getMultiSelectionBounds();
+
+  const handleDragStart = (e) => {
+    const node = e.target;
+    startPosRef.current = { x: node.x(), y: node.y() };
+    startShapesRef.current = selectedShapes.map(s => ({ ...s, props: { ...s.props } }));
+  };
+
+  const handleDragMove = (e) => {
+    if (!startPosRef.current || !startShapesRef.current) return;
+
+    const node = e.target;
+    const dx = node.x() - startPosRef.current.x;
+    const dy = node.y() - startPosRef.current.y;
+
+    onShapesChange(prev => {
+      return prev.map(shape => {
+        const startShape = startShapesRef.current.find(s => s.id === shape.id);
+        if (!startShape) return shape;
+
+        return {
+          ...shape,
+          x: startShape.x + dx,
+          y: startShape.y + dy,
+        };
+      });
+    });
+  };
+
+  const handleDragEnd = (e) => {
+    const node = e.target;
+    node.position({ x: 0, y: 0 });
+    startPosRef.current = null;
+    startShapesRef.current = null;
+    onSaveToHistory?.();
+  };
+
+  const handleResizeStart = (e, handlePos) => {
+    e.cancelBubble = true;
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    stage.listening(false);
+    handleRef.current = handlePos;
+
+    const stagePos = stage.getPointerPosition();
+    const stageScale = stage.scaleX();
+    const stagePosition = { x: stage.x(), y: stage.y() };
+
+    startPosRef.current = {
+      x: (stagePos.x - stagePosition.x) / stageScale,
+      y: (stagePos.y - stagePosition.y) / stageScale,
+    };
+    startShapesRef.current = selectedShapes.map(s => ({ ...s, props: { ...s.props } }));
+
+    const handleResizeMove = () => {
+      if (!startPosRef.current || !startShapesRef.current || !handleRef.current) return;
+
+      const currentStagePos = stage.getPointerPosition();
+      if (!currentStagePos) return;
+
+      const currentPos = {
+        x: (currentStagePos.x - stagePosition.x) / stageScale,
+        y: (currentStagePos.y - stagePosition.y) / stageScale,
+      };
+
+      const dx = currentPos.x - startPosRef.current.x;
+      const dy = currentPos.y - startPosRef.current.y;
+
+      let newX = bounds.x;
+      let newY = bounds.y;
+      let newWidth = bounds.width;
+      let newHeight = bounds.height;
+
+      switch (handleRef.current) {
+        case 'nw':
+          newX = bounds.x + dx;
+          newY = bounds.y + dy;
+          newWidth = bounds.width - dx;
+          newHeight = bounds.height - dy;
+          break;
+        case 'n':
+          newY = bounds.y + dy;
+          newHeight = bounds.height - dy;
+          break;
+        case 'ne':
+          newY = bounds.y + dy;
+          newWidth = bounds.width + dx;
+          newHeight = bounds.height - dy;
+          break;
+        case 'e':
+          newWidth = bounds.width + dx;
+          break;
+        case 'se':
+          newWidth = bounds.width + dx;
+          newHeight = bounds.height + dy;
+          break;
+        case 's':
+          newHeight = bounds.height + dy;
+          break;
+        case 'sw':
+          newX = bounds.x + dx;
+          newWidth = bounds.width - dx;
+          newHeight = bounds.height + dy;
+          break;
+        case 'w':
+          newX = bounds.x + dx;
+          newWidth = bounds.width - dx;
+          break;
+      }
+
+      if (newWidth < 10) {
+        newWidth = 10;
+        newX = bounds.x;
+      }
+      if (newHeight < 10) {
+        newHeight = 10;
+        newY = bounds.y;
+      }
+
+      const scaleX = newWidth / bounds.width;
+      const scaleY = newHeight / bounds.height;
+
+      onShapesChange(prev => {
+        return prev.map(shape => {
+          const startShape = startShapesRef.current.find(s => s.id === shape.id);
+          if (!startShape) return shape;
+
+          const relX = (startShape.x - bounds.x) / bounds.width;
+          const relY = (startShape.y - bounds.y) / bounds.height;
+
+          const newShape = {
+            ...shape,
+            x: newX + relX * newWidth,
+            y: newY + relY * newHeight,
+            props: { ...shape.props },
+          };
+
+          if (shape.type === 'circle') {
+            const startProps = startShape.props || {};
+            const radiusX = (startProps.radius || 40) * scaleX;
+            const radiusY = (startProps.radiusY || startProps.radius || 40) * scaleY;
+            newShape.props.radius = radiusX;
+            newShape.props.radiusY = radiusY;
+          } else if (shape.type === 'text') {
+            const startProps = startShape.props || {};
+            newShape.props.width = (startProps.width || 150) * scaleX;
+            newShape.props.fontSize = Math.max(8, (startProps.fontSize || 16) * Math.min(scaleX, scaleY));
+          } else if (shape.type !== 'line') {
+            const startProps = startShape.props || {};
+            newShape.props.width = (startProps.width || 100) * scaleX;
+            newShape.props.height = (startProps.height || 100) * scaleY;
+          }
+
+          return newShape;
+        });
+      });
+    };
+
+    const handleResizeEnd = () => {
+      window.removeEventListener('mousemove', handleResizeMove);
+      window.removeEventListener('mouseup', handleResizeEnd);
+      stage.listening(true);
+      handleRef.current = null;
+      startPosRef.current = null;
+      startShapesRef.current = null;
+      onSaveToHistory?.();
+    };
+
+    window.addEventListener('mousemove', handleResizeMove);
+    window.addEventListener('mouseup', handleResizeEnd);
+  };
+
+  const handles = [
+    { pos: 'nw', hx: bounds.x, hy: bounds.y, cursor: 'nw-resize' },
+    { pos: 'n', hx: bounds.x + bounds.width / 2, hy: bounds.y, cursor: 'n-resize' },
+    { pos: 'ne', hx: bounds.x + bounds.width, hy: bounds.y, cursor: 'ne-resize' },
+    { pos: 'e', hx: bounds.x + bounds.width, hy: bounds.y + bounds.height / 2, cursor: 'e-resize' },
+    { pos: 'se', hx: bounds.x + bounds.width, hy: bounds.y + bounds.height, cursor: 'se-resize' },
+    { pos: 's', hx: bounds.x + bounds.width / 2, hy: bounds.y + bounds.height, cursor: 's-resize' },
+    { pos: 'sw', hx: bounds.x, hy: bounds.y + bounds.height, cursor: 'sw-resize' },
+    { pos: 'w', hx: bounds.x, hy: bounds.y + bounds.height / 2, cursor: 'w-resize' },
+  ];
+
+  return (
+    <Group>
+      {/* 多选边界框 */}
+      <Rect
+        x={bounds.x}
+        y={bounds.y}
+        width={bounds.width}
+        height={bounds.height}
+        fill="transparent"
+        stroke="#0891B2"
+        strokeWidth={1}
+        dash={[4, 4]}
+        draggable
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+      />
+      {/* 缩放手柄 */}
+      {handles.map(({ pos, hx, hy, cursor }) => (
+        <Rect
+          key={pos}
+          x={hx - HANDLE_SIZE / 2}
+          y={hy - HANDLE_SIZE / 2}
+          width={HANDLE_SIZE}
+          height={HANDLE_SIZE}
+          fill="white"
+          stroke="#0891B2"
+          strokeWidth={1}
+          onMouseDown={(e) => handleResizeStart(e, pos)}
+        />
+      ))}
+    </Group>
   );
 }
 
@@ -1497,8 +1752,17 @@ export default function Canvas({
               key={shape.id}
               shape={shape}
               isSelected={shape.id === selectedId || selectedIds?.includes(shape.id)}
+              isMultiSelected={selectedIds?.length > 1}
               isEditing={editingShape?.id === shape.id}
               onSelect={setSelectedId}
+              onSelectMultiple={(id) => {
+                setSelectedIds((prev) => {
+                  if (prev.includes(id)) {
+                    return prev.filter((i) => i !== id);
+                  }
+                  return [...prev, id];
+                });
+              }}
               onChange={(newShapeOrFn) => {
                 setShapes((prev) => {
                   if (typeof newShapeOrFn === 'function') {
@@ -1533,6 +1797,13 @@ export default function Canvas({
             />
           ))}
           <SelectionRectangle startPos={selectionStart} currentPos={selectionEnd} />
+          <MultiSelectionHandles
+            shapes={shapes}
+            selectedIds={selectedIds}
+            onShapesChange={setShapes}
+            onSaveToHistory={onSaveToHistory}
+            stageRef={stageRef}
+          />
         </Layer>
       </Stage>
 
