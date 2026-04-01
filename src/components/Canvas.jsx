@@ -460,11 +460,68 @@ function ResizeHandles({ shape, onResize, onResizeEnd, onRotate, onRotateEnd, st
   );
 }
 
-function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode }) {
+function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode, variables }) {
   const shapeRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  const activeProps = isHovered && shape.hoverProps ? { ...shape.props, ...shape.hoverProps } : shape.props;
+  // 处理 visibleIf 逻辑（先计算状态，不能提前 return 以免破坏 Hook 顺序）
+  let isVisibleByCondition = true;
+  if (shape.visibleIf) {
+    const { key, operator, value } = shape.visibleIf;
+    const currentVal = variables?.[key] ?? '';
+    
+    if (operator === '==') isVisibleByCondition = currentVal == value;
+    else if (operator === '===') isVisibleByCondition = currentVal === value;
+    else if (operator === '!=') isVisibleByCondition = currentVal != value;
+    else if (operator === '!==') isVisibleByCondition = currentVal !== value;
+    else if (operator === '>') isVisibleByCondition = currentVal > value;
+    else if (operator === '<') isVisibleByCondition = currentVal < value;
+    else if (operator === '>=') isVisibleByCondition = currentVal >= value;
+    else if (operator === '<=') isVisibleByCondition = currentVal <= value;
+  }
+
+  const shouldHideInPreview = isPreviewMode && shape.visibleIf && !isVisibleByCondition;
+  const isHiddenByCondition = !isPreviewMode && shape.visibleIf && !isVisibleByCondition;
+
+  const activeProps = { ...(isHovered && shape.hoverProps ? { ...shape.props, ...shape.hoverProps } : shape.props) };
+  if (isHiddenByCondition) {
+    activeProps.opacity = (activeProps.opacity || 1) * 0.3; // 编辑模式下条件不满足时半透明显示
+  }
+
+  const triggerInteraction = useCallback((interaction) => {
+    if (interaction.delay && interaction.delay > 0) {
+      setTimeout(() => {
+        onExecuteInteraction?.(interaction);
+      }, interaction.delay);
+    } else {
+      onExecuteInteraction?.(interaction);
+    }
+  }, [onExecuteInteraction]);
+
+  // 定时器交互 (仅在演示模式下激活)
+  useEffect(() => {
+    if (!isPreviewMode || !shape.interactions?.length) return;
+
+    const timeouts = [];
+    shape.interactions.forEach(interaction => {
+      if (interaction.trigger === 'onLoad') {
+        const delay = interaction.delay ?? 0;
+        const timerId = setTimeout(() => {
+          onExecuteInteraction?.(interaction);
+        }, delay);
+        timeouts.push(timerId);
+      }
+    });
+
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
+  }, [isPreviewMode, shape.interactions, onExecuteInteraction]);
+
+  // 所有 Hook 声明完毕后，再执行提前返回
+  if (shouldHideInPreview) {
+    return null;
+  }
 
   const shapeProps = {
     ...activeProps,
@@ -476,7 +533,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
       if ((isPreviewMode || e.evt.altKey) && shape.interactions?.length > 0) {
         shape.interactions.forEach(interaction => {
           if (interaction.trigger === 'onClick') {
-            onExecuteInteraction?.(interaction);
+            triggerInteraction(interaction);
           }
         });
       } else if (!isPreviewMode && (e.evt.ctrlKey || e.evt.metaKey)) {
@@ -490,7 +547,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
       if ((isPreviewMode || e.evt.altKey) && shape.interactions?.length > 0) {
         shape.interactions.forEach(interaction => {
           if (interaction.trigger === 'onClick') {
-            onExecuteInteraction?.(interaction);
+            triggerInteraction(interaction);
           }
         });
       } else if (!isPreviewMode && (e.evt.ctrlKey || e.evt.metaKey)) {
@@ -535,12 +592,34 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
     onMouseEnter: (e) => {
       setIsHovered(true);
       const stage = e.target.getStage();
-      if (stage) stage.container().style.cursor = (isPreviewMode || e.evt.altKey) && shape.interactions?.length > 0 ? 'pointer' : (isPreviewMode ? 'default' : 'move');
+      const hasInteraction = shape.interactions?.length > 0;
+      if (stage) {
+        stage.container().style.cursor = (isPreviewMode || e.evt.altKey) && hasInteraction ? 'pointer' : (isPreviewMode ? 'default' : 'move');
+      }
+      
+      if ((isPreviewMode || e.evt.altKey) && hasInteraction) {
+        shape.interactions.forEach(interaction => {
+          if (interaction.trigger === 'onMouseEnter') {
+            triggerInteraction(interaction);
+          }
+        });
+      }
     },
     onMouseLeave: (e) => {
       setIsHovered(false);
       const stage = e.target.getStage();
-      if (stage) stage.container().style.cursor = 'default';
+      if (stage) {
+        stage.container().style.cursor = 'default';
+      }
+      
+      const hasInteraction = shape.interactions?.length > 0;
+      if ((isPreviewMode || e.evt.altKey) && hasInteraction) {
+        shape.interactions.forEach(interaction => {
+          if (interaction.trigger === 'onMouseLeave') {
+            triggerInteraction(interaction);
+          }
+        });
+      }
     },
   };
 
@@ -1385,6 +1464,7 @@ export default function Canvas({
   showGuides,
   onExecuteInteraction,
   isPreviewMode,
+  variables,
 }) {
   const stageRef = useRef(null);
   const containerRef = useRef(null);
@@ -1872,6 +1952,7 @@ export default function Canvas({
               stageRef={stageRef}
               onExecuteInteraction={onExecuteInteraction}
               isPreviewMode={isPreviewMode}
+              variables={variables}
             />
           ))}
           <SelectionRectangle startPos={selectionStart} currentPos={selectionEnd} />

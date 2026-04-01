@@ -136,7 +136,17 @@ const IconName = () => (
 - 列表项：浅蓝色背景 `background: var(--color-active)`
 - 输入框聚焦：青色边框 + 轻微阴影
 
-### 4.3 拖拽行为
+### 4.3 演示模式 (Preview Mode)
+- **开启方式**：点击顶部工具栏“▶ 演示”按钮。
+- **行为变化**：
+  - 画布元素锁定，禁止拖拽与框选。
+  - 拥有 `interactions` 的组件，鼠标悬浮时变为 Pointer 手型。
+  - 点击交互组件直接触发 `setProps`、`toggleVisibility`、`setVariable` 等目标动作。
+  - 会自动重置全局状态机 `variables`。
+  - 根据 `visibleIf` 条件严格渲染或卸载组件。
+- **编辑态快捷测试**：在编辑模式下，按住 `Alt` 键点击组件也可触发配置的交互效果。
+
+### 4.4 拖拽行为
 | 操作 | 触发方式 |
 |------|----------|
 | 添加组件 | 从左侧面板拖拽到画布 |
@@ -146,17 +156,20 @@ const IconName = () => (
 | 缩放画布 | 鼠标滚轮 |
 
 ### 4.4 键盘快捷键
-| 按键 | 功能 |
-|------|------|
+| 快捷键 | 功能 |
+|--------|------|
 | Delete / Backspace | 删除选中元素 |
 | Ctrl+C | 复制选中元素 |
 | Ctrl+V | 粘贴元素 |
 | Ctrl+D | 复制并粘贴 |
 | Ctrl+Z | 撤销 |
 | Ctrl+Y / Ctrl+Shift+Z | 重做 |
+| Ctrl+G | 将选中组件成组 |
+| Ctrl+Shift+G | 解散选中的组 |
 | Ctrl+A | 全选 |
 | Arrow Keys | 微调位置 (1px) |
 | Shift + Arrow Keys | 微调位置 (10px) |
+| Alt + Click | 快捷触发交互测试 |
 
 ### 4.5 元素变换
 | 操作 | 触发方式 |
@@ -217,13 +230,17 @@ const IconName = () => (
 ┌────────────────┐
 │    属性        │ ← 头部
 ├────────────────┤
-│  类型名称      │ ← 元素信息
+│  类型名称 & ID │ ← 支持修改 ID 及一键复制
+├────────────────┤
+│  状态切换器    │ ← 默认状态 / 悬浮状态
 ├────────────────┤
 │  变换          │ ← X, Y, 旋转角度
 ├────────────────┤
 │  样式属性      │ ← 可滚动
 ├────────────────┤
 │  快捷操作      │ ← 50%, 200%, 重置角度
+├────────────────┤
+│  交互配置      │ ← 添加 Click 事件等
 └────────────────┘
 ```
 
@@ -234,20 +251,43 @@ const IconName = () => (
 ### 6.1 Shape 对象
 ```javascript
 {
-  id: "button-1",           // 类型前缀 + 递增ID
-  type: "rect",             // 渲染类型: rect/circle/text/line/triangle
+  id: "button-1",           // 类型前缀 + 递增ID（支持用户自定义）
+  type: "rect",             // 渲染类型: rect/circle/text/line/image/group
   x: 100,                   // X 坐标
   y: 100,                   // Y 坐标
   rotation: 0,              // 旋转角度
   visible: true,            // 是否可见
   locked: false,            // 是否锁定
-  props: {                  // 样式属性
+  hoverProps: {             // 【可选】悬停状态下的样式合并覆盖
+    fill: "#FF0000",
+    scale: 1.1
+  },
+  interactions: [           // 【可选】交互配置数组
+    {
+      trigger: "onClick",   // 触发条件: onClick / onMouseEnter / onMouseLeave / onLoad
+      delay: 1000,          // 【可选】支持所有 trigger，延迟触发的时间(ms)
+      action: "setProps",   // 执行动作: toggleVisibility / setProps / setVariable
+      targetId: "rect-2",   // 【动作专属参数】目标组件 ID (toggleVisibility / setProps 需配置)
+      payload: {            // 【动作专属参数】
+        fill: "blue"        // 若 action 为 setProps，表示要修改的属性字典
+        // key: "tab",      // 若 action 为 setVariable，表示要修改的全局变量名
+        // value: "home"    // 若 action 为 setVariable，表示要修改的全局变量值
+      }
+    }
+  ],
+  visibleIf: {              // 【可选】条件渲染逻辑
+    key: "currentTab",      // 依赖的全局变量名
+    operator: "==",         // 比较运算符 (==, !=, >, <, >=, <=, ===, !==)
+    value: "home"           // 期望匹配的值
+  },
+  props: {                  // 基础样式属性
     width: 100,
     height: 36,
     fill: "#0891B2",
     cornerRadius: 8,
     opacity: 1
-  }
+  },
+  children: []              // 仅在 type: 'group' 时存在
 }
 ```
 
@@ -260,7 +300,8 @@ const IconName = () => (
 | image | rect | 图片 | 图片占位 |
 | rectangle | rect | 矩形 | 形状 |
 | circle | circle | 圆形 | 形状 |
-| triangle | triangle | 三角形 | 形状 |
+| triangle | triangle | 三角形 | 形状 (v1.4已移除) |
+| icon | icon | 图标 | SVG图标 |
 | line | line | 线条 | 直线 |
 
 ---
@@ -376,6 +417,12 @@ const [showGuides, setShowGuides] = useState(true); // 对齐辅助线
 - [x] **多元素对齐**（左、右、上、下、居中）
 - [x] **快捷键支持**
 - [x] **元素可见性/锁定控制**
+- [x] **内置图标库**
+- [x] **AI 对话与多模态解析**
+- [x] **交互引擎 (Hover / Click 动作)**
+- [x] **组件成组 (Group)**
+- [x] **动态交互属性面板**
+- [x] **全局演示模式**
 
 ### 10.2 待实现功能
 - [ ] 导出为图片/JSON
@@ -400,6 +447,8 @@ const [showGuides, setShowGuides] = useState(true); // 对齐辅助线
 | 1.3.1 | 2026-03-31 | AI 深度集成（支持 Function Calling 修改画布）、文本/按钮双击编辑增强 |
 | 1.4.0 | 2026-03-31 | 新增内置图标库、完善双击编辑支持、移除冗余组件 |
 | 1.5.0 | 2026-04-01 | 声明式交互架构（支持 Hover/Click 交互）、新增演示模式、可视化交互配置面板 |
+| 1.6.0 | 2026-04-01 | 新增多选组件同步操作、图片组件增强、全局颜色取色器 |
+| 1.7.0 | 2026-04-01 | 全局状态机与条件渲染、支持 `setVariable` 动作、新增 `onLoad` 触发器、交互延迟修饰符 |
 
 ---
 
