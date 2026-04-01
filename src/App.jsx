@@ -18,6 +18,7 @@ function App() {
   const [showRagChat, setShowRagChat] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [showGuides, setShowGuides] = useState(true);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   // 撤销/重做历史
   const [history, setHistory] = useState([[]]);
@@ -201,7 +202,8 @@ function App() {
     if (selectedId && updatedShape.id !== selectedId) {
       if (shapes.some(s => s.id === updatedShape.id)) {
         alert('该组件 ID 已存在，请使用其他 ID。');
-        return;
+        // 需要抛出错误，让 PropertiesPanel 捕获并回滚 UI
+        throw new Error('ID_EXISTS');
       }
       
       // 更新 selectedId 为新 ID
@@ -449,11 +451,29 @@ function App() {
 
   // 处理交互动作
   const handleExecuteInteraction = useCallback((interaction) => {
-    if (interaction.action === 'toggleVisibility' && interaction.targetId) {
-      setShapes(prev => prev.map(s =>
-        s.id === interaction.targetId ? { ...s, visible: s.visible === false ? true : false } : s
-      ));
-    }
+    if (!interaction.targetId) return;
+
+    setShapes(prev => prev.map(s => {
+      if (s.id !== interaction.targetId) return s;
+
+      let updatedShape = { ...s };
+
+      if (interaction.action === 'toggleVisibility') {
+        updatedShape.visible = s.visible === false ? true : false;
+      } else if (interaction.action === 'setProps' && interaction.payload) {
+        // 修改属性
+        updatedShape.props = { ...s.props };
+        Object.keys(interaction.payload).forEach(key => {
+          if (key === 'x' || key === 'y' || key === 'rotation') {
+            updatedShape[key] = interaction.payload[key];
+          } else {
+            updatedShape.props[key] = interaction.payload[key];
+          }
+        });
+      }
+
+      return updatedShape;
+    }));
   }, []);
 
   // 处理 AI 发出的精准修改指令
@@ -571,8 +591,11 @@ function App() {
         if (targetIds.includes(selectedId)) setSelectedId(null);
         setSelectedIds(prev => prev.filter(id => !targetIds.includes(id)));
       } else if (type === 'add') {
-        // 添加新组件
-        if (newShape) {
+        // 添加新组件 (支持批量或单个)
+        if (elements && Array.isArray(elements)) {
+          const addedShapes = elements.map((el, index) => convertAiShape(el, index));
+          nextShapes.push(...addedShapes);
+        } else if (newShape) {
           nextShapes.push(convertAiShape(newShape));
         }
       }
@@ -622,6 +645,8 @@ function App() {
           multiSelected={selectedIds.length > 1}
           showRagChat={showRagChat}
           onToggleRagChat={() => setShowRagChat(!showRagChat)}
+          isPreviewMode={isPreviewMode}
+          onTogglePreviewMode={() => setIsPreviewMode(!isPreviewMode)}
         />
         <Canvas
           shapes={shapes}
@@ -640,6 +665,7 @@ function App() {
           snapToGrid={snapToGrid}
           showGuides={showGuides}
           onExecuteInteraction={handleExecuteInteraction}
+          isPreviewMode={isPreviewMode}
         />
       </main>
       <PropertiesPanel

@@ -255,11 +255,13 @@ IMPORTANT INSTRUCTIONS:
 1. If the user asks to modify, update, move, or re-layout existing elements on the canvas, YOU MUST use the 'modify_canvas_shapes' tool.
 2. If the user uploads a UI screenshot and asks you to generate or parse it, YOU MUST use the 'modify_canvas_shapes' tool with type='replace_all' to directly draw it on the canvas. 
 3. DO NOT output raw JSON code blocks in your chat response unless the user explicitly asks for JSON code. Just use the tool silently to complete the task and tell the user it's done.
-4. Keep your reasoning brief to avoid hitting the maximum token limit.
+4. When you need to add MULTIPLE new elements to the canvas, use type='add' and put all the new elements in the 'elements' array instead of using 'newShape'.
+5. Keep your reasoning brief to avoid hitting the maximum token limit.
 
 CANVAS INTERACTION RULES (When adding hover or click events):
 - To add a hover effect (e.g. change color when hovering), add a 'hoverProps' object in updates: \`"hoverProps": { "fill": "#FF0000", "scale": 1.1 }\`
-- To add a click interaction (e.g. toggle visibility of another element), add an 'interactions' array: \`"interactions": [{ "trigger": "onClick", "action": "toggleVisibility", "targetId": "target-element-id" }]\`
+- To add a click interaction to toggle visibility: \`"interactions": [{ "trigger": "onClick", "action": "toggleVisibility", "targetId": "target-element-id" }]\`
+- To add a click interaction to change target's properties (e.g. change text or color): \`"interactions": [{ "trigger": "onClick", "action": "setProps", "targetId": "target-element-id", "payload": { "fill": "blue", "text": "Clicked!" } }]\`
 
 SCREENSHOT PARSING RULES (When generating UI from image):
 - Supported types: 'text', 'button', 'input', 'rectangle', 'circle', 'image'
@@ -332,11 +334,11 @@ SCREENSHOT PARSING RULES (When generating UI from image):
                     items: {
                       type: "object"
                     },
-                    description: "仅在 type='replace_all' 时需要。这是解析截图后生成的完整组件数组，格式需严格遵守 SCREENSHOT PARSING RULES。"
+                    description: "当 type='replace_all'（生成整个页面）或 type='add'（批量添加多个组件）时需要。"
                   },
                   newShape: {
                     type: "object",
-                    description: "仅在 type='add' 时需要。包含要添加的组件对象。"
+                    description: "仅在 type='add' 时需要（单元素）。包含要添加的组件对象。"
                   }
                 },
                 required: ["type"]
@@ -658,11 +660,12 @@ SCREENSHOT PARSING RULES (When generating UI from image):
 
           <div className="rag-settings-actions">
             <button 
-              onClick={() => {
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
                 if (window.confirm('确定要清空所有对话历史吗？此操作不可恢复。')) {
                   setMessages([{ id: 1, role: 'assistant', content: '你好！我是 RAG 助手，请问有什么可以帮你的？' }]);
                   localStorage.removeItem('rag_chat_history');
-                  setShowSettings(false);
                 }
               }} 
               className="rag-settings-clear-btn"

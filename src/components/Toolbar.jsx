@@ -173,6 +173,12 @@ const UngroupIcon = () => (
   </svg>
 );
 
+const PlayIcon = ({ active }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </svg>
+);
+
 export default function Toolbar({
   onDelete,
   onClear,
@@ -201,6 +207,8 @@ export default function Toolbar({
   multiSelected,
   showRagChat,
   onToggleRagChat,
+  isPreviewMode,
+  onTogglePreviewMode,
 }) {
   return (
     <div className="toolbar">
@@ -221,6 +229,19 @@ export default function Toolbar({
         >
           <AIAssistantIcon active={showRagChat} />
           <span>AI 助手</span>
+        </button>
+      </div>
+
+      <div className="toolbar-separator" />
+
+      <div className="toolbar-group">
+        <button 
+          className={`preview-btn ${isPreviewMode ? 'active' : ''}`}
+          onClick={onTogglePreviewMode} 
+          title="演示模式 (无需按 Alt 即可触发交互)"
+        >
+          <PlayIcon active={isPreviewMode} />
+          <span>演示</span>
         </button>
       </div>
 

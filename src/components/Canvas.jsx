@@ -397,7 +397,7 @@ function ResizeHandles({ shape, onResize, onResizeEnd, onRotate, onRotateEnd, st
   );
 }
 
-function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction }) {
+function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode }) {
   const shapeRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -407,32 +407,32 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
     ...activeProps,
     x: shape.x,
     y: shape.y,
-    draggable: true,
+    draggable: !isPreviewMode,
     onClick: (e) => {
       e.cancelBubble = true;
-      if (e.evt.altKey && shape.interactions?.length > 0) {
+      if ((isPreviewMode || e.evt.altKey) && shape.interactions?.length > 0) {
         shape.interactions.forEach(interaction => {
           if (interaction.trigger === 'onClick') {
             onExecuteInteraction?.(interaction);
           }
         });
-      } else if (e.evt.ctrlKey || e.evt.metaKey) {
+      } else if (!isPreviewMode && (e.evt.ctrlKey || e.evt.metaKey)) {
         onSelectMultiple?.(shape.id);
-      } else {
+      } else if (!isPreviewMode) {
         onSelect(shape.id);
       }
     },
     onTap: (e) => {
       e.cancelBubble = true;
-      if (e.evt.altKey && shape.interactions?.length > 0) {
+      if ((isPreviewMode || e.evt.altKey) && shape.interactions?.length > 0) {
         shape.interactions.forEach(interaction => {
           if (interaction.trigger === 'onClick') {
             onExecuteInteraction?.(interaction);
           }
         });
-      } else if (e.evt.ctrlKey || e.evt.metaKey) {
+      } else if (!isPreviewMode && (e.evt.ctrlKey || e.evt.metaKey)) {
         onSelectMultiple?.(shape.id);
-      } else {
+      } else if (!isPreviewMode) {
         onSelect(shape.id);
       }
     },
@@ -472,7 +472,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
     onMouseEnter: (e) => {
       setIsHovered(true);
       const stage = e.target.getStage();
-      if (stage) stage.container().style.cursor = (e.evt.altKey && shape.interactions?.length > 0) ? 'pointer' : 'move';
+      if (stage) stage.container().style.cursor = (isPreviewMode || e.evt.altKey) && shape.interactions?.length > 0 ? 'pointer' : (isPreviewMode ? 'default' : 'move');
     },
     onMouseLeave: (e) => {
       setIsHovered(false);
@@ -1309,6 +1309,7 @@ export default function Canvas({
   snapToGrid,
   showGuides,
   onExecuteInteraction,
+  isPreviewMode,
 }) {
   const stageRef = useRef(null);
   const containerRef = useRef(null);
@@ -1365,6 +1366,7 @@ export default function Canvas({
   }, [scale, position]);
 
   const handleMouseDown = useCallback((e) => {
+    if (isPreviewMode) return; // 演示模式下禁用框选和拖拽画布
     if (e.evt.button === 1 || (e.evt.button === 0 && e.evt.altKey)) {
       setIsPanning(true);
       lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
@@ -1794,6 +1796,7 @@ export default function Canvas({
               onDoubleClick={handleDoubleClick}
               stageRef={stageRef}
               onExecuteInteraction={onExecuteInteraction}
+              isPreviewMode={isPreviewMode}
             />
           ))}
           <SelectionRectangle startPos={selectionStart} currentPos={selectionEnd} />

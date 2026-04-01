@@ -277,11 +277,15 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
     return selectedShape ? { ...(selectedShape.hoverProps || {}) } : {};
   });
 
+  // 用于本地维护 ID 文本框的值，防止 onChange 时过于频繁触发报错
+  const [localId, setLocalId] = useState(selectedShape ? selectedShape.id : '');
+
   useEffect(() => {
     if (selectedShape) {
       const timer = setTimeout(() => {
         setLocalProps({ ...selectedShape.props });
         setLocalHoverProps({ ...(selectedShape.hoverProps || {}) });
+        setLocalId(selectedShape.id);
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -340,7 +344,30 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
 
   const handleUpdateInteraction = (index, key, value) => {
     const newInteractions = [...(selectedShape.interactions || [])];
-    newInteractions[index] = { ...newInteractions[index], [key]: value };
+    
+    // 如果修改了 targetId 且动作为 setProps，为了防止目标组件没有该属性，可以清空 payload
+    if (key === 'targetId' && newInteractions[index].action === 'setProps') {
+       newInteractions[index] = { ...newInteractions[index], [key]: value, payload: {} };
+    } else {
+       newInteractions[index] = { ...newInteractions[index], [key]: value };
+    }
+    
+    onUpdate({ ...selectedShape, interactions: newInteractions });
+  };
+
+  const handleUpdatePayload = (index, propKey, propValue) => {
+    const newInteractions = [...(selectedShape.interactions || [])];
+    const currentPayload = newInteractions[index].payload || {};
+    
+    // 如果值为空字符串，则从 payload 中删除该属性
+    let newPayload = { ...currentPayload };
+    if (propValue === '' || propValue === null) {
+      delete newPayload[propKey];
+    } else {
+      newPayload[propKey] = propValue;
+    }
+    
+    newInteractions[index] = { ...newInteractions[index], payload: newPayload };
     onUpdate({ ...selectedShape, interactions: newInteractions });
   };
 
@@ -361,17 +388,31 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
             <input 
               type="text" 
               className="type-id-input" 
-              value={selectedShape.id} 
+              value={localId} 
               title="组件 ID (可修改)"
               onChange={(e) => {
-                const newId = e.target.value.trim();
-                if (newId) {
-                  onUpdate({ ...selectedShape, id: newId });
+                setLocalId(e.target.value);
+              }}
+              onBlur={() => {
+                const newId = localId.trim();
+                if (newId && newId !== selectedShape.id) {
+                  try {
+                    onUpdate({ ...selectedShape, id: newId });
+                  } catch (e) {
+                    if (e.message === 'ID_EXISTS') {
+                      setLocalId(selectedShape.id); // 发生冲突时立刻回滚到原 ID
+                    }
+                  }
+                } else if (!newId) {
+                  setLocalId(selectedShape.id); // 恢复原状
                 }
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Delete' || e.key === 'Backspace') {
                   e.stopPropagation(); // 防止触发删除组件快捷键
+                }
+                if (e.key === 'Enter') {
+                  e.target.blur(); // 按回车时触发失焦保存
                 }
               }}
             />
@@ -537,6 +578,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                     <label>动作</label>
                     <select value={ix.action} onChange={(e) => handleUpdateInteraction(idx, 'action', e.target.value)} className="property-select">
                       <option value="toggleVisibility">切换显示/隐藏</option>
+                      <option value="setProps">修改属性 (setProps)</option>
                     </select>
                   </div>
                   <div className="interaction-field">
@@ -550,6 +592,33 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                       ))}
                     </select>
                   </div>
+                  {ix.action === 'setProps' && ix.targetId && (
+                    <div className="interaction-payload-config">
+                      <div className="payload-divider"></div>
+                      <div className="payload-title">配置目标新属性</div>
+                      {(() => {
+                        const targetShape = shapes.find(s => s.id === ix.targetId);
+                        if (!targetShape) return <div className="payload-empty">请重新选择目标</div>;
+                        
+                        const targetPrefix = targetShape.id.split('-')[0];
+                        let targetType = targetShape.type === 'rect' ? targetPrefix : targetShape.type;
+                        if (!propertyConfigs[targetType]) targetType = 'rectangle';
+                        const targetProps = propertyConfigs[targetType] || [];
+                        const payloadData = ix.payload || {};
+
+                        return targetProps.map((config) => (
+                          <div className="property-row payload-row" key={config.key}>
+                            <label>{config.label}</label>
+                            <PropertyInput
+                              config={config}
+                              value={payloadData[config.key]}
+                              onChange={(key, val) => handleUpdatePayload(idx, key, val)}
+                            />
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
