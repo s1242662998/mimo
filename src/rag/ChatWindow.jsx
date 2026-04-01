@@ -258,10 +258,15 @@ IMPORTANT INSTRUCTIONS:
 4. When you need to add MULTIPLE new elements to the canvas, use type='add' and put all the new elements in the 'elements' array instead of using 'newShape'.
 5. Keep your reasoning brief to avoid hitting the maximum token limit.
 
-CANVAS INTERACTION RULES (When adding hover or click events):
-- To add a hover effect (e.g. change color when hovering), add a 'hoverProps' object in updates: \`"hoverProps": { "fill": "#FF0000", "scale": 1.1 }\`
-- To add a click interaction to toggle visibility: \`"interactions": [{ "trigger": "onClick", "action": "toggleVisibility", "targetId": "target-element-id" }]\`
-- To add a click interaction to change target's properties (e.g. change text or color): \`"interactions": [{ "trigger": "onClick", "action": "setProps", "targetId": "target-element-id", "payload": { "fill": "blue", "text": "Clicked!" } }]\`
+CANVAS INTERACTION RULES (When adding interactive events):
+- To add a self hover effect (e.g. change color when hovering), use 'hoverProps': \`"hoverProps": { "fill": "#FF0000", "scale": 1.1 }\`
+- Interaction triggers support: "onClick", "onMouseEnter", "onMouseLeave", "onLoad".
+- You can add an optional "delay" in ms to ANY interaction: \`"interactions": [{ "trigger": "onClick", "delay": 2000, "action": "toggleVisibility", "targetId": "..." }]\`
+- Action types support: "toggleVisibility", "setProps", "setVariable".
+- Example of setting global variable: \`"interactions": [{ "trigger": "onClick", "action": "setVariable", "payload": { "key": "currentTab", "value": "profile" } }]\`
+- To conditionally render a shape based on global variables, add 'visibleIf' object: \`"visibleIf": { "key": "currentTab", "operator": "==", "value": "profile" }\`
+- Example of click to toggle visibility: \`"interactions": [{ "trigger": "onClick", "action": "toggleVisibility", "targetId": "target-element-id" }]\`
+- Example of mouse enter to change target's properties: \`"interactions": [{ "trigger": "onMouseEnter", "action": "setProps", "targetId": "target-element-id", "payload": { "fill": "blue" } }]\`
 
 SCREENSHOT PARSING RULES (When generating UI from image):
 - Supported types: 'text', 'button', 'input', 'rectangle', 'circle', 'image'

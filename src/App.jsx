@@ -49,6 +49,12 @@ function App() {
   const [showGuides, setShowGuides] = useState(true);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [focusShapeId, setFocusShapeId] = useState(null);
+  const [variables, setVariables] = useState({}); // 全局状态机
+
+  // 当进入或退出演示模式时，重置全局状态
+  useEffect(() => { 
+    setVariables({});
+  }, [isPreviewMode]);
 
   // 撤销/重做历史
   const [history, setHistory] = useState([[]]);
@@ -598,6 +604,11 @@ function App() {
 
   // 处理交互动作
   const handleExecuteInteraction = useCallback((interaction) => {
+    if (interaction.action === 'setVariable' && interaction.payload?.key) {
+      setVariables(prev => ({ ...prev, [interaction.payload.key]: interaction.payload.value }));
+      return; // 全局变量修改不需要直接操作 shapes
+    }
+
     if (!interaction.targetId) return;
 
     setShapes(prev => prev.map(s => {
@@ -628,8 +639,8 @@ function App() {
     const { type, targetIds, updates, newShape, batchUpdates, elements } = action;
 
     // 辅助函数：将 AI 格式的形状转换为 Konva 需要的格式
-    const convertAiShape = (el) => {
-      const { type: jsonType, x, y, visible, hoverProps, interactions, ...restProps } = el;
+    const convertAiShape = (el, index = 0) => {
+      const { type: jsonType, x, y, visible, visibleIf, hoverProps, interactions, ...restProps } = el;
       
       const typeMap = {
         text: 'text',
@@ -657,6 +668,7 @@ function App() {
         x: x || 0,
         y: y || 0,
         visible: visible !== false, // 默认显示
+        visibleIf: visibleIf || null,
         hoverProps: hoverProps || {},
         interactions: interactions || [],
         props: props
@@ -694,6 +706,7 @@ function App() {
               // 交互与悬浮状态处理
               if (updates.hoverProps !== undefined) updatedShape.hoverProps = { ...updatedShape.hoverProps, ...updates.hoverProps };
               if (updates.interactions !== undefined) updatedShape.interactions = updates.interactions;
+              if (updates.visibleIf !== undefined) updatedShape.visibleIf = updates.visibleIf;
               
               // 缩放处理 (也是在 shape.props 里面)
               if (updates.scale) {
@@ -726,6 +739,7 @@ function App() {
             
             if (up.hoverProps !== undefined) updatedShape.hoverProps = { ...updatedShape.hoverProps, ...up.hoverProps };
             if (up.interactions !== undefined) updatedShape.interactions = up.interactions;
+            if (up.visibleIf !== undefined) updatedShape.visibleIf = up.visibleIf;
             
             return updatedShape;
           }
@@ -827,6 +841,7 @@ function App() {
           isPreviewMode={isPreviewMode}
           focusShapeId={focusShapeId}
           onFocusComplete={() => setFocusShapeId(null)}
+          variables={variables}
         />
       </main>
       <PropertiesPanel

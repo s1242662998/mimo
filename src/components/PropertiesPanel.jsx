@@ -666,6 +666,66 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
           </div>
         )}
 
+        {editMode === 'default' && (
+          <div className="properties-section">
+            <div className="section-title">条件渲染 (Visible If)</div>
+            <div className="property-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', width: '100%' }}>
+                <input 
+                  type="checkbox" 
+                  checked={!!selectedShape.visibleIf}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      onUpdate({ ...selectedShape, visibleIf: { key: '', operator: '==', value: '' } });
+                    } else {
+                      onUpdate({ ...selectedShape, visibleIf: null });
+                    }
+                  }}
+                />
+                启用条件渲染
+              </label>
+              
+              {selectedShape.visibleIf && (
+                <div className="interaction-payload-config" style={{ width: '100%', marginTop: '0', padding: '8px' }}>
+                  <div className="property-row payload-row">
+                    <label style={{ width: '60px' }}>变量名</label>
+                    <input
+                      type="text"
+                      className="property-text"
+                      value={selectedShape.visibleIf.key}
+                      placeholder="如: currentTab"
+                      onChange={(e) => onUpdate({ ...selectedShape, visibleIf: { ...selectedShape.visibleIf, key: e.target.value } })}
+                    />
+                  </div>
+                  <div className="property-row payload-row">
+                    <label style={{ width: '60px' }}>条件</label>
+                    <select 
+                      className="property-select"
+                      value={selectedShape.visibleIf.operator}
+                      onChange={(e) => onUpdate({ ...selectedShape, visibleIf: { ...selectedShape.visibleIf, operator: e.target.value } })}
+                    >
+                      <option value="==">等于 (==)</option>
+                      <option value="!=">不等于 (!=)</option>
+                      <option value=">">大于 (&gt;)</option>
+                      <option value="<">小于 (&lt;)</option>
+                    </select>
+                  </div>
+                  <div className="property-row payload-row">
+                    <label style={{ width: '60px' }}>目标值</label>
+                    <input
+                      type="text"
+                      className="property-text"
+                      value={selectedShape.visibleIf.value}
+                      placeholder="如: home"
+                      onChange={(e) => onUpdate({ ...selectedShape, visibleIf: { ...selectedShape.visibleIf, value: e.target.value } })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="properties-section interactions-section">
           <div className="section-title">交互 (Interactions)</div>
           <div className="interactions-list">
@@ -684,6 +744,9 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                     <label>触发</label>
                     <select value={ix.trigger} onChange={(e) => handleUpdateInteraction(idx, 'trigger', e.target.value)} className="property-select">
                       <option value="onClick">点击 (Alt+Click)</option>
+                      <option value="onMouseEnter">鼠标移入</option>
+                      <option value="onMouseLeave">鼠标移出</option>
+                      <option value="onLoad">加载完成时 (onLoad)</option>
                     </select>
                   </div>
                   <div className="interaction-field">
@@ -691,19 +754,47 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                     <select value={ix.action} onChange={(e) => handleUpdateInteraction(idx, 'action', e.target.value)} className="property-select">
                       <option value="toggleVisibility">切换显示/隐藏</option>
                       <option value="setProps">修改属性 (setProps)</option>
+                      <option value="setVariable">修改全局变量 (setVariable)</option>
                     </select>
                   </div>
-                  <div className="interaction-field">
-                    <label>目标</label>
-                    <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
-                      <option value="">请选择目标...</option>
-                      {shapes.filter(s => s.id !== selectedShape.id).map(s => (
-                        <option key={s.id} value={s.id}>
-                          {TypeNameMap[s.type || s.id.split('-')[0]] || '组件'} ({s.id})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {ix.action === 'setVariable' ? (
+                    <div className="interaction-payload-config">
+                      <div className="payload-divider"></div>
+                      <div className="payload-title">配置变量</div>
+                      <div className="property-row payload-row">
+                        <label>变量名(key)</label>
+                        <input
+                          type="text"
+                          className="property-text"
+                          value={ix.payload?.key || ''}
+                          placeholder="例如: currentTab"
+                          onChange={(e) => handleUpdatePayload(idx, 'key', e.target.value)}
+                        />
+                      </div>
+                      <div className="property-row payload-row">
+                        <label>变量值(value)</label>
+                        <input
+                          type="text"
+                          className="property-text"
+                          value={ix.payload?.value || ''}
+                          placeholder="例如: home"
+                          onChange={(e) => handleUpdatePayload(idx, 'value', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="interaction-field">
+                      <label>目标</label>
+                      <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
+                        <option value="">请选择目标...</option>
+                        {shapes.filter(s => s.id !== selectedShape.id).map(s => (
+                          <option key={s.id} value={s.id}>
+                            {TypeNameMap[s.type || s.id.split('-')[0]] || '组件'} ({s.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   {ix.action === 'setProps' && ix.targetId && (
                     <div className="interaction-payload-config">
                       <div className="payload-divider"></div>
@@ -731,6 +822,34 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                       })()}
                     </div>
                   )}
+                  <div className="interaction-field" style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed var(--color-border)' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', width: 'auto', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={ix.delay !== undefined}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            handleUpdateInteraction(idx, 'delay', 1000);
+                          } else {
+                            handleUpdateInteraction(idx, 'delay', undefined);
+                          }
+                        }}
+                      />
+                      延迟触发
+                    </label>
+                    {ix.delay !== undefined && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
+                        <input 
+                          type="number" 
+                          className="property-number" 
+                          style={{ width: '60px' }}
+                          value={ix.delay} 
+                          onChange={(e) => handleUpdateInteraction(idx, 'delay', parseInt(e.target.value, 10) || 0)}
+                        />
+                        <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>ms</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
