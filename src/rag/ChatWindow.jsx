@@ -262,17 +262,26 @@ CANVAS INTERACTION RULES (When adding interactive events):
 - To add a self hover effect (e.g. change color when hovering), use 'hoverProps': \`"hoverProps": { "fill": "#FF0000", "scale": 1.1 }\`
 - Interaction triggers support: "onClick", "onMouseEnter", "onMouseLeave", "onLoad".
 - You can add an optional "delay" in ms to ANY interaction: \`"interactions": [{ "trigger": "onClick", "delay": 2000, "action": "toggleVisibility", "targetId": "..." }]\`
-- Action types support: "toggleVisibility", "setProps", "setVariable".
+- Action types support: "toggleVisibility", "setProps", "setVariable", "switchState", "nextState", "prevState".
 - Example of setting global variable: \`"interactions": [{ "trigger": "onClick", "action": "setVariable", "payload": { "key": "currentTab", "value": "profile" } }]\`
 - To conditionally render a shape based on global variables, add 'visibleIf' object: \`"visibleIf": { "key": "currentTab", "operator": "==", "value": "profile" }\`
 - Example of click to toggle visibility: \`"interactions": [{ "trigger": "onClick", "action": "toggleVisibility", "targetId": "target-element-id" }]\`
 - Example of mouse enter to change target's properties: \`"interactions": [{ "trigger": "onMouseEnter", "action": "setProps", "targetId": "target-element-id", "payload": { "fill": "blue" } }]\`
 
+DYNAMIC PANEL RULES (For creating multi-state containers):
+- type: 'dynamicPanel', requires x, y, width, height, states (array of state objects)
+- Each state has: { id: 'state-1', name: 'State 1', children: [] }
+- Must include 'activeStateId' to set initial visible state
+- Example: \`{ "type": "dynamicPanel", "x": 100, "y": 100, "width": 300, "height": 200, "states": [{ "id": "state-1", "name": "Tab 1", "children": [] }, { "id": "state-2", "name": "Tab 2", "children": [] }], "activeStateId": "state-1" }\`
+- To switch states via interaction: \`"interactions": [{ "trigger": "onClick", "action": "switchState", "targetId": "panel-id", "payload": { "stateId": "state-2" } }]\`
+- To cycle states: use "nextState" or "prevState" actions
+
 SCREENSHOT PARSING RULES (When generating UI from image):
-- Supported types: 'text', 'button', 'input', 'rectangle', 'circle', 'image'
+- Supported types: 'text', 'button', 'input', 'rectangle', 'circle', 'image', 'dynamicPanel'
 - text: requires x, y, text (optional: fontSize, fill, width)
 - button/input/rectangle/image: requires x, y, width, height (optional: fill, stroke, cornerRadius, text/placeholder)
 - circle: requires x, y, radius (optional: fill, stroke)
+- dynamicPanel: requires x, y, width, height, states array, activeStateId
 - Coordinate system: (0,0) is top-left.
 - Colors MUST be in HEX format (e.g., #FFFFFF).
 - Z-index: Background elements first, foreground elements last.`;

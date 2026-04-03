@@ -249,16 +249,70 @@ function App() {
   }, [historyIndex, history]);
 
   const handleDrop = useCallback((component, x, y) => {
+    // 检查是否拖拽到动态面板内
+    const targetPanel = shapes.find(shape => {
+      if (shape.type !== 'dynamicPanel') return false;
+      const panelX = shape.x;
+      const panelY = shape.y;
+      const panelWidth = shape.props.width || 300;
+      const panelHeight = shape.props.height || 200;
+      return x >= panelX && x <= panelX + panelWidth && 
+             y >= panelY && y <= panelY + panelHeight;
+    });
+
+    // 如果拖拽到动态面板内，添加为子组件
+    if (targetPanel && component.id !== 'dynamicPanel' && component.type !== 'dynamicPanel') {
+      const childId = `${component.id}-${++shapeIdCounter}`;
+      const newChild = {
+        id: childId,
+        type: component.type,
+        x: x - targetPanel.x,
+        y: y - targetPanel.y,
+        props: { ...component.props },
+      };
+      
+      const newShapes = shapes.map(shape => {
+        if (shape.id !== targetPanel.id) return shape;
+        
+        const newStates = (shape.states || []).map(state => {
+          if (state.id !== shape.activeStateId) return state;
+          return {
+            ...state,
+            children: [...(state.children || []), newChild],
+          };
+        });
+        
+        return { ...shape, states: newStates };
+      });
+      
+      setShapes(newShapes);
+      setSelectedId(targetPanel.id);
+      setSelectedIds([targetPanel.id]);
+      saveToHistory(newShapes);
+      return;
+    }
+
+    // 正常添加顶层组件
     const newShape = {
       id: `${component.id}-${++shapeIdCounter}`,
       type: component.type,
-      x: Math.max(0, x - 50),
-      y: Math.max(0, y - 20),
+      x: x - 50,
+      y: y - 20,
       props: { ...component.props },
       rotation: 0,
       visible: true,
       locked: false,
     };
+    
+    // 动态面板初始化
+    if (component.id === 'dynamicPanel' || component.type === 'dynamicPanel') {
+      newShape.states = [
+        { id: `state-${Date.now()}-1`, name: '状态 1', children: [] },
+        { id: `state-${Date.now()}-2`, name: '状态 2', children: [] },
+      ];
+      newShape.activeStateId = newShape.states[0].id;
+    }
+    
     const newShapes = [...shapes, newShape];
     setShapes(newShapes);
     setSelectedId(newShape.id);
@@ -628,6 +682,25 @@ function App() {
             updatedShape.props[key] = interaction.payload[key];
           }
         });
+      } else if (interaction.action === 'switchState' && interaction.payload?.stateId) {
+        // 动态面板：切换到指定状态
+        if (s.type === 'dynamicPanel' && s.states) {
+          updatedShape.activeStateId = interaction.payload.stateId;
+        }
+      } else if (interaction.action === 'nextState') {
+        // 动态面板：切换到下一个状态
+        if (s.type === 'dynamicPanel' && s.states && s.states.length > 0) {
+          const currentIndex = s.states.findIndex(st => st.id === s.activeStateId);
+          const nextIndex = (currentIndex + 1) % s.states.length;
+          updatedShape.activeStateId = s.states[nextIndex].id;
+        }
+      } else if (interaction.action === 'prevState') {
+        // 动态面板：切换到上一个状态
+        if (s.type === 'dynamicPanel' && s.states && s.states.length > 0) {
+          const currentIndex = s.states.findIndex(st => st.id === s.activeStateId);
+          const prevIndex = (currentIndex - 1 + s.states.length) % s.states.length;
+          updatedShape.activeStateId = s.states[prevIndex].id;
+        }
       }
 
       return updatedShape;
@@ -639,8 +712,8 @@ function App() {
     const { type, targetIds, updates, newShape, batchUpdates, elements } = action;
 
     // 辅助函数：将 AI 格式的形状转换为 Konva 需要的格式
-    const convertAiShape = (el, index = 0) => {
-      const { type: jsonType, x, y, visible, visibleIf, hoverProps, interactions, ...restProps } = el;
+    const convertAiShape = (el) => {
+      const { type: jsonType, x, y, visible, visibleIf, hoverProps, interactions, states, activeStateId, animation, autoPlay, ...restProps } = el;
       
       const typeMap = {
         text: 'text',
@@ -649,6 +722,7 @@ function App() {
         rectangle: 'rect',
         circle: 'circle',
         image: 'image',
+        dynamicPanel: 'dynamicPanel',
       };
       const elType = typeMap[jsonType] || jsonType || 'rect';
       
@@ -662,7 +736,7 @@ function App() {
          props.fontFamily = props.fontFamily || 'Inter';
       }
       
-      return {
+      const result = {
         id: el.id || `${jsonType}-${shapeIdCounter++}`,
         type: elType,
         x: x || 0,
@@ -673,6 +747,16 @@ function App() {
         interactions: interactions || [],
         props: props
       };
+      
+      // 动态面板特有属性
+      if (jsonType === 'dynamicPanel') {
+        result.states = states || [];
+        result.activeStateId = activeStateId || (states && states[0]?.id);
+        result.animation = animation || { type: 'none', duration: 300, direction: 'horizontal' };
+        result.autoPlay = autoPlay || { enabled: false, interval: 3000, loop: true };
+      }
+      
+      return result;
     };
 
     setShapes(prevShapes => {

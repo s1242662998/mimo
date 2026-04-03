@@ -99,6 +99,14 @@ const Icons = {
       <polyline points="4 8 10 14 16 8" />
     </svg>
   ),
+  DynamicPanel: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="16" height="12" rx="2" />
+      <rect x="4" y="6" width="5" height="3" rx="0.5" fill="currentColor" opacity="0.3" />
+      <rect x="11" y="6" width="5" height="3" rx="0.5" fill="currentColor" opacity="0.3" />
+      <rect x="4" y="11" width="12" height="3" rx="0.5" />
+    </svg>
+  ),
 };
 
 const IconMap = {
@@ -112,6 +120,7 @@ const IconMap = {
   line: Icons.Line,
   group: Icons.Layers,
   icon: Icons.Image,
+  dynamicPanel: Icons.DynamicPanel,
 };
 
 const TypeNameMap = {
@@ -124,6 +133,7 @@ const TypeNameMap = {
   triangle: '三角形',
   line: '线条',
   icon: '图标',
+  dynamicPanel: '动态面板',
 };
 
 function DraggableItem({ component }) {

@@ -114,4 +114,19 @@ export const componentList = [
       strokeWidth: 2,
     },
   },
+  {
+    id: 'dynamicPanel',
+    name: '动态面板',
+    description: '支持多状态切换的动态容器',
+    type: 'dynamicPanel',
+    props: {
+      width: 300,
+      height: 200,
+      fill: '#FFFFFF',
+      stroke: '#E2E8F0',
+      strokeWidth: 1,
+      cornerRadius: 8,
+      opacity: 1,
+    },
+  },
 ];

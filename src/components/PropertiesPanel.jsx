@@ -235,6 +235,15 @@ const propertyConfigs = {
     { key: 'strokeWidth', label: '宽度', type: 'number', min: 1, max: 20 },
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
   ],
+  dynamicPanel: [
+    { key: 'width', label: '宽度', type: 'number', min: 50, max: 1200 },
+    { key: 'height', label: '高度', type: 'number', min: 50, max: 800 },
+    { key: 'fill', label: '背景', type: 'color' },
+    { key: 'stroke', label: '边框', type: 'color' },
+    { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 10 },
+    { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 50 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
   icon: [
     { key: 'width', label: '宽度', type: 'number', min: 8, max: 200 },
     { key: 'height', label: '高度', type: 'number', min: 8, max: 200 },
@@ -255,6 +264,7 @@ const TypeNameMap = {
   circle: '圆形',
   line: '线条',
   icon: '图标',
+  dynamicPanel: '动态面板',
 };
 
 function PropertyInput({ config, value, onChange }) {
@@ -666,6 +676,101 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
           </div>
         )}
 
+        {shapeType === 'dynamicPanel' && editMode === 'default' && (
+          <div className="properties-section">
+            <div className="section-title">状态管理</div>
+            <div className="states-list">
+              {(selectedShape.states || []).map((state, idx) => (
+                <div key={state.id} className={`state-item ${state.id === selectedShape.activeStateId ? 'active' : ''}`}>
+                  <div className="state-item-header">
+                    <button 
+                      className="state-activate-btn"
+                      onClick={() => onUpdate({ ...selectedShape, activeStateId: state.id })}
+                      title="设为当前状态"
+                    >
+                      {state.id === selectedShape.activeStateId ? '●' : '○'}
+                    </button>
+                    <input
+                      type="text"
+                      className="state-name-input"
+                      value={state.name}
+                      onChange={(e) => {
+                        const newStates = [...(selectedShape.states || [])];
+                        newStates[idx] = { ...state, name: e.target.value };
+                        onUpdate({ ...selectedShape, states: newStates });
+                      }}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                    <span className="state-children-count">{(state.children || []).length} 个元素</span>
+                    <button 
+                      className="remove-state-btn"
+                      onClick={() => {
+                        if ((selectedShape.states || []).length <= 1) {
+                          alert('至少保留一个状态');
+                          return;
+                        }
+                        const newStates = (selectedShape.states || []).filter((_, i) => i !== idx);
+                        const newActiveStateId = state.id === selectedShape.activeStateId 
+                          ? newStates[0]?.id 
+                          : selectedShape.activeStateId;
+                        onUpdate({ ...selectedShape, states: newStates, activeStateId: newActiveStateId });
+                      }}
+                      title="删除状态"
+                    >
+                      <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2" fill="none">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  {state.id === selectedShape.activeStateId && (
+                    <div className="state-children">
+                      {(state.children || []).length === 0 ? (
+                        <div className="state-children-empty">拖拽组件到面板内添加</div>
+                      ) : (
+                        (state.children || []).map((child, childIdx) => (
+                          <div key={child.id} className="state-child-item">
+                            <span className="child-type">{TypeNameMap[child.id.split('-')[0]] || child.type}</span>
+                            <span className="child-id">{child.id}</span>
+                            <button 
+                              className="remove-child-btn"
+                              onClick={() => {
+                                const newStates = (selectedShape.states || []).map(s => {
+                                  if (s.id !== state.id) return s;
+                                  return {
+                                    ...s,
+                                    children: (s.children || []).filter((_, i) => i !== childIdx),
+                                  };
+                                });
+                                onUpdate({ ...selectedShape, states: newStates });
+                              }}
+                              title="删除子组件"
+                            >
+                              <svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" strokeWidth="2" fill="none">
+                                <path d="M18 6L6 18M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button 
+              className="add-state-btn"
+              onClick={() => {
+                const newStates = [...(selectedShape.states || [])];
+                const newStateId = `state-${Date.now()}`;
+                newStates.push({ id: newStateId, name: `状态 ${newStates.length + 1}`, children: [] });
+                onUpdate({ ...selectedShape, states: newStates });
+              }}
+            >
+              + 添加状态
+            </button>
+          </div>
+        )}
+
         {editMode === 'default' && (
           <div className="properties-section">
             <div className="section-title">条件渲染 (Visible If)</div>
@@ -755,6 +860,9 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                       <option value="toggleVisibility">切换显示/隐藏</option>
                       <option value="setProps">修改属性 (setProps)</option>
                       <option value="setVariable">修改全局变量 (setVariable)</option>
+                      <option value="switchState">切换到指定状态</option>
+                      <option value="nextState">切换到下一状态</option>
+                      <option value="prevState">切换到上一状态</option>
                     </select>
                   </div>
                   {ix.action === 'setVariable' ? (
@@ -781,6 +889,53 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                           onChange={(e) => handleUpdatePayload(idx, 'value', e.target.value)}
                         />
                       </div>
+                    </div>
+                  ) : ix.action === 'switchState' ? (
+                    <>
+                      <div className="interaction-field">
+                        <label>目标</label>
+                        <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
+                          <option value="">请选择动态面板...</option>
+                          {shapes.filter(s => s.type === 'dynamicPanel').map(s => (
+                            <option key={s.id} value={s.id}>
+                              动态面板 ({s.id})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {ix.targetId && (() => {
+                        const targetPanel = shapes.find(s => s.id === ix.targetId);
+                        if (!targetPanel || !targetPanel.states) return null;
+                        return (
+                          <div className="interaction-field">
+                            <label>目标状态</label>
+                            <select 
+                              value={ix.payload?.stateId || ''} 
+                              onChange={(e) => handleUpdatePayload(idx, 'stateId', e.target.value)} 
+                              className="property-select"
+                            >
+                              <option value="">请选择状态...</option>
+                              {targetPanel.states.map(state => (
+                                <option key={state.id} value={state.id}>
+                                  {state.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  ) : ix.action === 'nextState' || ix.action === 'prevState' ? (
+                    <div className="interaction-field">
+                      <label>目标</label>
+                      <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
+                        <option value="">请选择动态面板...</option>
+                        {shapes.filter(s => s.type === 'dynamicPanel').map(s => (
+                          <option key={s.id} value={s.id}>
+                            动态面板 ({s.id})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   ) : (
                     <div className="interaction-field">
