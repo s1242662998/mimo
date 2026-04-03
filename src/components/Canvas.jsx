@@ -34,6 +34,7 @@ function ImageShape({ shape, activeProps, shapeRef, rotation, shapeProps, onChan
       draggable
       onClick={shapeProps.onClick}
       onTap={shapeProps.onTap}
+      onDragStart={shapeProps.onDragStart}
       onDragMove={(e) => {
         onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
       }}
@@ -460,7 +461,7 @@ function ResizeHandles({ shape, onResize, onResizeEnd, onRotate, onRotateEnd, st
   );
 }
 
-function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode, variables }) {
+function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode, variables, selectedChildId, onSelectChild }) {
   const shapeRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -566,6 +567,11 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
       e.cancelBubble = true;
       if (['text', 'rect', 'circle'].includes(shape.type) || shape.id.startsWith('input') || shape.id.startsWith('button')) {
         onDoubleClick?.(shape);
+      }
+    },
+    onDragStart: (e) => {
+      if (!isPreviewMode) {
+        onSelect(shape.id);
       }
     },
     onDragMove: (e) => {
@@ -701,6 +707,51 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
           },
           children: scaledChildren,
         };
+      } else if (shape.type === 'dynamicPanel') {
+        // 动态面板缩放：跟随面板比例缩放所有状态中的子组件
+        const oldWidth = shape.props.width || 1;
+        const oldHeight = shape.props.height || 1;
+        const scaleX = newBounds.width / oldWidth;
+        const scaleY = newBounds.height / oldHeight;
+
+        const scaledStates = (shape.states || []).map(state => {
+          const scaledChildren = (state.children || []).map(child => {
+            const childProps = child.props || {};
+            const scaledChild = {
+              ...child,
+              x: child.x * scaleX,
+              y: child.y * scaleY,
+              props: { ...childProps },
+            };
+
+            if (child.type === 'circle') {
+              scaledChild.props.radius = (childProps.radius || 40) * scaleX;
+              scaledChild.props.radiusY = (childProps.radiusY || childProps.radius || 40) * scaleY;
+            } else if (child.type === 'text') {
+              scaledChild.props.width = (childProps.width || 150) * scaleX;
+              scaledChild.props.fontSize = (childProps.fontSize || 16) * scaleX;
+            } else {
+              scaledChild.props.width = (childProps.width || 100) * scaleX;
+              scaledChild.props.height = (childProps.height || 100) * scaleY;
+            }
+
+            return scaledChild;
+          });
+
+          return { ...state, children: scaledChildren };
+        });
+
+        return {
+          ...shape,
+          x: newBounds.x,
+          y: newBounds.y,
+          props: {
+            ...shape.props,
+            width: newBounds.width,
+            height: newBounds.height,
+          },
+          states: scaledStates,
+        };
       } else if (shape.type !== 'line') {
         newProps.width = newBounds.width;
         newProps.height = newBounds.height;
@@ -783,6 +834,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
               onTap={shapeProps.onTap}
               onDblClick={shapeProps.onDblClick}
               onDblTap={shapeProps.onDblTap}
+              onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
               }}
@@ -846,6 +898,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
               onTap={shapeProps.onTap}
               onDblClick={shapeProps.onDblClick}
               onDblTap={shapeProps.onDblTap}
+              onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
               }}
@@ -902,6 +955,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
             onTap={shapeProps.onTap}
             onDblClick={shapeProps.onDblClick}
             onDblTap={shapeProps.onDblTap}
+            onDragStart={shapeProps.onDragStart}
             onDragMove={(e) => {
               onChange({ ...shape, x: e.target.x(), y: e.target.y() });
             }}
@@ -971,6 +1025,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
             draggable
             onClick={shapeProps.onClick}
             onTap={shapeProps.onTap}
+            onDragStart={shapeProps.onDragStart}
             onDragMove={(e) => {
               onChange({ ...shape, x: e.target.x() - iconWidth / 2, y: e.target.y() - iconHeight / 2 });
             }}
@@ -1019,6 +1074,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
             onTap={shapeProps.onTap}
             onDblClick={shapeProps.onDblClick}
             onDblTap={shapeProps.onDblTap}
+            onDragStart={shapeProps.onDragStart}
             onDragMove={(e) => {
               onChange({ ...shape, x: e.target.x() - textWidth / 2, y: e.target.y() - textHeight / 2 });
             }}
@@ -1062,6 +1118,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
             draggable
             onClick={shapeProps.onClick}
             onTap={shapeProps.onTap}
+            onDragStart={shapeProps.onDragStart}
             onDragMove={(e) => {
               onChange({ ...shape, x: e.target.x(), y: e.target.y() });
             }}
@@ -1149,6 +1206,271 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
                 );
               }
             })}
+          </Group>
+        );
+      }
+      case 'dynamicPanel': {
+        const width = activeProps.width || 300;
+        const height = activeProps.height || 200;
+        const states = shape.states || [];
+        const activeStateId = shape.activeStateId || (states[0]?.id);
+        const activeState = states.find(s => s.id === activeStateId) || states[0];
+        
+        return (
+          <Group
+            scaleX={activeProps.scale || 1}
+            scaleY={activeProps.scale || 1}
+            x={shape.x}
+            y={shape.y}
+            draggable
+            onClick={shapeProps.onClick}
+            onTap={shapeProps.onTap}
+            onDragStart={shapeProps.onDragStart}
+            onDragMove={(e) => {
+              onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+            }}
+            onDragEnd={(e) => {
+              onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+              onDragEnd?.();
+            }}
+            onMouseEnter={shapeProps.onMouseEnter}
+            onMouseLeave={shapeProps.onMouseLeave}
+          >
+            <Rect
+              ref={shapeRef}
+              x={0}
+              y={0}
+              width={width}
+              height={height}
+              fill={activeProps.fill}
+              stroke={activeProps.stroke}
+              strokeWidth={activeProps.strokeWidth}
+              cornerRadius={activeProps.cornerRadius}
+              opacity={activeProps.opacity}
+            />
+            {isSelected && (
+              <Rect
+                x={0}
+                y={0}
+                width={width}
+                height={height}
+                fill="transparent"
+                stroke="#0891B2"
+                strokeWidth={1}
+                dash={[4, 4]}
+                listening={false}
+              />
+            )}
+            {activeState?.children?.map((child) => {
+              const childProps = child.props || {};
+              const childType = child.id?.split('-')[0];
+              const isChildSelected = selectedChildId === child.id;
+              
+              const handleChildClick = (e) => {
+                e.cancelBubble = true;
+                onSelectChild?.(child.id);
+                onSelect?.(shape.id);
+              };
+
+              const handleChildDragStart = (e) => {
+                e.cancelBubble = true;
+                onSelectChild?.(child.id);
+                onSelect?.(shape.id);
+              };
+              
+              const handleChildDragMove = (e) => {
+                e.cancelBubble = true;
+                const newX = e.target.x();
+                const newY = e.target.y();
+
+                onChange(prev => {
+                  const prevStates = prev.states || [];
+                  const newStates = prevStates.map(state => {
+                    if (state.id !== prev.activeStateId) return state;
+                    return {
+                      ...state,
+                      children: (state.children || []).map(c => {
+                        if (c.id !== child.id) return c;
+                        return { ...c, x: newX, y: newY };
+                      }),
+                    };
+                  });
+                  return { ...prev, states: newStates };
+                });
+              };
+
+              const handleChildDragEnd = (e) => {
+                e.cancelBubble = true;
+                const newX = e.target.x();
+                const newY = e.target.y();
+
+                onChange(prev => {
+                  const prevStates = prev.states || [];
+                  const newStates = prevStates.map(state => {
+                    if (state.id !== prev.activeStateId) return state;
+                    return {
+                      ...state,
+                      children: (state.children || []).map(c => {
+                        if (c.id !== child.id) return c;
+                        return { ...c, x: newX, y: newY };
+                      }),
+                    };
+                  });
+                  return { ...prev, states: newStates };
+                });
+                onDragEnd?.();
+              };
+              
+              if (childType === 'circle') {
+                const radius = childProps.radius || 40;
+                if (childProps.radiusY !== undefined) {
+                  return (
+                    <Group key={child.id}>
+                      <Ellipse
+                        x={child.x}
+                        y={child.y}
+                        radiusX={radius}
+                        radiusY={childProps.radiusY}
+                        fill={childProps.fill || '#F1F5F9'}
+                        stroke={isChildSelected ? '#0891B2' : childProps.stroke}
+                        strokeWidth={isChildSelected ? 2 : (childProps.strokeWidth || 0)}
+                        draggable
+                        onClick={handleChildClick}
+                        onTap={handleChildClick}
+                        onDragStart={handleChildDragStart}
+                        onDragMove={handleChildDragMove}
+                        onDragEnd={handleChildDragEnd}
+                      />
+                      {isChildSelected && (
+                        <Rect
+                          x={child.x - radius - 2}
+                          y={child.y - childProps.radiusY - 2}
+                          width={radius * 2 + 4}
+                          height={childProps.radiusY * 2 + 4}
+                          stroke="#0891B2"
+                          strokeWidth={1}
+                          dash={[4, 4]}
+                          fill="transparent"
+                          listening={false}
+                        />
+                      )}
+                    </Group>
+                  );
+                }
+                return (
+                  <Group key={child.id}>
+                    <Circle
+                      x={child.x}
+                      y={child.y}
+                      radius={radius}
+                      fill={childProps.fill || '#F1F5F9'}
+                      stroke={isChildSelected ? '#0891B2' : childProps.stroke}
+                      strokeWidth={isChildSelected ? 2 : (childProps.strokeWidth || 0)}
+                      draggable
+                      onClick={handleChildClick}
+                      onTap={handleChildClick}
+                      onDragStart={handleChildDragStart}
+                      onDragMove={handleChildDragMove}
+                      onDragEnd={handleChildDragEnd}
+                    />
+                    {isChildSelected && (
+                      <Rect
+                        x={child.x - radius - 2}
+                        y={child.y - radius - 2}
+                        width={radius * 2 + 4}
+                        height={radius * 2 + 4}
+                        stroke="#0891B2"
+                        strokeWidth={1}
+                        dash={[4, 4]}
+                        fill="transparent"
+                        listening={false}
+                      />
+                    )}
+                  </Group>
+                );
+              } else if (childType === 'text') {
+                const textWidth = childProps.width || 150;
+                const fontSize = childProps.fontSize || 16;
+                const textHeight = fontSize * 1.4;
+                return (
+                  <Group key={child.id}>
+                    <Text
+                      x={child.x}
+                      y={child.y}
+                      text={childProps.text || '文本'}
+                      fontSize={fontSize}
+                      fontFamily={childProps.fontFamily || 'Inter'}
+                      fill={childProps.fill || '#0F172A'}
+                      width={textWidth}
+                      draggable
+                      onClick={handleChildClick}
+                      onTap={handleChildClick}
+                      onDragStart={handleChildDragStart}
+                      onDragMove={handleChildDragMove}
+                      onDragEnd={handleChildDragEnd}
+                    />
+                    {isChildSelected && (
+                      <Rect
+                        x={child.x - 2}
+                        y={child.y - 2}
+                        width={textWidth + 4}
+                        height={textHeight + 4}
+                        stroke="#0891B2"
+                        strokeWidth={1}
+                        dash={[4, 4]}
+                        fill="transparent"
+                        listening={false}
+                      />
+                    )}
+                  </Group>
+                );
+              } else {
+                const childWidth = childProps.width || 100;
+                const childHeight = childProps.height || 100;
+                return (
+                  <Group key={child.id}>
+                    <Rect
+                      x={child.x}
+                      y={child.y}
+                      width={childWidth}
+                      height={childHeight}
+                      fill={childProps.fill || '#F1F5F9'}
+                      stroke={isChildSelected ? '#0891B2' : childProps.stroke}
+                      strokeWidth={isChildSelected ? 2 : (childProps.strokeWidth || 0)}
+                      cornerRadius={childProps.cornerRadius || 0}
+                      draggable
+                      onClick={handleChildClick}
+                      onTap={handleChildClick}
+                      onDragStart={handleChildDragStart}
+                      onDragMove={handleChildDragMove}
+                      onDragEnd={handleChildDragEnd}
+                    />
+                    {isChildSelected && (
+                      <Rect
+                        x={child.x - 2}
+                        y={child.y - 2}
+                        width={childWidth + 4}
+                        height={childHeight + 4}
+                        stroke="#0891B2"
+                        strokeWidth={1}
+                        dash={[4, 4]}
+                        fill="transparent"
+                        listening={false}
+                      />
+                    )}
+                  </Group>
+                );
+              }
+            })}
+            <Text
+              x={8}
+              y={height - 20}
+              text={`${activeState?.name || '无状态'} (${states.findIndex(s => s.id === activeStateId) + 1}/${states.length})`}
+              fontSize={11}
+              fontFamily="Inter"
+              fill="#64748B"
+              listening={false}
+            />
           </Group>
         );
       }
@@ -1478,6 +1800,7 @@ export default function Canvas({
   const [selectionEnd, setSelectionEnd] = useState(null);
   const [editingShape, setEditingShape] = useState(null);
   const [editText, setEditText] = useState('');
+  const [selectedChildId, setSelectedChildId] = useState(null);
   const lastPosRef = useRef(null);
   const editInputRef = useRef(null);
 
@@ -1531,6 +1854,7 @@ export default function Canvas({
       if (clickedOnEmpty) {
         setSelectedId(null);
         setSelectedIds([]);
+        setSelectedChildId(null);
 
         // 开始框选
         const stage = stageRef.current;
@@ -1989,6 +2313,8 @@ export default function Canvas({
               onExecuteInteraction={onExecuteInteraction}
               isPreviewMode={isPreviewMode}
               variables={variables}
+              selectedChildId={selectedChildId}
+              onSelectChild={setSelectedChildId}
             />
           ))}
           <SelectionRectangle startPos={selectionStart} currentPos={selectionEnd} />

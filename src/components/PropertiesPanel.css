@@ -578,3 +578,165 @@
   height: auto;
   display: block;
 }
+
+/* 动态面板状态管理样式 */
+.states-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.state-item {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.state-item.active {
+  border-color: var(--color-primary);
+  background: var(--color-active);
+}
+
+.state-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+}
+
+.state-activate-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  padding: 2px;
+  line-height: 1;
+}
+
+.state-item.active .state-activate-btn {
+  color: var(--color-primary);
+}
+
+.state-name-input {
+  flex: 1;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: transparent;
+  min-width: 0;
+}
+
+.state-name-input:focus {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+  outline: none;
+}
+
+.state-children-count {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.remove-state-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-state-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.add-state-btn {
+  width: 100%;
+  padding: 8px;
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.add-state-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(8, 145, 178, 0.05);
+}
+
+/* 动态面板子组件列表样式 */
+.state-children {
+  padding: 8px;
+  border-top: 1px solid var(--color-border);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.state-children-empty {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 8px;
+  font-style: italic;
+}
+
+.state-child-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--color-bg);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  border: 1px solid var(--color-border);
+}
+
+.state-child-item:last-child {
+  margin-bottom: 0;
+}
+
+.child-type {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text);
+  flex-shrink: 0;
+}
+
+.child-id {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove-child-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.remove-child-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
