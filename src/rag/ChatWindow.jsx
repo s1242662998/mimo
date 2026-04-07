@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { IconMap, TypeNameMap, Icons } from '../components/ComponentPanel';
 import './ChatWindow.css';
 
 const DEFAULT_PROVIDERS = [
@@ -7,7 +8,7 @@ const DEFAULT_PROVIDERS = [
   { id: 'openai-gpt-4', name: 'OpenAI (GPT-4)', baseUrl: 'https://api.openai.com/v1', isDefault: true }
 ];
 
-export default function ChatWindow({ onClose, canvasShapes, onAiAction }) {
+export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatContextShapes = [], setChatContextShapes }) {
   const [messages, setMessages] = useState(() => {
     try {
       const savedMessages = localStorage.getItem('rag_chat_history');
@@ -236,11 +237,25 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction }) {
       // 补充画布上下文到最近的一条用户消息中
       if (apiMessages.length > 0) {
         const lastMsg = apiMessages[apiMessages.length - 1];
-        if (typeof lastMsg.content === 'string') {
-          lastMsg.content = `${lastMsg.content}\n\n${canvasContext}`;
-        } else if (Array.isArray(lastMsg.content)) {
-          lastMsg.content.push({ type: 'text', text: canvasContext });
+        let contextToAdd = canvasContext;
+
+        if (chatContextShapes && chatContextShapes.length > 0) {
+          const selectedContext = `用户特别指定的上下文组件：${JSON.stringify(chatContextShapes.map(s => ({
+            id: s.id, type: s.type, x: s.x, y: s.y, ...s.props
+          })))}\n\n`;
+          contextToAdd = selectedContext + canvasContext;
         }
+
+        if (typeof lastMsg.content === 'string') {
+          lastMsg.content = `${lastMsg.content}\n\n${contextToAdd}`;
+        } else if (Array.isArray(lastMsg.content)) {
+          lastMsg.content.push({ type: 'text', text: contextToAdd });
+        }
+      }
+
+      // 发送后清空指定的上下文组件
+      if (chatContextShapes && chatContextShapes.length > 0) {
+        setChatContextShapes?.([]);
       }
 
       // 如果是 MiMo，加上推荐的 system prompt
@@ -718,6 +733,27 @@ SCREENSHOT PARSING RULES (When generating UI from image):
           </div>
 
           <div className="rag-chat-input-area">
+            {chatContextShapes && chatContextShapes.length > 0 && (
+              <div className="rag-context-shapes">
+                {chatContextShapes.map(shape => {
+                  const typeKey = shape.id.split('-')[0];
+                  const Icon = IconMap[typeKey] || Icons.Rect;
+                  const typeName = TypeNameMap[typeKey] || '组件';
+                  return (
+                    <div key={shape.id} className="rag-context-shape-pill">
+                      <Icon />
+                      <span>{typeName}</span>
+                      <button 
+                        onClick={() => setChatContextShapes(prev => prev.filter(s => s.id !== shape.id))}
+                        className="rag-context-shape-remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {imagePreviewUrl && (
               <div className="rag-image-preview">
                 <img src={imagePreviewUrl} alt="Preview" />
@@ -744,7 +780,7 @@ SCREENSHOT PARSING RULES (When generating UI from image):
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 placeholder={`发送消息给 ${providers.find(p => p.id === selectedProviderId)?.name}...`}
-                rows={1}
+                rows={3}
                 disabled={isLoading}
               />
               <button onClick={handleSend} disabled={(!input.trim() && !selectedImage) || isLoading} className="rag-send-btn">

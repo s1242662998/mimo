@@ -1786,9 +1786,8 @@ export default function Canvas({
   showGuides,
   onExecuteInteraction,
   isPreviewMode,
-  focusShapeId,
-  onFocusComplete,
   variables,
+  onAddToChat,
 }) {
   const stageRef = useRef(null);
   const containerRef = useRef(null);
@@ -1817,49 +1816,6 @@ export default function Canvas({
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
   }, []);
-
-  // 定位到指定组件
-  useEffect(() => {
-    if (!focusShapeId) return;
-    
-    const shape = shapes.find(s => s.id === focusShapeId);
-    if (!shape) return;
-
-    // 获取组件的中心位置
-    let shapeCenterX = shape.x;
-    let shapeCenterY = shape.y;
-
-    if (shape.type === 'circle') {
-      // 圆形的x,y是圆心
-      shapeCenterX = shape.x;
-      shapeCenterY = shape.y;
-    } else if (shape.type === 'text') {
-      const width = shape.props?.width || 150;
-      const fontSize = shape.props?.fontSize || 16;
-      const lineHeight = shape.props?.lineHeight || 1.4;
-      const height = fontSize * lineHeight;
-      shapeCenterX = shape.x + width / 2;
-      shapeCenterY = shape.y + height / 2;
-    } else {
-      // 矩形、按钮、输入框等：x,y是左上角
-      const width = shape.props?.width || 100;
-      const height = shape.props?.height || 100;
-      shapeCenterX = shape.x + width / 2;
-      shapeCenterY = shape.y + height / 2;
-    }
-
-    // 计算新的位置，使组件居中显示
-    const newPosition = {
-      x: canvasSize.width / 2 - shapeCenterX * scale,
-      y: canvasSize.height / 2 - shapeCenterY * scale,
-    };
-
-    setPosition(newPosition);
-    
-    if (onFocusComplete) {
-      onFocusComplete();
-    }
-  }, [focusShapeId, shapes, canvasSize, scale, onFocusComplete]);
 
   const handleWheel = useCallback((e) => {
     e.evt.preventDefault();
@@ -2241,6 +2197,41 @@ export default function Canvas({
     };
   };
 
+  const getSelectionActionBounds = () => {
+    // 组组件也使用 actionBounds
+    const hasSelection = (selectedIds && selectedIds.length > 0) || selectedId;
+    if (!hasSelection) return null;
+    
+    // 如果是单选
+    if (selectedIds?.length <= 1 && selectedId) {
+      const singleShape = shapes.find(s => s.id === selectedId);
+      if (singleShape) {
+        return getShapeBounds(singleShape);
+      }
+    }
+    
+    // 多选
+    const selectedShapes = shapes.filter(s => selectedIds.includes(s.id));
+    if (selectedShapes.length === 0) return null;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    selectedShapes.forEach(shape => {
+      const bounds = getShapeBounds(shape);
+      minX = Math.min(minX, bounds.x);
+      minY = Math.min(minY, bounds.y);
+      maxX = Math.max(maxX, bounds.x + bounds.width);
+      maxY = Math.max(maxY, bounds.y + bounds.height);
+    });
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  };
+
+  const actionBounds = getSelectionActionBounds();
   const selectedShape = shapes.find(s => s.id === selectedId);
 
   return (
@@ -2404,6 +2395,35 @@ export default function Canvas({
             </>
           ) : null}
         </div>
+      )}
+
+      {actionBounds && (
+        <button
+          className="add-to-chat-btn"
+          style={{
+            position: 'absolute',
+            left: `${actionBounds.x * scale + position.x}px`,
+            top: `${actionBounds.y * scale + position.y - 30}px`,
+            zIndex: 100,
+            padding: '4px 8px',
+            backgroundColor: 'var(--color-primary)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+          }}
+          onClick={() => onAddToChat?.(selectedIds?.length > 1 ? selectedIds : [selectedId])}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          添加到对话
+        </button>
       )}
     </div>
   );

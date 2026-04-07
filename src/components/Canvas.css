@@ -185,3 +185,11 @@
   outline: none;
   box-shadow: none;
 }
+
+.add-to-chat-btn {
+  transition: background-color 0.2s;
+}
+
+.add-to-chat-btn:hover {
+  background-color: var(--color-primary-dark, #06b6d4) !important;
+}

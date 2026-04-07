@@ -3,7 +3,7 @@ import { componentList } from './componentList';
 import { iconLibrary, iconCategories } from '../data/icons';
 import './ComponentPanel.css';
 
-const Icons = {
+export const Icons = {
   Button: () => (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="6" width="14" height="8" rx="2" />
@@ -109,7 +109,7 @@ const Icons = {
   ),
 };
 
-const IconMap = {
+export const IconMap = {
   button: Icons.Button,
   input: Icons.Input,
   text: Icons.Text,
@@ -123,7 +123,7 @@ const IconMap = {
   dynamicPanel: Icons.DynamicPanel,
 };
 
-const TypeNameMap = {
+export const TypeNameMap = {
   button: '按钮',
   input: '输入框',
   text: '文本',
