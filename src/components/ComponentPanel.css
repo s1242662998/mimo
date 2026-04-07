@@ -1,10 +1,10 @@
 .component-panel {
-  width: 260px;
+  width: 100%;
   background: var(--color-bg);
-  border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+  flex: 1;
+  min-height: 0;
   overflow: visible;
 }
 

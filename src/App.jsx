@@ -5,6 +5,7 @@ import Toolbar from './components/Toolbar';
 import PropertiesPanel from './components/PropertiesPanel';
 import ScreenshotImporter from './components/ScreenshotImporter';
 import ChatWindow from './rag/ChatWindow';
+import PagePanel from './components/PagePanel';
 import './App.css';
 
 let shapeIdCounter = 0;
@@ -22,6 +23,10 @@ function App() {
   const [variables, setVariables] = useState({}); // 全局状态机
   const [chatContextShapes, setChatContextShapes] = useState([]); // 被添加到对话的组件
 
+  // 页面管理
+  const [pages, setPages] = useState([{ id: 'page-1', name: '页面 1', shapes: [] }]);
+  const [currentPageId, setCurrentPageId] = useState('page-1');
+
   // 当进入或退出演示模式时，重置全局状态
   useEffect(() => { 
     setVariables({});
@@ -33,6 +38,96 @@ function App() {
 
   // 剪贴板
   const clipboardRef = useRef([]);
+
+  // 同步当前画布数据到页面列表
+  useEffect(() => {
+    setPages(prevPages => prevPages.map(p => 
+      p.id === currentPageId ? { ...p, shapes } : p
+    ));
+  }, [shapes, currentPageId]);
+
+  const handleSwitchPage = useCallback((pageId) => {
+    if (pageId === currentPageId) return;
+    const targetPage = pages.find(p => p.id === pageId);
+    if (targetPage) {
+      setShapes(targetPage.shapes || []);
+      setCurrentPageId(pageId);
+      setSelectedId(null);
+      setSelectedIds([]);
+      setHistory([targetPage.shapes || []]);
+      setHistoryIndex(0);
+    }
+  }, [currentPageId, pages]);
+
+  const handleCreatePage = useCallback(() => {
+    setPages(prev => {
+      const newPageId = `page-${Date.now()}`;
+      const newPage = { id: newPageId, name: `页面 ${prev.length + 1}`, shapes: [] };
+      const nextPages = [...prev, newPage];
+      
+      setShapes([]);
+      setCurrentPageId(newPageId);
+      setSelectedId(null);
+      setSelectedIds([]);
+      setHistory([[]]);
+      setHistoryIndex(0);
+      
+      return nextPages;
+    });
+  }, []);
+
+  const handleDeletePage = useCallback((pageId) => {
+    setPages(prev => {
+      if (prev.length <= 1) {
+        alert('至少保留一个页面');
+        return prev;
+      }
+      const newPages = prev.filter(p => p.id !== pageId);
+      
+      if (currentPageId === pageId) {
+        const targetPage = newPages[0];
+        setShapes(targetPage.shapes || []);
+        setCurrentPageId(targetPage.id);
+        setSelectedId(null);
+        setSelectedIds([]);
+        setHistory([targetPage.shapes || []]);
+        setHistoryIndex(0);
+      }
+      return newPages;
+    });
+  }, [currentPageId]);
+
+  const handleRenamePage = useCallback((pageId, newName) => {
+    setPages(prev => prev.map(p => p.id === pageId ? { ...p, name: newName } : p));
+  }, []);
+
+  const handleDuplicatePage = useCallback((pageId) => {
+    setPages(prev => {
+      const sourcePage = prev.find(p => p.id === pageId);
+      if (!sourcePage) return prev;
+      
+      const newPageId = `page-${Date.now()}`;
+      const newShapes = JSON.parse(JSON.stringify(sourcePage.shapes));
+      const newPage = { 
+        id: newPageId, 
+        name: `${sourcePage.name} 副本`, 
+        shapes: newShapes 
+      };
+      
+      const index = prev.findIndex(p => p.id === pageId);
+      const newPages = [...prev];
+      newPages.splice(index + 1, 0, newPage);
+      
+      setShapes(newShapes);
+      setCurrentPageId(newPageId);
+      setSelectedId(null);
+      setSelectedIds([]);
+      setHistory([newShapes]);
+      setHistoryIndex(0);
+      
+      return newPages;
+    });
+  }, []);
 
   const selectedShape = useMemo(() => {
     return shapes.find((s) => s.id === selectedId) || null;
@@ -707,14 +802,25 @@ function App() {
 
   return (
     <div className="app-container" onKeyDown={handleKeyDown} tabIndex={0}>
-      <ComponentPanel
-        shapes={shapes}
-        selectedId={selectedId}
-        selectedIds={selectedIds}
-        onSelect={setSelectedId}
-        onSelectMultiple={setSelectedIds}
-        onReorder={handleReorder}
-      />
+      <div className="left-panels">
+        <PagePanel
+          pages={pages}
+          currentPageId={currentPageId}
+          onCreatePage={handleCreatePage}
+          onDeletePage={handleDeletePage}
+          onRenamePage={handleRenamePage}
+          onSwitchPage={handleSwitchPage}
+          onDuplicatePage={handleDuplicatePage}
+        />
+        <ComponentPanel
+          shapes={shapes}
+          selectedId={selectedId}
+          selectedIds={selectedIds}
+          onSelect={setSelectedId}
+          onSelectMultiple={setSelectedIds}
+          onReorder={handleReorder}
+        />
+      </div>
       <main className="canvas-container">
         <Toolbar
           onDelete={handleDelete}
