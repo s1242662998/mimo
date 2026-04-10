@@ -1,5 +1,74 @@
 # 原型设计工具 - 更新日志
 
+## 版本 1.9.0 (2026-04-10)
+
+### 新增 8 个高频 UI 组件
+
+补齐原型设计中常用的表单控件和状态组件，所有组件均支持画布拖拽、属性面板编辑、AI 生成和截图导入。
+
+#### 1. 开关 (Switch)
+- 胶囊形背景 + 圆形滑块，支持开启/关闭两种状态
+- 属性：宽度、高度、开启颜色、关闭颜色、滑块颜色、圆角、状态
+- AI 类型：`switch`
+
+#### 2. 复选框 (Checkbox)
+- 方形边框 + 勾选标记，支持选中/未选中状态
+- 属性：宽度、高度、背景、边框、边框宽度、圆角、选中状态、勾选颜色
+- AI 类型：`checkbox`
+
+#### 3. 单选框 (Radio)
+- 圆形外框 + 内部圆点，扩展自 circle 渲染分支
+- 属性：半径、背景、边框、边框宽度、选中状态、选中颜色
+- AI 类型：`radio`
+
+#### 4. 徽标 (Badge)
+- 小胶囊/圆形背景 + 数字文字，用于通知角标
+- 属性：宽度、高度、背景、圆角、文字、字号、文字颜色
+- AI 类型：`badge`
+
+#### 5. 滑块 (Slider)
+- 轨道 + 激活条 + 圆形滑块，支持 0-100 值
+- 属性：宽度、高度、轨道颜色、激活颜色、滑块颜色、滑块边框、圆角、值
+- AI 类型：`slider`
+
+#### 6. 进度条 (Progress)
+- 轨道 + 进度条，支持 0-100 进度值
+- 属性：宽度、高度、轨道颜色、进度颜色、圆角、进度
+- AI 类型：`progress`
+
+#### 7. 分割线 (Divider)
+- 细矩形，用于内容分隔
+- 属性：宽度、高度、颜色
+- AI 类型：`divider`
+
+#### 8. 头像 (Avatar)
+- 圆角方形 + 文字（支持图片），用于用户头像展示
+- 属性：宽度、高度、背景、圆角、文字、字号、文字颜色
+- AI 类型：`avatar`
+
+### 技术改进
+
+1. **类型映射扩展**：`App.jsx` convertAiShape typeMap 新增 8 个映射，AI 输出的语义类型自动转为内部渲染类型
+2. **属性面板增强**：`PropertiesPanel.jsx` 新增 8 个 propertyConfigs，radio 组件特殊处理 shapeType 解析（type 为 circle 但配置用 radio）
+3. **AI 系统提示更新**：`ChatWindow.jsx` 截图解析规则扩展，新增各组件的必需/可选属性说明
+4. **截图导入扩展**：`ScreenshotImporter.jsx` convertType + convertToShapes 支持 8 个新类型
+5. **组件面板图标**：`ComponentPanel.jsx` 新增 8 个 SVG 图标、IconMap 和 TypeNameMap 映射
+6. **组内子组件渲染**：`Canvas.jsx` group 子组件渲染支持所有新组件类型
+
+### 更新文件清单 (v1.9.0)
+
+| 文件 | 变更内容 |
+|------|----------|
+| `src/components/componentList.js` | 新增 8 个组件定义 |
+| `src/components/Canvas.jsx` | 新增 8 个组件的渲染逻辑（rect 分支 + circle radio 分支 + group 子组件） |
+| `src/components/PropertiesPanel.jsx` | 新增 8 个属性配置、radio shapeType 解析 |
+| `src/components/ComponentPanel.jsx` | 新增 8 个 SVG 图标、IconMap、TypeNameMap |
+| `src/App.jsx` | convertAiShape typeMap 扩展、strokeWidth/fontFamily 条件扩展 |
+| `src/rag/ChatWindow.jsx` | 系统提示新增组件类型说明 |
+| `src/components/ScreenshotImporter.jsx` | convertType + convertToShapes 扩展 |
+
+---
+
 ## 版本 1.8.0 (2026-04-01)
 
 ### 🎯 新增功能

@@ -956,6 +956,381 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
             </Group>
           );
         }
+        // 开关组件
+        else if (shape.id.startsWith('switch')) {
+          const width = activeProps.width || 44;
+          const height = activeProps.height || 24;
+          const centerX = shape.x + width / 2;
+          const centerY = shape.y + height / 2;
+          const isChecked = activeProps.checked === true || activeProps.checked === 'true';
+          const knobRadius = height / 2 - 2;
+
+          return (
+            <Group
+              scaleX={activeProps.scale || 1}
+              scaleY={activeProps.scale || 1}
+              x={centerX}
+              y={centerY}
+              rotation={rotation}
+              draggable
+              onClick={shapeProps.onClick}
+              onTap={shapeProps.onTap}
+              onDragStart={shapeProps.onDragStart}
+              onDragMove={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+              }}
+              onDragEnd={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                onDragEnd?.();
+              }}
+              onMouseEnter={shapeProps.onMouseEnter}
+              onMouseLeave={shapeProps.onMouseLeave}
+            >
+              <Rect
+                ref={shapeRef}
+                x={-width / 2}
+                y={-height / 2}
+                width={width}
+                height={height}
+                fill={isChecked ? (activeProps.fill || '#22C55E') : (activeProps.fillOff || '#E2E8F0')}
+                cornerRadius={height / 2}
+                opacity={activeProps.opacity}
+              />
+              <Circle
+                x={isChecked ? width / 2 - height / 2 : -width / 2 + height / 2}
+                y={0}
+                radius={knobRadius}
+                fill={activeProps.knobColor || '#FFFFFF'}
+                listening={false}
+              />
+            </Group>
+          );
+        }
+        // 复选框组件
+        else if (shape.id.startsWith('checkbox')) {
+          const width = activeProps.width || 20;
+          const height = activeProps.height || 20;
+          const centerX = shape.x + width / 2;
+          const centerY = shape.y + height / 2;
+          const isChecked = activeProps.checked === true || activeProps.checked === 'true';
+
+          return (
+            <Group
+              scaleX={activeProps.scale || 1}
+              scaleY={activeProps.scale || 1}
+              x={centerX}
+              y={centerY}
+              rotation={rotation}
+              draggable
+              onClick={shapeProps.onClick}
+              onTap={shapeProps.onTap}
+              onDragStart={shapeProps.onDragStart}
+              onDragMove={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+              }}
+              onDragEnd={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                onDragEnd?.();
+              }}
+              onMouseEnter={shapeProps.onMouseEnter}
+              onMouseLeave={shapeProps.onMouseLeave}
+            >
+              <Rect
+                ref={shapeRef}
+                x={-width / 2}
+                y={-height / 2}
+                width={width}
+                height={height}
+                fill={activeProps.fill || '#FFFFFF'}
+                stroke={activeProps.stroke || '#CBD5E1'}
+                strokeWidth={activeProps.strokeWidth || 2}
+                cornerRadius={activeProps.cornerRadius || 4}
+                opacity={activeProps.opacity}
+              />
+              {isChecked && (
+                <Text
+                  text="✓"
+                  x={-width / 2}
+                  y={-height / 2 + 1}
+                  width={width}
+                  height={height}
+                  fontSize={height * 0.7}
+                  fontFamily="Inter"
+                  fill={activeProps.checkColor || '#0891B2'}
+                  align="center"
+                  verticalAlign="middle"
+                  listening={false}
+                />
+              )}
+            </Group>
+          );
+        }
+        // 徽标组件
+        else if (shape.id.startsWith('badge')) {
+          const width = activeProps.width || 20;
+          const height = activeProps.height || 20;
+          const fontSize = activeProps.fontSize || 11;
+          const centerX = shape.x + width / 2;
+          const centerY = shape.y + height / 2;
+
+          return (
+            <Group
+              scaleX={activeProps.scale || 1}
+              scaleY={activeProps.scale || 1}
+              x={centerX}
+              y={centerY}
+              rotation={rotation}
+              draggable
+              onClick={shapeProps.onClick}
+              onTap={shapeProps.onTap}
+              onDragStart={shapeProps.onDragStart}
+              onDragMove={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+              }}
+              onDragEnd={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                onDragEnd?.();
+              }}
+              onMouseEnter={shapeProps.onMouseEnter}
+              onMouseLeave={shapeProps.onMouseLeave}
+            >
+              <Rect
+                ref={shapeRef}
+                x={-width / 2}
+                y={-height / 2}
+                width={width}
+                height={height}
+                fill={activeProps.fill || '#EF4444'}
+                cornerRadius={activeProps.cornerRadius || 10}
+                opacity={activeProps.opacity}
+              />
+              <Text
+                text={activeProps.text || '5'}
+                x={-width / 2}
+                y={-fontSize / 2}
+                width={width}
+                fontSize={fontSize}
+                fontFamily="Inter"
+                fill={activeProps.textColor || '#FFFFFF'}
+                align="center"
+                listening={false}
+              />
+            </Group>
+          );
+        }
+        // 滑块组件
+        else if (shape.id.startsWith('slider')) {
+          const width = activeProps.width || 200;
+          const height = activeProps.height || 20;
+          const centerX = shape.x + width / 2;
+          const centerY = shape.y + height / 2;
+          const value = Math.max(0, Math.min(100, Number(activeProps.value) || 50));
+          const trackHeight = Math.max(4, height * 0.3);
+          const barWidth = width * value / 100;
+          const thumbRadius = height / 2 - 1;
+
+          return (
+            <Group
+              scaleX={activeProps.scale || 1}
+              scaleY={activeProps.scale || 1}
+              x={centerX}
+              y={centerY}
+              rotation={rotation}
+              draggable
+              onClick={shapeProps.onClick}
+              onTap={shapeProps.onTap}
+              onDragStart={shapeProps.onDragStart}
+              onDragMove={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+              }}
+              onDragEnd={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                onDragEnd?.();
+              }}
+              onMouseEnter={shapeProps.onMouseEnter}
+              onMouseLeave={shapeProps.onMouseLeave}
+            >
+              {/* 轨道 */}
+              <Rect
+                ref={shapeRef}
+                x={-width / 2}
+                y={-trackHeight / 2}
+                width={width}
+                height={trackHeight}
+                fill={activeProps.fill || '#E2E8F0'}
+                cornerRadius={activeProps.cornerRadius || 4}
+                opacity={activeProps.opacity}
+              />
+              {/* 激活轨道 */}
+              <Rect
+                x={-width / 2}
+                y={-trackHeight / 2}
+                width={barWidth}
+                height={trackHeight}
+                fill={activeProps.barFill || '#0891B2'}
+                cornerRadius={activeProps.cornerRadius || 4}
+                listening={false}
+              />
+              {/* 滑块 */}
+              <Circle
+                x={-width / 2 + barWidth}
+                y={0}
+                radius={thumbRadius}
+                fill={activeProps.knobColor || '#FFFFFF'}
+                stroke={activeProps.knobStroke || '#0891B2'}
+                strokeWidth={2}
+                listening={false}
+              />
+            </Group>
+          );
+        }
+        // 进度条组件
+        else if (shape.id.startsWith('progress')) {
+          const width = activeProps.width || 200;
+          const height = activeProps.height || 8;
+          const centerX = shape.x + width / 2;
+          const centerY = shape.y + height / 2;
+          const value = Math.max(0, Math.min(100, Number(activeProps.value) || 60));
+          const barWidth = width * value / 100;
+
+          return (
+            <Group
+              scaleX={activeProps.scale || 1}
+              scaleY={activeProps.scale || 1}
+              x={centerX}
+              y={centerY}
+              rotation={rotation}
+              draggable
+              onClick={shapeProps.onClick}
+              onTap={shapeProps.onTap}
+              onDragStart={shapeProps.onDragStart}
+              onDragMove={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+              }}
+              onDragEnd={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                onDragEnd?.();
+              }}
+              onMouseEnter={shapeProps.onMouseEnter}
+              onMouseLeave={shapeProps.onMouseLeave}
+            >
+              {/* 轨道 */}
+              <Rect
+                ref={shapeRef}
+                x={-width / 2}
+                y={-height / 2}
+                width={width}
+                height={height}
+                fill={activeProps.fill || '#E2E8F0'}
+                cornerRadius={activeProps.cornerRadius || 4}
+                opacity={activeProps.opacity}
+              />
+              {/* 进度条 */}
+              <Rect
+                x={-width / 2}
+                y={-height / 2}
+                width={barWidth}
+                height={height}
+                fill={activeProps.barFill || '#0891B2'}
+                cornerRadius={activeProps.cornerRadius || 4}
+                listening={false}
+              />
+            </Group>
+          );
+        }
+        // 分割线组件
+        else if (shape.id.startsWith('divider')) {
+          const width = activeProps.width || 200;
+          const height = activeProps.height || 1;
+          const centerX = shape.x + width / 2;
+          const centerY = shape.y + height / 2;
+
+          return (
+            <Group
+              scaleX={activeProps.scale || 1}
+              scaleY={activeProps.scale || 1}
+              x={centerX}
+              y={centerY}
+              rotation={rotation}
+              draggable
+              onClick={shapeProps.onClick}
+              onTap={shapeProps.onTap}
+              onDragStart={shapeProps.onDragStart}
+              onDragMove={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+              }}
+              onDragEnd={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                onDragEnd?.();
+              }}
+              onMouseEnter={shapeProps.onMouseEnter}
+              onMouseLeave={shapeProps.onMouseLeave}
+            >
+              <Rect
+                ref={shapeRef}
+                x={-width / 2}
+                y={-height / 2}
+                width={width}
+                height={height}
+                fill={activeProps.fill || '#E2E8F0'}
+                opacity={activeProps.opacity}
+              />
+            </Group>
+          );
+        }
+        // 头像组件
+        else if (shape.id.startsWith('avatar')) {
+          const width = activeProps.width || 40;
+          const height = activeProps.height || 40;
+          const fontSize = activeProps.fontSize || 16;
+          const centerX = shape.x + width / 2;
+          const centerY = shape.y + height / 2;
+
+          return (
+            <Group
+              scaleX={activeProps.scale || 1}
+              scaleY={activeProps.scale || 1}
+              x={centerX}
+              y={centerY}
+              rotation={rotation}
+              draggable
+              onClick={shapeProps.onClick}
+              onTap={shapeProps.onTap}
+              onDragStart={shapeProps.onDragStart}
+              onDragMove={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+              }}
+              onDragEnd={(e) => {
+                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                onDragEnd?.();
+              }}
+              onMouseEnter={shapeProps.onMouseEnter}
+              onMouseLeave={shapeProps.onMouseLeave}
+            >
+              <Rect
+                ref={shapeRef}
+                x={-width / 2}
+                y={-height / 2}
+                width={width}
+                height={height}
+                fill={activeProps.fill || '#DBEAFE'}
+                cornerRadius={activeProps.cornerRadius || 20}
+                opacity={activeProps.opacity}
+              />
+              <Text
+                text={activeProps.text || 'A'}
+                x={-width / 2}
+                y={-fontSize / 2}
+                width={width}
+                fontSize={fontSize}
+                fontFamily="Inter"
+                fill={activeProps.textColor || '#1E40AF'}
+                align="center"
+                listening={false}
+              />
+            </Group>
+          );
+        }
         // 普通矩形
         {
           const width = activeProps.width || 100;
@@ -1018,6 +1393,49 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           );
         }
       case 'circle': {
+        // 单选框组件
+        if (shape.id.startsWith('radio')) {
+          const radius = activeProps.radius || 10;
+          const isChecked = activeProps.checked === true || activeProps.checked === 'true';
+          return (
+            <Group
+              scaleX={activeProps.scale || 1}
+              scaleY={activeProps.scale || 1}
+              x={shape.x}
+              y={shape.y}
+              rotation={rotation}
+              draggable
+              onClick={shapeProps.onClick}
+              onTap={shapeProps.onTap}
+              onDragStart={shapeProps.onDragStart}
+              onDragMove={(e) => {
+                onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+              }}
+              onDragEnd={(e) => {
+                onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+                onDragEnd?.();
+              }}
+              onMouseEnter={shapeProps.onMouseEnter}
+              onMouseLeave={shapeProps.onMouseLeave}
+            >
+              <Circle
+                ref={shapeRef}
+                radius={radius}
+                fill={activeProps.fill || '#FFFFFF'}
+                stroke={activeProps.stroke || '#CBD5E1'}
+                strokeWidth={activeProps.strokeWidth || 2}
+                opacity={activeProps.opacity}
+              />
+              {isChecked && (
+                <Circle
+                  radius={radius * 0.5}
+                  fill={activeProps.checkColor || '#0891B2'}
+                  listening={false}
+                />
+              )}
+            </Group>
+          );
+        }
         const radius = activeProps.radius || 40;
         const radiusY = activeProps.radiusY !== undefined ? activeProps.radiusY : radius;
         const fontSize = activeProps.fontSize || 14;
@@ -1253,8 +1671,17 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
             {shape.children?.map((child) => {
               const childProps = child.props || {};
               const childType = child.id?.split('-')[0];
-              
-              if (childType === 'circle') {
+
+              if (childType === 'radio') {
+                const cr = childProps.radius || 10;
+                const isChecked = childProps.checked === true || childProps.checked === 'true';
+                return (
+                  <Group key={child.id} x={child.x} y={child.y}>
+                    <Circle radius={cr} fill={childProps.fill || '#FFFFFF'} stroke={childProps.stroke || '#CBD5E1'} strokeWidth={childProps.strokeWidth || 2} />
+                    {isChecked && <Circle radius={cr * 0.5} fill={childProps.checkColor || '#0891B2'} />}
+                  </Group>
+                );
+              } else if (childType === 'circle') {
                 // 圆形：child.x, child.y 是圆心相对于组左上角的偏移量，直接作为圆心坐标
                 // 如果有 radiusY，使用 Ellipse；否则使用 Circle
                 if (childProps.radiusY !== undefined) {
@@ -1294,6 +1721,73 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                     fill={childProps.fill || '#0F172A'}
                     width={childProps.width || 150}
                   />
+                );
+              } else if (childType === 'switch') {
+                const cw = childProps.width || 44;
+                const ch = childProps.height || 24;
+                const isChecked = childProps.checked === true || childProps.checked === 'true';
+                return (
+                  <Group key={child.id} x={child.x} y={child.y}>
+                    <Rect width={cw} height={ch} fill={isChecked ? (childProps.fill || '#22C55E') : (childProps.fillOff || '#E2E8F0')} cornerRadius={ch / 2} />
+                    <Circle x={isChecked ? cw - ch / 2 : ch / 2} y={ch / 2} radius={ch / 2 - 2} fill={childProps.knobColor || '#FFFFFF'} />
+                  </Group>
+                );
+              } else if (childType === 'checkbox') {
+                const cw = childProps.width || 20;
+                const ch = childProps.height || 20;
+                const isChecked = childProps.checked === true || childProps.checked === 'true';
+                return (
+                  <Group key={child.id} x={child.x} y={child.y}>
+                    <Rect width={cw} height={ch} fill={childProps.fill || '#FFFFFF'} stroke={childProps.stroke || '#CBD5E1'} strokeWidth={childProps.strokeWidth || 2} cornerRadius={childProps.cornerRadius || 4} />
+                    {isChecked && <Text text="✓" y={1} width={cw} height={ch} fontSize={ch * 0.7} fill={childProps.checkColor || '#0891B2'} align="center" />}
+                  </Group>
+                );
+              } else if (childType === 'badge') {
+                const cw = childProps.width || 20;
+                const ch = childProps.height || 20;
+                return (
+                  <Group key={child.id} x={child.x} y={child.y}>
+                    <Rect width={cw} height={ch} fill={childProps.fill || '#EF4444'} cornerRadius={childProps.cornerRadius || 10} />
+                    <Text text={childProps.text || '5'} y={(ch - (childProps.fontSize || 11)) / 2} width={cw} fontSize={childProps.fontSize || 11} fill={childProps.textColor || '#FFFFFF'} align="center" />
+                  </Group>
+                );
+              } else if (childType === 'slider') {
+                const cw = childProps.width || 200;
+                const ch = childProps.height || 20;
+                const val = Math.max(0, Math.min(100, Number(childProps.value) || 50));
+                const tH = Math.max(4, ch * 0.3);
+                const bW = cw * val / 100;
+                return (
+                  <Group key={child.id} x={child.x} y={child.y}>
+                    <Rect width={cw} height={tH} y={-tH / 2} fill={childProps.fill || '#E2E8F0'} cornerRadius={childProps.cornerRadius || 4} />
+                    <Rect width={bW} height={tH} y={-tH / 2} fill={childProps.barFill || '#0891B2'} cornerRadius={childProps.cornerRadius || 4} />
+                    <Circle x={bW} radius={ch / 2 - 1} fill={childProps.knobColor || '#FFFFFF'} stroke={childProps.knobStroke || '#0891B2'} strokeWidth={2} />
+                  </Group>
+                );
+              } else if (childType === 'progress') {
+                const cw = childProps.width || 200;
+                const ch = childProps.height || 8;
+                const val = Math.max(0, Math.min(100, Number(childProps.value) || 60));
+                const bW = cw * val / 100;
+                return (
+                  <Group key={child.id} x={child.x} y={child.y}>
+                    <Rect width={cw} height={ch} fill={childProps.fill || '#E2E8F0'} cornerRadius={childProps.cornerRadius || 4} />
+                    <Rect width={bW} height={ch} fill={childProps.barFill || '#0891B2'} cornerRadius={childProps.cornerRadius || 4} />
+                  </Group>
+                );
+              } else if (childType === 'divider') {
+                return (
+                  <Rect key={child.id} x={child.x} y={child.y} width={childProps.width || 200} height={childProps.height || 1} fill={childProps.fill || '#E2E8F0'} />
+                );
+              } else if (childType === 'avatar') {
+                const cw = childProps.width || 40;
+                const ch = childProps.height || 40;
+                const fs = childProps.fontSize || 16;
+                return (
+                  <Group key={child.id} x={child.x} y={child.y}>
+                    <Rect width={cw} height={ch} fill={childProps.fill || '#DBEAFE'} cornerRadius={childProps.cornerRadius || 20} />
+                    <Text text={childProps.text || 'A'} y={(ch - fs) / 2} width={cw} fontSize={fs} fill={childProps.textColor || '#1E40AF'} align="center" />
+                  </Group>
                 );
               } else {
                 // 默认矩形

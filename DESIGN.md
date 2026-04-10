@@ -303,6 +303,15 @@ const IconName = () => (
 | triangle | triangle | 三角形 | 形状 (v1.4已移除) |
 | icon | icon | 图标 | SVG图标 |
 | line | line | 线条 | 直线 |
+| dynamicPanel | dynamicPanel | 动态面板 | 多状态容器 |
+| switch | rect | 开关 | 切换控件，胶囊形背景+圆形滑块 |
+| checkbox | rect | 复选框 | 方形勾选控件 |
+| radio | circle | 单选框 | 圆形单选控件，选中时显示内部圆点 |
+| badge | rect | 徽标 | 角标/通知徽标，小胶囊+数字 |
+| slider | rect | 滑块 | 轨道+激活条+滑块圆 |
+| progress | rect | 进度条 | 轨道+进度条 |
+| divider | rect | 分割线 | 细矩形分隔线 |
+| avatar | rect | 头像 | 圆角方形，支持文字/图片 |
 
 ---
 
@@ -361,6 +370,9 @@ const [showGuides, setShowGuides] = useState(true); // 对齐辅助线
 2. 在 `Canvas.jsx` 的 `ShapeRenderer` 中添加渲染逻辑
 3. 在 `PropertiesPanel.jsx` 的 `propertyConfigs` 中添加属性配置
 4. 在 `ComponentPanel.jsx` 的图标映射中添加图标
+5. 在 `App.jsx` 的 `convertAiShape` typeMap 中添加类型映射
+6. 在 `ChatWindow.jsx` 系统提示中添加新类型说明
+7. 在 `ScreenshotImporter.jsx` 的 `convertType` 和 `convertToShapes` 中添加类型支持
 
 ### 8.4 新增属性步骤
 1. 在 `propertyConfigs` 中添加属性定义
@@ -423,6 +435,7 @@ const [showGuides, setShowGuides] = useState(true); // 对齐辅助线
 - [x] **组件成组 (Group)**
 - [x] **动态交互属性面板**
 - [x] **全局演示模式**
+- [x] **高频 UI 组件**（开关、复选框、单选框、徽标、滑块、进度条、分割线、头像）
 
 ### 10.2 待实现功能
 - [ ] 导出为图片/JSON
@@ -449,6 +462,8 @@ const [showGuides, setShowGuides] = useState(true); // 对齐辅助线
 | 1.5.0 | 2026-04-01 | 声明式交互架构（支持 Hover/Click 交互）、新增演示模式、可视化交互配置面板 |
 | 1.6.0 | 2026-04-01 | 新增多选组件同步操作、图片组件增强、全局颜色取色器 |
 | 1.7.0 | 2026-04-01 | 全局状态机与条件渲染、支持 `setVariable` 动作、新增 `onLoad` 触发器、交互延迟修饰符 |
+| 1.8.0 | 2026-04-01 | 多页面管理、面板折叠展开、双击图层定位 |
+| 1.9.0 | 2026-04-10 | 新增 8 个高频 UI 组件（开关、复选框、单选框、徽标、滑块、进度条、分割线、头像）、AI 系统提示扩展、截图导入支持新组件类型 |
 
 ---
 
