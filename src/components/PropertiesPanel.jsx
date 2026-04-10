@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './PropertiesPanel.css';
 
 function ColorInput({ config, value, onChange }) {
@@ -8,6 +8,7 @@ function ColorInput({ config, value, onChange }) {
   
   useEffect(() => {
     if (!isDragging.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalValue(value);
     }
   }, [value]);
@@ -47,7 +48,7 @@ function ColorInput({ config, value, onChange }) {
       const result = await eyeDropper.open();
       setLocalValue(result.sRGBHex);
       onChange(config.key, result.sRGBHex);
-    } catch (e) {
+    } catch {
       // 用户取消取色
     }
   };

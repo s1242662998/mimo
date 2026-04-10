@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { IconMap, TypeNameMap, Icons } from '../components/ComponentPanel';
 import './ChatWindow.css';
 

@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import './Toolbar.css';
 
 const TrashIcon = () => (
@@ -187,6 +188,14 @@ const ConnectionIcon = ({ active }) => (
   </svg>
 );
 
+const ExportIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
 export default function Toolbar({
   onDelete,
   onClear,
@@ -219,7 +228,21 @@ export default function Toolbar({
   onTogglePreviewMode,
   isConnectionMode,
   onToggleConnectionMode,
+  onExportPNG,
+  onExportProject,
+  onImportProject,
 }) {
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      onImportProject(file);
+      // Reset input so the same file can be loaded again if needed
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="toolbar">
       <div className="toolbar-group">
@@ -227,6 +250,30 @@ export default function Toolbar({
           <ImportIcon />
           <span>导入</span>
         </button>
+        <button onClick={onExportPNG} title="导出为高清 PNG">
+          <ExportIcon />
+          <span>PNG</span>
+        </button>
+      </div>
+
+      <div className="toolbar-separator" />
+
+      <div className="toolbar-group">
+        <button onClick={onExportProject} title="保存项目到本地文件 (.mimo)">
+          <ExportIcon />
+          <span>保存</span>
+        </button>
+        <button onClick={() => fileInputRef.current?.click()} title="从本地文件加载项目">
+          <ImportIcon />
+          <span>加载</span>
+        </button>
+        <input 
+          type="file" 
+          accept=".mimo,.json" 
+          ref={fileInputRef} 
+          style={{ display: 'none' }} 
+          onChange={handleFileChange} 
+        />
       </div>
 
       <div className="toolbar-separator" />
