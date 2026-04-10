@@ -20,6 +20,7 @@ function App() {
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [showGuides, setShowGuides] = useState(true);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isConnectionMode, setIsConnectionMode] = useState(false);
   const [variables, setVariables] = useState({}); // 全局状态机
   const [chatContextShapes, setChatContextShapes] = useState([]); // 被添加到对话的组件
 
@@ -852,6 +853,8 @@ function App() {
           onToggleRagChat={() => setShowRagChat(!showRagChat)}
           isPreviewMode={isPreviewMode}
           onTogglePreviewMode={() => setIsPreviewMode(!isPreviewMode)}
+          isConnectionMode={isConnectionMode}
+          onToggleConnectionMode={() => setIsConnectionMode(!isConnectionMode)}
         />
         <Canvas
           shapes={shapes}
@@ -871,6 +874,7 @@ function App() {
           showGuides={showGuides}
           onExecuteInteraction={handleExecuteInteraction}
           isPreviewMode={isPreviewMode}
+          isConnectionMode={isConnectionMode}
           variables={variables}
           onAddToChat={(shapeIds) => {
             const ids = Array.isArray(shapeIds) ? shapeIds : [shapeIds];

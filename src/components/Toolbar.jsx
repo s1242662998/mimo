@@ -179,6 +179,14 @@ const PlayIcon = ({ active }) => (
   </svg>
 );
 
+const ConnectionIcon = ({ active }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="5" cy="12" r="3" fill={active ? "currentColor" : "none"} />
+    <circle cx="19" cy="12" r="3" fill={active ? "currentColor" : "none"} />
+    <line x1="8" y1="12" x2="16" y2="12" />
+  </svg>
+);
+
 export default function Toolbar({
   onDelete,
   onClear,
@@ -209,6 +217,8 @@ export default function Toolbar({
   onToggleRagChat,
   isPreviewMode,
   onTogglePreviewMode,
+  isConnectionMode,
+  onToggleConnectionMode,
 }) {
   return (
     <div className="toolbar">
@@ -242,6 +252,14 @@ export default function Toolbar({
         >
           <PlayIcon active={isPreviewMode} />
           <span>演示</span>
+        </button>
+        <button 
+          className={`connection-btn ${isConnectionMode ? 'active' : ''}`}
+          onClick={onToggleConnectionMode} 
+          title="连线模式 (开启后显示组件连接点，支持绘制箭头)"
+        >
+          <ConnectionIcon active={isConnectionMode} />
+          <span>连线</span>
         </button>
       </div>
 

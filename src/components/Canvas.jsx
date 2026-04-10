@@ -1,4 +1,4 @@
-import { Stage, Layer, Rect, Circle, Ellipse, Line, Text, Path, Transformer, Group, Image as KonvaImage } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Ellipse, Line, Arrow, Text, Path, Transformer, Group, Image as KonvaImage } from 'react-konva';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import './Canvas.css';
 
@@ -83,7 +83,7 @@ function getShapeBounds(shape) {
     // Circle的x,y是圆心，需要转换为左上角
     boundsX = x - radius;
     boundsY = y - radiusY;
-  } else if (type === 'line') {
+  } else if (type === 'line' || type === 'arrow') {
     const points = props.points || [0, 0, 100, 0];
     width = Math.abs(points[2] - points[0]) || 100;
     height = Math.abs(points[3] - points[1]) || 2;
@@ -461,7 +461,74 @@ function ResizeHandles({ shape, onResize, onResizeEnd, onRotate, onRotateEnd, st
   );
 }
 
-function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode, variables, selectedChildId, onSelectChild }) {
+function ConnectionHandles({ shape, onHandleMouseDown }) {
+  if (!shape) return null;
+
+  const handles = [
+    { pos: 'top', ...getHandlePosition(shape, 'top') },
+    { pos: 'right', ...getHandlePosition(shape, 'right') },
+    { pos: 'bottom', ...getHandlePosition(shape, 'bottom') },
+    { pos: 'left', ...getHandlePosition(shape, 'left') },
+  ];
+
+  return (
+    <Group listening={true}>
+      {handles.map(handle => {
+        return (
+          <Rect
+            key={handle.pos}
+            x={handle.x - 4}
+            y={handle.y - 4}
+            width={8}
+            height={8}
+            fill="#10B981"
+            cornerRadius={2}
+            onMouseDown={(e) => {
+              e.cancelBubble = true;
+              onHandleMouseDown(shape.id, handle.pos, { x: handle.x, y: handle.y });
+            }}
+            onMouseEnter={(e) => {
+              const container = e.target.getStage()?.container();
+              if (container) container.style.cursor = 'crosshair';
+            }}
+            onMouseLeave={(e) => {
+              const container = e.target.getStage()?.container();
+              if (container) container.style.cursor = 'default';
+            }}
+            hitStrokeWidth={10}
+          />
+        );
+      })}
+    </Group>
+  );
+}
+
+function getHandlePosition(shape, handlePos) {
+  const bounds = getShapeBounds(shape);
+  const { x, y, width, height } = bounds;
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+  const rotation = (shape.rotation || 0) * Math.PI / 180;
+
+  let hx, hy;
+  switch (handlePos) {
+    case 'top': hx = centerX; hy = y; break;
+    case 'right': hx = x + width; hy = centerY; break;
+    case 'bottom': hx = centerX; hy = y + height; break;
+    case 'left': hx = x; hy = centerY; break;
+    default: hx = centerX; hy = centerY; break;
+  }
+
+  // Rotate point around center
+  const dx = hx - centerX;
+  const dy = hy - centerY;
+  const rotatedX = centerX + dx * Math.cos(rotation) - dy * Math.sin(rotation);
+  const rotatedY = centerY + dx * Math.sin(rotation) + dy * Math.cos(rotation);
+
+  return { x: rotatedX, y: rotatedY };
+}
+
+function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode, isConnectionMode, variables, selectedChildId, onSelectChild, onHandleMouseDown }) {
   const shapeRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -524,11 +591,23 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
     return null;
   }
 
+  let calculatedPoints = activeProps.points;
+  if (shape.type === 'arrow' && shape.startBinding && shape.endBinding) {
+    const startShape = shapes.find(s => s.id === shape.startBinding.shapeId);
+    const endShape = shapes.find(s => s.id === shape.endBinding.shapeId);
+    if (startShape && endShape) {
+      const startPos = getHandlePosition(startShape, shape.startBinding.handle);
+      const endPos = getHandlePosition(endShape, shape.endBinding.handle);
+      calculatedPoints = [startPos.x, startPos.y, endPos.x, endPos.y];
+    }
+  }
+
   const shapeProps = {
     ...activeProps,
+    points: calculatedPoints,
     x: shape.x,
     y: shape.y,
-    draggable: !isPreviewMode,
+    draggable: !isPreviewMode && !(shape.type === 'arrow' && shape.startBinding),
     onClick: (e) => {
       e.cancelBubble = true;
       if ((isPreviewMode || e.evt.altKey) && shape.interactions?.length > 0) {
@@ -752,7 +831,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
           },
           states: scaledStates,
         };
-      } else if (shape.type !== 'line') {
+      } else if (shape.type !== 'line' && shape.type !== 'arrow') {
         newProps.width = newBounds.width;
         newProps.height = newBounds.height;
         return {
@@ -1004,6 +1083,32 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
       }
       case 'line':
         return <Line ref={shapeRef} {...shapeProps} />;
+      case 'arrow':
+        return (
+          <Group>
+            {isSelected && (
+              <Arrow 
+                x={shapeProps.x}
+                y={shapeProps.y}
+                points={shapeProps.points}
+                stroke="#0891B2"
+                strokeWidth={(shapeProps.strokeWidth || 2) + 4}
+                pointerLength={10} 
+                pointerWidth={10} 
+                opacity={0.3}
+                listening={false}
+              />
+            )}
+            <Arrow 
+              ref={shapeRef} 
+              {...shapeProps} 
+              pointerLength={10} 
+              pointerWidth={10} 
+              fill={activeProps.stroke} 
+              hitStrokeWidth={15}
+            />
+          </Group>
+        );
       case 'icon': {
         const iconWidth = activeProps.width || 24;
         const iconHeight = activeProps.height || 24;
@@ -1482,7 +1587,7 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
   return (
     <>
       {renderShape()}
-      {isSelected && !isMultiSelected && (
+      {isSelected && !isMultiSelected && shape.type !== 'arrow' && (
         <ResizeHandles
           shape={shape}
           onResize={handleResize}
@@ -1490,6 +1595,12 @@ function ShapeRenderer({ shape, isSelected, isMultiSelected, isEditing, onSelect
           onRotate={handleRotate}
           onRotateEnd={onRotateEnd}
           stageRef={stageRef}
+        />
+      )}
+      {(isSelected || isHovered) && !isPreviewMode && isConnectionMode && !isMultiSelected && shape.type !== 'line' && shape.type !== 'arrow' && (
+        <ConnectionHandles 
+          shape={shape} 
+          onHandleMouseDown={onHandleMouseDown} 
         />
       )}
     </>
@@ -1697,7 +1808,7 @@ function MultiSelectionHandles({ shapes, selectedIds, onShapesChange, onSaveToHi
             const startProps = startShape.props || {};
             newShape.props.width = (startProps.width || 150) * scaleX;
             newShape.props.fontSize = Math.max(8, (startProps.fontSize || 16) * Math.min(scaleX, scaleY));
-          } else if (shape.type !== 'line') {
+          } else if (shape.type !== 'line' && shape.type !== 'arrow') {
             const startProps = startShape.props || {};
             newShape.props.width = (startProps.width || 100) * scaleX;
             newShape.props.height = (startProps.height || 100) * scaleY;
@@ -1786,6 +1897,7 @@ export default function Canvas({
   showGuides,
   onExecuteInteraction,
   isPreviewMode,
+  isConnectionMode,
   variables,
   onAddToChat,
 }) {
@@ -1798,6 +1910,7 @@ export default function Canvas({
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState(null);
   const [selectionEnd, setSelectionEnd] = useState(null);
+  const [drawingConnection, setDrawingConnection] = useState(null);
   const [editingShape, setEditingShape] = useState(null);
   const [editText, setEditText] = useState('');
   const [selectedChildId, setSelectedChildId] = useState(null);
@@ -1870,7 +1983,7 @@ export default function Canvas({
         }
       }
     }
-  }, [setSelectedId, setSelectedIds, position, scale]);
+  }, [setSelectedId, setSelectedIds, position, scale, isPreviewMode]);
 
   const handleMouseMove = useCallback((e) => {
     if (isPanning && lastPosRef.current) {
@@ -1896,7 +2009,19 @@ export default function Canvas({
         setSelectionEnd(adjustedPos);
       }
     }
-  }, [isPanning, isSelecting, position, scale]);
+
+    if (drawingConnection) {
+      const stage = stageRef.current;
+      if (stage) {
+        const pos = stage.getPointerPosition();
+        const adjustedPos = {
+          x: (pos.x - position.x) / scale,
+          y: (pos.y - position.y) / scale,
+        };
+        setDrawingConnection(prev => ({ ...prev, currentPos: adjustedPos }));
+      }
+    }
+  }, [isPanning, isSelecting, drawingConnection, position, scale]);
 
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
@@ -1931,11 +2056,79 @@ export default function Canvas({
     setIsSelecting(false);
     setSelectionStart(null);
     setSelectionEnd(null);
-  }, [isSelecting, selectionStart, selectionEnd, shapes, setSelectedId, setSelectedIds]);
+
+    if (drawingConnection) {
+      const stage = stageRef.current;
+      if (stage) {
+        const pos = stage.getPointerPosition();
+        const adjustedPos = {
+          x: (pos.x - position.x) / scale,
+          y: (pos.y - position.y) / scale,
+        };
+
+        // Find the closest handle
+        let closestHandle = null;
+        let minDistance = 40; // Snap threshold for handle
+
+        shapes.forEach(shape => {
+          if (shape.id === drawingConnection.startShapeId) return;
+          if (shape.type === 'line' || shape.type === 'arrow') return;
+
+          const handles = ['top', 'right', 'bottom', 'left'];
+          handles.forEach(handle => {
+            const hPos = getHandlePosition(shape, handle);
+            const dist = Math.hypot(hPos.x - adjustedPos.x, hPos.y - adjustedPos.y);
+            if (dist < minDistance) {
+              minDistance = dist;
+              closestHandle = { shapeId: shape.id, handle };
+            }
+          });
+        });
+
+        if (closestHandle) {
+          // create arrow shape
+          const newArrow = {
+            id: `arrow-${Date.now()}`,
+            type: 'arrow',
+            x: 0,
+            y: 0,
+            props: {
+              points: [
+                drawingConnection.startPos.x,
+                drawingConnection.startPos.y,
+                adjustedPos.x,
+                adjustedPos.y
+              ],
+              stroke: '#64748B',
+              strokeWidth: 2,
+            },
+            startBinding: { shapeId: drawingConnection.startShapeId, handle: drawingConnection.startHandlePos },
+            endBinding: { shapeId: closestHandle.shapeId, handle: closestHandle.handle },
+          };
+          
+          setShapes(prev => {
+            const newShapes = [...prev, newArrow];
+            onSaveToHistory?.(newShapes);
+            return newShapes;
+          });
+        }
+      }
+      setDrawingConnection(null);
+    }
+  }, [isSelecting, selectionStart, selectionEnd, shapes, drawingConnection, position, scale, setSelectedId, setSelectedIds, setShapes, onSaveToHistory]);
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const handleConnectionMouseDown = useCallback((shapeId, handlePos, pos) => {
+    setDrawingConnection({
+      startShapeId: shapeId,
+      startHandlePos: handlePos,
+      startPos: pos,
+      currentPos: pos
+    });
   }, []);
 
   const handleDrop = useCallback((e) => {
@@ -2206,12 +2399,13 @@ export default function Canvas({
     if (selectedIds?.length <= 1 && selectedId) {
       const singleShape = shapes.find(s => s.id === selectedId);
       if (singleShape) {
+        if (singleShape.type === 'arrow' || singleShape.type === 'line') return null;
         return getShapeBounds(singleShape);
       }
     }
     
     // 多选
-    const selectedShapes = shapes.filter(s => selectedIds.includes(s.id));
+    const selectedShapes = shapes.filter(s => selectedIds.includes(s.id) && s.type !== 'arrow' && s.type !== 'line');
     if (selectedShapes.length === 0) return null;
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -2264,10 +2458,67 @@ export default function Canvas({
               selectedId={selectedId}
             />
           )}
-          {shapes.filter(s => s.visible !== false).map((shape) => (
+          {/* 首先渲染箭头，确保它们在底层 */}
+          {shapes.filter(s => s.visible !== false && s.type === 'arrow').map((shape) => (
             <ShapeRenderer
               key={shape.id}
               shape={shape}
+              shapes={shapes}
+              isSelected={shape.id === selectedId || selectedIds?.includes(shape.id)}
+              isMultiSelected={selectedIds?.length > 1}
+              isEditing={editingShape?.id === shape.id}
+              onSelect={setSelectedId}
+              onSelectMultiple={(id) => {
+                setSelectedIds((prev) => {
+                  if (prev.includes(id)) return prev.filter((i) => i !== id);
+                  return [...prev, id];
+                });
+              }}
+              onChange={(newShapeOrFn) => {
+                setShapes((prev) => {
+                  if (typeof newShapeOrFn === 'function') {
+                    const currentShape = prev.find(s => s.id === shape.id);
+                    const newShape = newShapeOrFn(currentShape);
+                    return prev.map((s) => (s.id === newShape.id ? newShape : s));
+                  }
+                  return prev.map((s) => (s.id === newShapeOrFn.id ? newShapeOrFn : s));
+                });
+              }}
+              onDragEnd={() => {
+                setShapes((prev) => {
+                  onSaveToHistory?.(prev);
+                  return prev;
+                });
+              }}
+              onResizeEnd={() => {
+                setShapes((prev) => {
+                  onSaveToHistory?.(prev);
+                  return prev;
+                });
+              }}
+              onRotateEnd={() => {
+                setShapes((prev) => {
+                  onSaveToHistory?.(prev);
+                  return prev;
+                });
+              }}
+              onDoubleClick={handleDoubleClick}
+              stageRef={stageRef}
+              onExecuteInteraction={onExecuteInteraction}
+              isPreviewMode={isPreviewMode}
+              isConnectionMode={isConnectionMode}
+              variables={variables}
+              selectedChildId={selectedChildId}
+              onSelectChild={setSelectedChildId}
+              onHandleMouseDown={handleConnectionMouseDown}
+            />
+          ))}
+          {/* 然后渲染其他组件 */}
+          {shapes.filter(s => s.visible !== false && s.type !== 'arrow').map((shape) => (
+            <ShapeRenderer
+              key={shape.id}
+              shape={shape}
+              shapes={shapes}
               isSelected={shape.id === selectedId || selectedIds?.includes(shape.id)}
               isMultiSelected={selectedIds?.length > 1}
               isEditing={editingShape?.id === shape.id}
@@ -2312,12 +2563,31 @@ export default function Canvas({
               stageRef={stageRef}
               onExecuteInteraction={onExecuteInteraction}
               isPreviewMode={isPreviewMode}
+              isConnectionMode={isConnectionMode}
               variables={variables}
               selectedChildId={selectedChildId}
               onSelectChild={setSelectedChildId}
+              onHandleMouseDown={handleConnectionMouseDown}
             />
           ))}
+          {/* 将箭头的渲染提前，让组件显示在箭头上方，或者通过zIndex控制。为了避免选中框被覆盖，把绘制箭头逻辑放这里 */}
           <SelectionRectangle startPos={selectionStart} currentPos={selectionEnd} />
+          {drawingConnection && (
+            <Arrow
+              points={[
+                drawingConnection.startPos.x,
+                drawingConnection.startPos.y,
+                drawingConnection.currentPos.x,
+                drawingConnection.currentPos.y
+              ]}
+              stroke="#64748B"
+              strokeWidth={2}
+              pointerLength={10}
+              pointerWidth={10}
+              fill="#64748B"
+              listening={false}
+            />
+          )}
           <MultiSelectionHandles
             shapes={shapes}
             selectedIds={selectedIds}

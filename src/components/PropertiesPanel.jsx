@@ -235,6 +235,11 @@ const propertyConfigs = {
     { key: 'strokeWidth', label: '宽度', type: 'number', min: 1, max: 20 },
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
   ],
+  arrow: [
+    { key: 'stroke', label: '线条颜色', type: 'color' },
+    { key: 'strokeWidth', label: '线条宽度', type: 'number', min: 1, max: 20 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
   dynamicPanel: [
     { key: 'width', label: '宽度', type: 'number', min: 50, max: 1200 },
     { key: 'height', label: '高度', type: 'number', min: 50, max: 800 },
@@ -263,6 +268,7 @@ const TypeNameMap = {
   rectangle: '矩形',
   circle: '圆形',
   line: '线条',
+  arrow: '箭头',
   icon: '图标',
   dynamicPanel: '动态面板',
 };
