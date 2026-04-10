@@ -673,16 +673,24 @@ function App() {
         circle: 'circle',
         image: 'image',
         dynamicPanel: 'dynamicPanel',
+        switch: 'rect',
+        checkbox: 'rect',
+        radio: 'circle',
+        badge: 'rect',
+        slider: 'rect',
+        progress: 'rect',
+        divider: 'rect',
+        avatar: 'rect',
       };
       const elType = typeMap[jsonType] || jsonType || 'rect';
       
       const props = { ...restProps };
-      if (jsonType === 'input' || jsonType === 'button' || jsonType === 'image' || jsonType === 'rectangle') {
+      if (['input', 'button', 'image', 'rectangle', 'checkbox', 'avatar'].includes(jsonType)) {
         if (props.stroke && props.strokeWidth === undefined) {
           props.strokeWidth = 1;
         }
       }
-      if (jsonType === 'text') {
+      if (['text', 'badge', 'avatar'].includes(jsonType)) {
          props.fontFamily = props.fontFamily || 'Inter';
       }
       

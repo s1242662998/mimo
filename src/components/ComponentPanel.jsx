@@ -107,6 +107,54 @@ export const Icons = {
       <rect x="4" y="11" width="12" height="3" rx="0.5" />
     </svg>
   ),
+  Switch: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="6" width="16" height="8" rx="4" />
+      <circle cx="13" cy="10" r="2.5" fill="currentColor" />
+    </svg>
+  ),
+  Checkbox: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="14" height="14" rx="2" />
+      <polyline points="7 10 9 12 13 8" />
+    </svg>
+  ),
+  Radio: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10" cy="10" r="7" />
+      <circle cx="10" cy="10" r="3" fill="currentColor" />
+    </svg>
+  ),
+  Badge: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10" cy="10" r="7" />
+      <text x="10" y="13" textAnchor="middle" fontSize="8" fill="currentColor" stroke="none">5</text>
+    </svg>
+  ),
+  Slider: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="3" y1="10" x2="17" y2="10" />
+      <circle cx="12" cy="10" r="3" fill="currentColor" />
+    </svg>
+  ),
+  Progress: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="8" width="16" height="4" rx="2" />
+      <rect x="2" y="8" width="10" height="4" rx="2" fill="currentColor" opacity="0.3" />
+    </svg>
+  ),
+  Divider: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="2" y1="10" x2="18" y2="10" />
+    </svg>
+  ),
+  Avatar: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10" cy="10" r="8" />
+      <circle cx="10" cy="8" r="3" />
+      <path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+    </svg>
+  ),
 };
 
 export const IconMap = {
@@ -121,6 +169,14 @@ export const IconMap = {
   group: Icons.Layers,
   icon: Icons.Image,
   dynamicPanel: Icons.DynamicPanel,
+  switch: Icons.Switch,
+  checkbox: Icons.Checkbox,
+  radio: Icons.Radio,
+  badge: Icons.Badge,
+  slider: Icons.Slider,
+  progress: Icons.Progress,
+  divider: Icons.Divider,
+  avatar: Icons.Avatar,
 };
 
 export const TypeNameMap = {
@@ -134,6 +190,14 @@ export const TypeNameMap = {
   line: '线条',
   icon: '图标',
   dynamicPanel: '动态面板',
+  switch: '开关',
+  checkbox: '复选框',
+  radio: '单选框',
+  badge: '徽标',
+  slider: '滑块',
+  progress: '进度条',
+  divider: '分割线',
+  avatar: '头像',
 };
 
 function DraggableItem({ component }) {

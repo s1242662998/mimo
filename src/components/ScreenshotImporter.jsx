@@ -49,6 +49,14 @@ function convertType(jsonType) {
     rectangle: 'rect',
     circle: 'circle',
     image: 'image',
+    switch: 'rect',
+    checkbox: 'rect',
+    radio: 'circle',
+    badge: 'rect',
+    slider: 'rect',
+    progress: 'rect',
+    divider: 'rect',
+    avatar: 'rect',
   };
   return typeMap[jsonType] || 'rect';
 }
@@ -137,6 +145,97 @@ function convertToShapes(data) {
           stroke: el.stroke || '#E2E8F0',
           strokeWidth: 1,
           cornerRadius: Number(el.cornerRadius) || 8,
+        };
+        break;
+
+      case 'switch':
+        shape.props = {
+          width: Number(el.width) || 44,
+          height: Number(el.height) || 24,
+          fill: el.fill || '#22C55E',
+          fillOff: el.fillOff || '#E2E8F0',
+          knobColor: el.knobColor || '#FFFFFF',
+          cornerRadius: Number(el.cornerRadius) || 12,
+          checked: el.checked !== false,
+        };
+        break;
+
+      case 'checkbox':
+        shape.props = {
+          width: Number(el.width) || 20,
+          height: Number(el.height) || 20,
+          fill: el.fill || '#FFFFFF',
+          stroke: el.stroke || '#CBD5E1',
+          strokeWidth: Number(el.strokeWidth) || 2,
+          cornerRadius: Number(el.cornerRadius) || 4,
+          checked: el.checked === true || el.checked === 'true',
+          checkColor: el.checkColor || '#0891B2',
+        };
+        break;
+
+      case 'radio':
+        shape.props = {
+          radius: Number(el.radius) || 10,
+          fill: el.fill || '#FFFFFF',
+          stroke: el.stroke || '#CBD5E1',
+          strokeWidth: Number(el.strokeWidth) || 2,
+          checked: el.checked === true || el.checked === 'true',
+          checkColor: el.checkColor || '#0891B2',
+        };
+        break;
+
+      case 'badge':
+        shape.props = {
+          width: Number(el.width) || 20,
+          height: Number(el.height) || 20,
+          fill: el.fill || '#EF4444',
+          cornerRadius: Number(el.cornerRadius) || 10,
+          text: el.text || '5',
+          fontSize: Number(el.fontSize) || 11,
+          textColor: el.textColor || '#FFFFFF',
+        };
+        break;
+
+      case 'slider':
+        shape.props = {
+          width: Number(el.width) || 200,
+          height: Number(el.height) || 20,
+          fill: el.fill || '#E2E8F0',
+          barFill: el.barFill || '#0891B2',
+          knobColor: el.knobColor || '#FFFFFF',
+          cornerRadius: Number(el.cornerRadius) || 4,
+          value: Number(el.value) || 50,
+        };
+        break;
+
+      case 'progress':
+        shape.props = {
+          width: Number(el.width) || 200,
+          height: Number(el.height) || 8,
+          fill: el.fill || '#E2E8F0',
+          barFill: el.barFill || '#0891B2',
+          cornerRadius: Number(el.cornerRadius) || 4,
+          value: Number(el.value) || 60,
+        };
+        break;
+
+      case 'divider':
+        shape.props = {
+          width: Number(el.width) || 200,
+          height: Number(el.height) || 1,
+          fill: el.fill || '#E2E8F0',
+        };
+        break;
+
+      case 'avatar':
+        shape.props = {
+          width: Number(el.width) || 40,
+          height: Number(el.height) || 40,
+          fill: el.fill || '#DBEAFE',
+          cornerRadius: Number(el.cornerRadius) || 20,
+          text: el.text || 'A',
+          fontSize: Number(el.fontSize) || 16,
+          textColor: el.textColor || '#1E40AF',
         };
         break;
 

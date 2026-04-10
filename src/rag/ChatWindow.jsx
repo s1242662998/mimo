@@ -292,10 +292,18 @@ DYNAMIC PANEL RULES (For creating multi-state containers):
 - To cycle states: use "nextState" or "prevState" actions
 
 SCREENSHOT PARSING RULES (When generating UI from image):
-- Supported types: 'text', 'button', 'input', 'rectangle', 'circle', 'image', 'dynamicPanel'
+- Supported types: 'text', 'button', 'input', 'rectangle', 'circle', 'image', 'dynamicPanel', 'switch', 'checkbox', 'radio', 'badge', 'slider', 'progress', 'divider', 'avatar'
 - text: requires x, y, text (optional: fontSize, fill, width)
 - button/input/rectangle/image: requires x, y, width, height (optional: fill, stroke, cornerRadius, text/placeholder)
 - circle: requires x, y, radius (optional: fill, stroke)
+- switch: requires x, y (optional: width default 44, height default 24, checked default true, fill default #22C55E, fillOff default #E2E8F0)
+- checkbox: requires x, y (optional: width default 20, height default 20, checked default true, fill default #FFFFFF, stroke, checkColor default #0891B2)
+- radio: requires x, y, radius (optional: checked default true, fill default #FFFFFF, stroke, checkColor default #0891B2)
+- badge: requires x, y (optional: width default 20, height default 20, fill default #EF4444, text default '5', fontSize default 11, textColor default #FFFFFF)
+- slider: requires x, y (optional: width default 200, height default 20, value default 50, fill default #E2E8F0, barFill default #0891B2, knobColor default #FFFFFF)
+- progress: requires x, y (optional: width default 200, height default 8, value default 60, fill default #E2E8F0, barFill default #0891B2)
+- divider: requires x, y (optional: width default 200, height default 1, fill default #E2E8F0)
+- avatar: requires x, y (optional: width default 40, height default 40, fill default #DBEAFE, text default 'A', cornerRadius default 20, textColor default #1E40AF)
 - dynamicPanel: requires x, y, width, height, states array, activeStateId
 - Coordinate system: (0,0) is top-left.
 - Colors MUST be in HEX format (e.g., #FFFFFF).

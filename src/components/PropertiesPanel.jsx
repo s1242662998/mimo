@@ -258,6 +258,91 @@ const propertyConfigs = {
     { key: 'scale', label: '缩放', type: 'number', min: 0.1, max: 5, step: 0.05, defaultValue: 1 },
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
   ],
+  switch: [
+    { key: 'width', label: '宽度', type: 'number', min: 30, max: 200 },
+    { key: 'height', label: '高度', type: 'number', min: 16, max: 60 },
+    { key: 'fill', label: '开启颜色', type: 'color' },
+    { key: 'fillOff', label: '关闭颜色', type: 'color' },
+    { key: 'knobColor', label: '滑块颜色', type: 'color' },
+    { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 50 },
+    { key: 'checked', label: '状态', type: 'select', options: [
+      { value: 'true', label: '开启' },
+      { value: 'false', label: '关闭' },
+    ]},
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
+  checkbox: [
+    { key: 'width', label: '宽度', type: 'number', min: 12, max: 50 },
+    { key: 'height', label: '高度', type: 'number', min: 12, max: 50 },
+    { key: 'fill', label: '背景', type: 'color' },
+    { key: 'stroke', label: '边框', type: 'color' },
+    { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 5 },
+    { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 25 },
+    { key: 'checked', label: '选中', type: 'select', options: [
+      { value: 'true', label: '选中' },
+      { value: 'false', label: '未选中' },
+    ]},
+    { key: 'checkColor', label: '勾选颜色', type: 'color' },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
+  radio: [
+    { key: 'radius', label: '半径', type: 'number', min: 5, max: 30 },
+    { key: 'fill', label: '背景', type: 'color' },
+    { key: 'stroke', label: '边框', type: 'color' },
+    { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 5 },
+    { key: 'checked', label: '选中', type: 'select', options: [
+      { value: 'true', label: '选中' },
+      { value: 'false', label: '未选中' },
+    ]},
+    { key: 'checkColor', label: '选中颜色', type: 'color' },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
+  badge: [
+    { key: 'width', label: '宽度', type: 'number', min: 8, max: 60 },
+    { key: 'height', label: '高度', type: 'number', min: 8, max: 40 },
+    { key: 'fill', label: '背景', type: 'color' },
+    { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 30 },
+    { key: 'text', label: '文字', type: 'text' },
+    { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 24 },
+    { key: 'textColor', label: '文字颜色', type: 'color' },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
+  slider: [
+    { key: 'width', label: '宽度', type: 'number', min: 50, max: 600 },
+    { key: 'height', label: '高度', type: 'number', min: 4, max: 40 },
+    { key: 'fill', label: '轨道颜色', type: 'color' },
+    { key: 'barFill', label: '激活颜色', type: 'color' },
+    { key: 'knobColor', label: '滑块颜色', type: 'color' },
+    { key: 'knobStroke', label: '滑块边框', type: 'color' },
+    { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 20 },
+    { key: 'value', label: '值', type: 'number', min: 0, max: 100 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
+  progress: [
+    { key: 'width', label: '宽度', type: 'number', min: 20, max: 600 },
+    { key: 'height', label: '高度', type: 'number', min: 2, max: 30 },
+    { key: 'fill', label: '轨道颜色', type: 'color' },
+    { key: 'barFill', label: '进度颜色', type: 'color' },
+    { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 15 },
+    { key: 'value', label: '进度', type: 'number', min: 0, max: 100 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
+  divider: [
+    { key: 'width', label: '宽度', type: 'number', min: 10, max: 1200 },
+    { key: 'height', label: '高度', type: 'number', min: 1, max: 10 },
+    { key: 'fill', label: '颜色', type: 'color' },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
+  avatar: [
+    { key: 'width', label: '宽度', type: 'number', min: 16, max: 200 },
+    { key: 'height', label: '高度', type: 'number', min: 16, max: 200 },
+    { key: 'fill', label: '背景', type: 'color' },
+    { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 100 },
+    { key: 'text', label: '文字', type: 'text' },
+    { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 72 },
+    { key: 'textColor', label: '文字颜色', type: 'color' },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+  ],
 };
 
 const TypeNameMap = {
@@ -395,7 +480,14 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
 
   // 获取形状类型，对于 icon 类型需要特殊处理
   const idPrefix = selectedShape.id.split('-')[0];
-  let shapeType = selectedShape.type === 'rect' ? idPrefix : selectedShape.type;
+  let shapeType;
+  if (selectedShape.type === 'rect') {
+    shapeType = idPrefix;
+  } else if (idPrefix === 'radio') {
+    shapeType = 'radio';
+  } else {
+    shapeType = selectedShape.type;
+  }
   if (!propertyConfigs[shapeType]) {
     shapeType = 'rectangle'; // 降级到基础矩形
   }
