@@ -4,10 +4,161 @@ import './Canvas.css';
 
 const HANDLE_SIZE = 8;
 const ROTATE_HANDLE_OFFSET = 20;
-const SNAP_THRESHOLD = 5;
+const SNAP_THRESHOLD = 8;
 const GRID_SIZE = 10;
 
-function ImageShape({ shape, activeProps, shapeRef, rotation, shapeProps, onChange, onDragEnd }) {
+// 计算选中形状相对于其他形状的吸附偏移和辅助线
+function computeSnapGuides(selectedBounds, allShapes, excludeId) {
+  const selectedCenterX = selectedBounds.x + selectedBounds.width / 2;
+  const selectedCenterY = selectedBounds.y + selectedBounds.height / 2;
+  const selectedRight = selectedBounds.x + selectedBounds.width;
+  const selectedBottom = selectedBounds.y + selectedBounds.height;
+
+  let bestDx = null;
+  let bestDy = null;
+  let bestDxAbs = SNAP_THRESHOLD;
+  let bestDyAbs = SNAP_THRESHOLD;
+
+  const verticalGuides = [];
+  const horizontalGuides = [];
+
+  // 距离标注信息
+  const distanceLabels = [];
+
+  allShapes.forEach(shape => {
+    if (shape.id === excludeId) return;
+
+    const bounds = getShapeBounds(shape);
+    const centerX = bounds.x + bounds.width / 2;
+    const centerY = bounds.y + bounds.height / 2;
+    const right = bounds.x + bounds.width;
+    const bottom = bounds.y + bounds.height;
+
+    // ===== 垂直吸附线 (X轴方向) =====
+    const xChecks = [
+      { selEdge: selectedBounds.x, otherEdge: bounds.x, guideX: bounds.x },
+      { selEdge: selectedBounds.x, otherEdge: right, guideX: right },
+      { selEdge: selectedCenterX, otherEdge: centerX, guideX: centerX },
+      { selEdge: selectedRight, otherEdge: bounds.x, guideX: bounds.x },
+      { selEdge: selectedRight, otherEdge: right, guideX: right },
+    ];
+
+    xChecks.forEach(({ selEdge, otherEdge, guideX }) => {
+      const diff = otherEdge - selEdge;
+      if (Math.abs(diff) < bestDxAbs) {
+        bestDxAbs = Math.abs(diff);
+        bestDx = diff;
+      }
+      if (Math.abs(diff) < SNAP_THRESHOLD) {
+        verticalGuides.push(guideX);
+      }
+    });
+
+    // ===== 水平吸附线 (Y轴方向) =====
+    const yChecks = [
+      { selEdge: selectedBounds.y, otherEdge: bounds.y, guideY: bounds.y },
+      { selEdge: selectedBounds.y, otherEdge: bottom, guideY: bottom },
+      { selEdge: selectedCenterY, otherEdge: centerY, guideY: centerY },
+      { selEdge: selectedBottom, otherEdge: bounds.y, guideY: bounds.y },
+      { selEdge: selectedBottom, otherEdge: bottom, guideY: bottom },
+    ];
+
+    yChecks.forEach(({ selEdge, otherEdge, guideY }) => {
+      const diff = otherEdge - selEdge;
+      if (Math.abs(diff) < bestDyAbs) {
+        bestDyAbs = Math.abs(diff);
+        bestDy = diff;
+      }
+      if (Math.abs(diff) < SNAP_THRESHOLD) {
+        horizontalGuides.push(guideY);
+      }
+    });
+
+    // ===== 距离标注 =====
+    // 水平方向距离：只在两个形状在Y轴上有重叠时显示
+    const yOverlap = !(selectedBounds.y >= bottom || selectedBottom <= bounds.y);
+    if (yOverlap) {
+      // 选中形状右边 → 目标左边
+      const gapRight = bounds.x - selectedRight;
+      if (gapRight > 0 && gapRight < 200) {
+        distanceLabels.push({
+          x1: selectedRight, y1: selectedCenterY,
+          x2: bounds.x, y2: selectedCenterY,
+          distance: Math.round(gapRight),
+          orientation: 'horizontal',
+        });
+      }
+      // 目标右边 → 选中形状左边
+      const gapLeft = selectedBounds.x - right;
+      if (gapLeft > 0 && gapLeft < 200) {
+        distanceLabels.push({
+          x1: right, y1: centerY,
+          x2: selectedBounds.x, y2: centerY,
+          distance: Math.round(gapLeft),
+          orientation: 'horizontal',
+        });
+      }
+    }
+
+    // 垂直方向距离：只在两个形状在X轴上有重叠时显示
+    const xOverlap = !(selectedBounds.x >= right || selectedRight <= bounds.x);
+    if (xOverlap) {
+      // 选中形状下边 → 目标上边
+      const gapBottom = bounds.y - selectedBottom;
+      if (gapBottom > 0 && gapBottom < 200) {
+        distanceLabels.push({
+          x1: selectedCenterX, y1: selectedBottom,
+          x2: selectedCenterX, y2: bounds.y,
+          distance: Math.round(gapBottom),
+          orientation: 'vertical',
+        });
+      }
+      // 目标下边 → 选中形状上边
+      const gapTop = selectedBounds.y - bottom;
+      if (gapTop > 0 && gapTop < 200) {
+        distanceLabels.push({
+          x1: centerX, y1: bottom,
+          x2: centerX, y2: selectedBounds.y,
+          distance: Math.round(gapTop),
+          orientation: 'vertical',
+        });
+      }
+    }
+  });
+
+  return {
+    dx: bestDxAbs < SNAP_THRESHOLD ? bestDx : 0,
+    dy: bestDyAbs < SNAP_THRESHOLD ? bestDy : 0,
+    verticalGuides: [...new Set(verticalGuides.map(v => v.toFixed(1)))].map(Number),
+    horizontalGuides: [...new Set(horizontalGuides.map(v => v.toFixed(1)))].map(Number),
+    distanceLabels,
+  };
+}
+
+// 对给定形状位置应用吸附，返回吸附后的 {x, y}
+// enableSnap: 是否开启吸附（控制所有吸附行为）
+function applySnap(shape, allShapes, enableSnap) {
+  let { x, y } = shape;
+  if (!enableSnap) return { x, y };
+
+  const bounds = getShapeBounds({ ...shape, x, y });
+  const otherShapes = allShapes.filter(s => s.id !== shape.id);
+  const snap = computeSnapGuides(bounds, otherShapes, shape.id);
+
+  if (snap.dx !== 0 || snap.dy !== 0) {
+    // 辅助线吸附优先
+    x += snap.dx;
+    y += snap.dy;
+  } else {
+    // 没有辅助线吸附时，网格吸附
+    x = Math.round(x / GRID_SIZE) * GRID_SIZE;
+    y = Math.round(y / GRID_SIZE) * GRID_SIZE;
+  }
+
+  return { x, y };
+}
+
+function ImageShape({ shape, activeProps, shapeRef, rotation, shapeProps, onChange, onDragEnd, allShapes, snapToGrid, showGuides }) {
   const width = activeProps.width || 120;
   const height = activeProps.height || 80;
   const centerX = shape.x + width / 2;
@@ -36,7 +187,30 @@ function ImageShape({ shape, activeProps, shapeRef, rotation, shapeProps, onChan
       onTap={shapeProps.onTap}
       onDragStart={shapeProps.onDragStart}
       onDragMove={(e) => {
-        onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+        let shapeX = e.target.x() - width / 2;
+        let shapeY = e.target.y() - height / 2;
+
+        let snappedByGuide = false;
+        if (showGuides) {
+          const tempShape = { ...shape, x: shapeX, y: shapeY };
+          const bounds = getShapeBounds(tempShape);
+          const otherShapes = (allShapes || []).filter(s => s.id !== shape.id);
+          const snap = computeSnapGuides(bounds, otherShapes, shape.id);
+          if (snap.dx !== 0 || snap.dy !== 0) {
+            shapeX += snap.dx;
+            shapeY += snap.dy;
+            snappedByGuide = true;
+          }
+        }
+
+        if (snapToGrid && !snappedByGuide) {
+          shapeX = Math.round(shapeX / GRID_SIZE) * GRID_SIZE;
+          shapeY = Math.round(shapeY / GRID_SIZE) * GRID_SIZE;
+        }
+
+        e.target.x(shapeX + width / 2);
+        e.target.y(shapeY + height / 2);
+        onChange({ ...shape, x: shapeX, y: shapeY });
       }}
       onDragEnd={(e) => {
         onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
@@ -107,80 +281,37 @@ function getShapeBounds(shape) {
   return { x: boundsX, y: boundsY, width, height };
 }
 
-function AlignmentGuides({ shapes, selectedId }) {
-  if (!selectedId) {
-    return null;
+function AlignmentGuides({ shapes, selectedId, multiSelectedIds }) {
+  // 支持单选和多选的辅助线
+  const targetId = selectedId || (multiSelectedIds?.length === 1 ? multiSelectedIds[0] : null);
+
+  // 对于多选，计算包围盒作为"选中区域"
+  let selectedBounds = null;
+  if (multiSelectedIds && multiSelectedIds.length >= 2) {
+    const selectedShapes = shapes.filter(s => multiSelectedIds.includes(s.id));
+    if (selectedShapes.length >= 2) {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      selectedShapes.forEach(s => {
+        const b = getShapeBounds(s);
+        minX = Math.min(minX, b.x);
+        minY = Math.min(minY, b.y);
+        maxX = Math.max(maxX, b.x + b.width);
+        maxY = Math.max(maxY, b.y + b.height);
+      });
+      selectedBounds = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    }
+  } else if (targetId) {
+    const selected = shapes.find(s => s.id === targetId);
+    if (selected) selectedBounds = getShapeBounds(selected);
   }
 
-  const selected = shapes.find(s => s.id === selectedId);
-  if (!selected) {
-    return null;
-  }
+  if (!selectedBounds) return null;
 
-  const guides = (() => {
-
-    const selectedBounds = getShapeBounds(selected);
-    const selectedCenterX = selectedBounds.x + selectedBounds.width / 2;
-    const selectedCenterY = selectedBounds.y + selectedBounds.height / 2;
-    const selectedRight = selectedBounds.x + selectedBounds.width;
-    const selectedBottom = selectedBounds.y + selectedBounds.height;
-
-    const verticalGuides = [];
-    const horizontalGuides = [];
-
-    shapes.forEach(shape => {
-      if (shape.id === selectedId) return;
-
-      const bounds = getShapeBounds(shape);
-      const centerX = bounds.x + bounds.width / 2;
-      const centerY = bounds.y + bounds.height / 2;
-      const right = bounds.x + bounds.width;
-      const bottom = bounds.y + bounds.height;
-
-      // 左边对齐
-      if (Math.abs(selectedBounds.x - bounds.x) < SNAP_THRESHOLD) {
-        verticalGuides.push(bounds.x);
-      }
-      // 右边对齐
-      if (Math.abs(selectedBounds.x - right) < SNAP_THRESHOLD) {
-        verticalGuides.push(right);
-      }
-      // 中心X对齐
-      if (Math.abs(selectedCenterX - centerX) < SNAP_THRESHOLD) {
-        verticalGuides.push(centerX);
-      }
-      // 右边对左边
-      if (Math.abs(selectedRight - bounds.x) < SNAP_THRESHOLD) {
-        verticalGuides.push(bounds.x);
-      }
-
-      // 上边对齐
-      if (Math.abs(selectedBounds.y - bounds.y) < SNAP_THRESHOLD) {
-        horizontalGuides.push(bounds.y);
-      }
-      // 下边对齐
-      if (Math.abs(selectedBounds.y - bottom) < SNAP_THRESHOLD) {
-        horizontalGuides.push(bottom);
-      }
-      // 中心Y对齐
-      if (Math.abs(selectedCenterY - centerY) < SNAP_THRESHOLD) {
-        horizontalGuides.push(centerY);
-      }
-      // 下边对上边
-      if (Math.abs(selectedBottom - bounds.y) < SNAP_THRESHOLD) {
-        horizontalGuides.push(bounds.y);
-      }
-    });
-
-    return {
-      vertical: [...new Set(verticalGuides)],
-      horizontal: [...new Set(horizontalGuides)],
-    };
-  })();
+  const guides = computeSnapGuides(selectedBounds, shapes, targetId);
 
   return (
     <>
-      {guides.vertical.map((x, i) => (
+      {guides.verticalGuides.map((x, i) => (
         <Line
           key={`v-${i}`}
           points={[x, -10000, x, 10000]}
@@ -190,7 +321,7 @@ function AlignmentGuides({ shapes, selectedId }) {
           listening={false}
         />
       ))}
-      {guides.horizontal.map((y, i) => (
+      {guides.horizontalGuides.map((y, i) => (
         <Line
           key={`h-${i}`}
           points={[-10000, y, 10000, y]}
@@ -199,6 +330,38 @@ function AlignmentGuides({ shapes, selectedId }) {
           dash={[4, 4]}
           listening={false}
         />
+      ))}
+      {/* 距离标注 */}
+      {guides.distanceLabels.map((label, i) => (
+        <Group key={`dist-${i}`} listening={false}>
+          {/* 距离线 */}
+          <Line
+            points={[label.x1, label.y1, label.x2, label.y2]}
+            stroke="#0891B2"
+            strokeWidth={1}
+            dash={[2, 2]}
+          />
+          {/* 距离标注背景和文字 */}
+          <Rect
+            x={(label.x1 + label.x2) / 2 - 16}
+            y={(label.y1 + label.y2) / 2 - 8}
+            width={32}
+            height={16}
+            fill="#0891B2"
+            cornerRadius={3}
+          />
+          <Text
+            x={(label.x1 + label.x2) / 2 - 16}
+            y={(label.y1 + label.y2) / 2 - 8}
+            width={32}
+            height={16}
+            text={`${label.distance}`}
+            fontSize={10}
+            fill="white"
+            align="center"
+            verticalAlign="middle"
+          />
+        </Group>
       ))}
     </>
   );
@@ -528,7 +691,7 @@ function getHandlePosition(shape, handlePos) {
   return { x: rotatedX, y: rotatedY };
 }
 
-function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode, isConnectionMode, variables, selectedChildId, onSelectChild, onHandleMouseDown }) {
+function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode, isConnectionMode, variables, selectedChildId, onSelectChild, onHandleMouseDown, snapToGrid, showGuides }) {
   const shapeRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -871,6 +1034,9 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
             shapeProps={shapeProps}
             onChange={onChange}
             onDragEnd={onDragEnd}
+            allShapes={shapes}
+            snapToGrid={snapToGrid}
+            showGuides={showGuides}
           />
         );
       case 'rect':
@@ -915,7 +1081,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onDblTap={shapeProps.onDblTap}
               onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                const rawX = e.target.x() - width / 2;
+                const rawY = e.target.y() - height / 2;
+                const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+                onChange({ ...shape, x: snapped.x, y: snapped.y });
+                e.target.x(snapped.x + width / 2);
+                e.target.y(snapped.y + height / 2);
               }}
               onDragEnd={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
@@ -976,7 +1147,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                const rawX = e.target.x() - width / 2;
+                const rawY = e.target.y() - height / 2;
+                const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+                onChange({ ...shape, x: snapped.x, y: snapped.y });
+                e.target.x(snapped.x + width / 2);
+                e.target.y(snapped.y + height / 2);
               }}
               onDragEnd={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
@@ -1025,7 +1201,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                const rawX = e.target.x() - width / 2;
+                const rawY = e.target.y() - height / 2;
+                const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+                onChange({ ...shape, x: snapped.x, y: snapped.y });
+                e.target.x(snapped.x + width / 2);
+                e.target.y(snapped.y + height / 2);
               }}
               onDragEnd={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
@@ -1084,7 +1265,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                const rawX = e.target.x() - width / 2;
+                const rawY = e.target.y() - height / 2;
+                const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+                onChange({ ...shape, x: snapped.x, y: snapped.y });
+                e.target.x(snapped.x + width / 2);
+                e.target.y(snapped.y + height / 2);
               }}
               onDragEnd={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
@@ -1140,7 +1326,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                const rawX = e.target.x() - width / 2;
+                const rawY = e.target.y() - height / 2;
+                const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+                onChange({ ...shape, x: snapped.x, y: snapped.y });
+                e.target.x(snapped.x + width / 2);
+                e.target.y(snapped.y + height / 2);
               }}
               onDragEnd={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
@@ -1204,7 +1395,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                const rawX = e.target.x() - width / 2;
+                const rawY = e.target.y() - height / 2;
+                const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+                onChange({ ...shape, x: snapped.x, y: snapped.y });
+                e.target.x(snapped.x + width / 2);
+                e.target.y(snapped.y + height / 2);
               }}
               onDragEnd={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
@@ -1256,7 +1452,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                const rawX = e.target.x() - width / 2;
+                const rawY = e.target.y() - height / 2;
+                const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+                onChange({ ...shape, x: snapped.x, y: snapped.y });
+                e.target.x(snapped.x + width / 2);
+                e.target.y(snapped.y + height / 2);
               }}
               onDragEnd={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
@@ -1297,7 +1498,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                const rawX = e.target.x() - width / 2;
+                const rawY = e.target.y() - height / 2;
+                const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+                onChange({ ...shape, x: snapped.x, y: snapped.y });
+                e.target.x(snapped.x + width / 2);
+                e.target.y(snapped.y + height / 2);
               }}
               onDragEnd={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
@@ -1354,7 +1560,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onDblTap={shapeProps.onDblTap}
               onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
+                const rawX = e.target.x() - width / 2;
+                const rawY = e.target.y() - height / 2;
+                const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+                onChange({ ...shape, x: snapped.x, y: snapped.y });
+                e.target.x(snapped.x + width / 2);
+                e.target.y(snapped.y + height / 2);
               }}
               onDragEnd={(e) => {
                 onChange({ ...shape, x: e.target.x() - width / 2, y: e.target.y() - height / 2 });
@@ -1408,7 +1619,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
               onDragMove={(e) => {
-                onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+                const rawX = e.target.x();
+                const rawY = e.target.y();
+                const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+                onChange({ ...shape, x: snapped.x, y: snapped.y });
+                e.target.x(snapped.x);
+                e.target.y(snapped.y);
               }}
               onDragEnd={(e) => {
                 onChange({ ...shape, x: e.target.x(), y: e.target.y() });
@@ -1454,7 +1670,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
             onDblTap={shapeProps.onDblTap}
             onDragStart={shapeProps.onDragStart}
             onDragMove={(e) => {
-              onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+              const rawX = e.target.x();
+              const rawY = e.target.y();
+              const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+              onChange({ ...shape, x: snapped.x, y: snapped.y });
+              e.target.x(snapped.x);
+              e.target.y(snapped.y);
             }}
             onDragEnd={(e) => {
               onChange({ ...shape, x: e.target.x(), y: e.target.y() });
@@ -1550,7 +1771,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
             onTap={shapeProps.onTap}
             onDragStart={shapeProps.onDragStart}
             onDragMove={(e) => {
-              onChange({ ...shape, x: e.target.x() - iconWidth / 2, y: e.target.y() - iconHeight / 2 });
+              const rawX = e.target.x() - iconWidth / 2;
+              const rawY = e.target.y() - iconHeight / 2;
+              const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+              onChange({ ...shape, x: snapped.x, y: snapped.y });
+              e.target.x(snapped.x + iconWidth / 2);
+              e.target.y(snapped.y + iconHeight / 2);
             }}
             onDragEnd={(e) => {
               onChange({ ...shape, x: e.target.x() - iconWidth / 2, y: e.target.y() - iconHeight / 2 });
@@ -1599,7 +1825,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
             onDblTap={shapeProps.onDblTap}
             onDragStart={shapeProps.onDragStart}
             onDragMove={(e) => {
-              onChange({ ...shape, x: e.target.x() - textWidth / 2, y: e.target.y() - textHeight / 2 });
+              const rawX = e.target.x() - textWidth / 2;
+              const rawY = e.target.y() - textHeight / 2;
+              const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+              onChange({ ...shape, x: snapped.x, y: snapped.y });
+              e.target.x(snapped.x + textWidth / 2);
+              e.target.y(snapped.y + textHeight / 2);
             }}
             onDragEnd={(e) => {
               onChange({ ...shape, x: e.target.x() - textWidth / 2, y: e.target.y() - textHeight / 2 });
@@ -1643,7 +1874,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
             onTap={shapeProps.onTap}
             onDragStart={shapeProps.onDragStart}
             onDragMove={(e) => {
-              onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+              const rawX = e.target.x();
+              const rawY = e.target.y();
+              const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+              onChange({ ...shape, x: snapped.x, y: snapped.y });
+              e.target.x(snapped.x);
+              e.target.y(snapped.y);
             }}
             onDragEnd={(e) => {
               onChange({ ...shape, x: e.target.x(), y: e.target.y() });
@@ -1826,7 +2062,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
             onTap={shapeProps.onTap}
             onDragStart={shapeProps.onDragStart}
             onDragMove={(e) => {
-              onChange({ ...shape, x: e.target.x(), y: e.target.y() });
+              const rawX = e.target.x();
+              const rawY = e.target.y();
+              const snapped = applySnap({ ...shape, x: rawX, y: rawY }, shapes, snapToGrid);
+              onChange({ ...shape, x: snapped.x, y: snapped.y });
+              e.target.x(snapped.x);
+              e.target.y(snapped.y);
             }}
             onDragEnd={(e) => {
               onChange({ ...shape, x: e.target.x(), y: e.target.y() });
@@ -2124,7 +2365,7 @@ function SelectionRectangle({ startPos, currentPos }) {
   );
 }
 
-function MultiSelectionHandles({ shapes, selectedIds, onShapesChange, onSaveToHistory, stageRef }) {
+function MultiSelectionHandles({ shapes, selectedIds, onShapesChange, onSaveToHistory, stageRef, snapToGrid }) {
   const startPosRef = useRef(null);
   const startShapesRef = useRef(null);
   const handleRef = useRef(null);
@@ -2166,8 +2407,34 @@ function MultiSelectionHandles({ shapes, selectedIds, onShapesChange, onSaveToHi
     if (!startPosRef.current || !startShapesRef.current) return;
 
     const node = e.target;
-    const dx = node.x() - startPosRef.current.x;
-    const dy = node.y() - startPosRef.current.y;
+    let dx = node.x() - startPosRef.current.x;
+    let dy = node.y() - startPosRef.current.y;
+
+    // 计算移动后的多选包围盒
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    startShapesRef.current.forEach(s => {
+      const b = getShapeBounds({ ...s, x: s.x + dx, y: s.y + dy });
+      minX = Math.min(minX, b.x);
+      minY = Math.min(minY, b.y);
+      maxX = Math.max(maxX, b.x + b.width);
+      maxY = Math.max(maxY, b.y + b.height);
+    });
+    const moveBounds = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+
+    // 吸附（由 snapToGrid 统一控制）
+    if (snapToGrid) {
+      const otherShapes = shapes.filter(s => !selectedIds.includes(s.id));
+      const snap = computeSnapGuides(moveBounds, otherShapes, null);
+      if (snap.dx !== 0 || snap.dy !== 0) {
+        dx += snap.dx;
+        dy += snap.dy;
+      } else {
+        const snappedX = Math.round(moveBounds.x / GRID_SIZE) * GRID_SIZE;
+        const snappedY = Math.round(moveBounds.y / GRID_SIZE) * GRID_SIZE;
+        dx += snappedX - moveBounds.x;
+        dy += snappedY - moveBounds.y;
+      }
+    }
 
     onShapesChange(prev => {
       return prev.map(shape => {
@@ -2950,6 +3217,7 @@ export default function Canvas({
             <AlignmentGuides
               shapes={shapes}
               selectedId={selectedId}
+              multiSelectedIds={selectedIds}
             />
           )}
           {/* 首先渲染箭头，确保它们在底层 */}
@@ -3005,6 +3273,8 @@ export default function Canvas({
               selectedChildId={selectedChildId}
               onSelectChild={setSelectedChildId}
               onHandleMouseDown={handleConnectionMouseDown}
+              snapToGrid={snapToGrid}
+              showGuides={showGuides}
             />
           ))}
           {/* 然后渲染其他组件 */}
@@ -3062,6 +3332,8 @@ export default function Canvas({
               selectedChildId={selectedChildId}
               onSelectChild={setSelectedChildId}
               onHandleMouseDown={handleConnectionMouseDown}
+              snapToGrid={snapToGrid}
+              showGuides={showGuides}
             />
           ))}
           {/* 将箭头的渲染提前，让组件显示在箭头上方，或者通过zIndex控制。为了避免选中框被覆盖，把绘制箭头逻辑放这里 */}
@@ -3088,6 +3360,7 @@ export default function Canvas({
             onShapesChange={setShapes}
             onSaveToHistory={onSaveToHistory}
             stageRef={stageRef}
+            snapToGrid={snapToGrid}
           />
         </Layer>
       </Stage>
