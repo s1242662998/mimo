@@ -1,5 +1,5 @@
 import { Stage, Layer, Rect, Circle, Ellipse, Line, Arrow, Text, Path, Transformer, Group, Image as KonvaImage } from 'react-konva';
-import { useCallback, useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import './Canvas.css';
 
 const HANDLE_SIZE = 8;
@@ -171,6 +171,7 @@ function ImageShape({ shape, activeProps, shapeRef, rotation, shapeProps, onChan
       img.src = activeProps.imageData;
       img.onload = () => setImageObj(img);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setImageObj(null);
     }
   }, [activeProps.imageData]);
@@ -811,7 +812,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
         onDoubleClick?.(shape);
       }
     },
-    onDragStart: (e) => {
+    onDragStart: () => {
       if (!isPreviewMode) {
         onSelect(shape.id);
       }
@@ -2623,7 +2624,7 @@ function MultiSelectionHandles({ shapes, selectedIds, onShapesChange, onSaveToHi
         onDragEnd={handleDragEnd}
       />
       {/* 缩放手柄 */}
-      {handles.map(({ pos, hx, hy, cursor }) => (
+      {handles.map(({ pos, hx, hy }) => (
         <Rect
           key={pos}
           x={hx - HANDLE_SIZE / 2}
@@ -2640,7 +2641,7 @@ function MultiSelectionHandles({ shapes, selectedIds, onShapesChange, onSaveToHi
   );
 }
 
-export default function Canvas({
+const Canvas = forwardRef(function Canvas({
   shapes,
   setShapes,
   selectedId,
@@ -2661,7 +2662,7 @@ export default function Canvas({
   isConnectionMode,
   variables,
   onAddToChat,
-}) {
+}, ref) {
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
@@ -2677,6 +2678,13 @@ export default function Canvas({
   const [selectedChildId, setSelectedChildId] = useState(null);
   const lastPosRef = useRef(null);
   const editInputRef = useRef(null);
+
+  const layerRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    getStage: () => stageRef.current,
+    getLayer: () => layerRef.current
+  }));
 
   useEffect(() => {
     const updateSize = () => {
@@ -3212,7 +3220,7 @@ export default function Canvas({
         onMouseLeave={handleMouseUp}
         style={{ cursor: isPanning ? 'grabbing' : 'default' }}
       >
-        <Layer>
+        <Layer ref={layerRef}>
           {showGuides && (
             <AlignmentGuides
               shapes={shapes}
@@ -3464,4 +3472,6 @@ export default function Canvas({
       )}
     </div>
   );
-}
+});
+
+export default Canvas;

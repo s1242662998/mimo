@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react';
 import { componentList } from './componentList';
 import { iconLibrary, iconCategories } from '../data/icons';

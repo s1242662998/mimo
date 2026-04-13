@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { exportToPNG, exportProject, importProject } from './utils/exportUtils';
 import ComponentPanel from './components/ComponentPanel';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
@@ -39,6 +40,7 @@ function App() {
 
   // 剪贴板
   const clipboardRef = useRef([]);
+  const canvasRef = useRef(null);
 
   // 同步当前画布数据到页面列表
   useEffect(() => {
@@ -169,7 +171,7 @@ function App() {
       const newHistory = prev.slice(0, historyIndex + 1);
       try {
         newHistory.push(JSON.parse(JSON.stringify(newShapes || [])));
-      } catch (e) {
+      } catch {
         newHistory.push([]);
       }
       if (newHistory.length > MAX_HISTORY) {
@@ -809,6 +811,38 @@ function App() {
     saveToHistory();
   }, [saveToHistory, selectedId]);
 
+  const handleExportPNG = useCallback(() => {
+    if (canvasRef.current) {
+      exportToPNG(canvasRef.current.getStage(), canvasRef.current.getLayer());
+    }
+  }, []);
+
+  const handleExportProject = useCallback(() => {
+    exportProject(pages, variables);
+  }, [pages, variables]);
+
+  const handleImportProject = useCallback(async (file) => {
+    try {
+      const data = await importProject(file);
+      if (data.pages && data.pages.length > 0) {
+        setPages(data.pages);
+        setCurrentPageId(data.pages[0].id);
+        setShapes(data.pages[0].shapes || []);
+        if (data.variables) {
+          setVariables(data.variables);
+        }
+        setHistory([data.pages[0].shapes || []]);
+        setHistoryIndex(0);
+        setSelectedId(null);
+        setSelectedIds([]);
+        alert('项目导入成功！');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('导入失败：文件格式不正确或已损坏');
+    }
+  }, []);
+
   return (
     <div className="app-container" onKeyDown={handleKeyDown} tabIndex={0}>
       <div className="left-panels">
@@ -863,8 +897,12 @@ function App() {
           onTogglePreviewMode={() => setIsPreviewMode(!isPreviewMode)}
           isConnectionMode={isConnectionMode}
           onToggleConnectionMode={() => setIsConnectionMode(!isConnectionMode)}
+          onExportPNG={handleExportPNG}
+          onExportProject={handleExportProject}
+          onImportProject={handleImportProject}
         />
         <Canvas
+          ref={canvasRef}
           shapes={shapes}
           setShapes={setShapes}
           selectedId={selectedId}

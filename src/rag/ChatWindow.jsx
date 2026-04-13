@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { IconMap, TypeNameMap, Icons } from '../components/ComponentPanel';
 import './ChatWindow.css';
 
@@ -81,29 +81,50 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
   };
 
   const handleAddCustomModel = () => {
-    if (!newModelName || !newModelId || !newModelBaseUrl) {
+    const id = newModelId.trim();
+    const name = newModelName.trim();
+    const url = newModelBaseUrl.trim();
+
+    if (!name || !id || !url) {
       alert('请填写完整的模型信息');
       return;
     }
     
+    // 确保 baseUrl 包含 /v1 (这只是一个简单的提示，并不强制修改)
+    if (!url.includes('/v1')) {
+      if(!window.confirm('你输入的 Base URL 似乎不包含 /v1。对于大多数 OpenAI 兼容接口，URL 应该以 /v1 结尾。是否继续？')) {
+        return;
+      }
+    }
+
+    // 生成一个内部唯一标识符，以支持同名 ID
+    const internalId = `${id}-${Date.now()}`;
+
     const newProvider = {
-      id: newModelId,
-      name: newModelName,
-      baseUrl: newModelBaseUrl,
+      id: internalId,
+      originalId: id, // 保存用户输入的真实 ID，用于后续 API 请求
+      name: name,
+      baseUrl: url,
       isDefault: false
     };
     
-    const updatedProviders = [...providers, newProvider];
-    setProviders(updatedProviders);
+    setProviders(prevProviders => {
+      const updatedProviders = [...prevProviders, newProvider];
+      // 保存自定义提供商（排除默认的）
+      const customProviders = updatedProviders.filter(p => !p.isDefault);
+      localStorage.setItem('rag_custom_providers', JSON.stringify(customProviders));
+      return updatedProviders;
+    });
     
-    // 保存自定义提供商（排除默认的）
-    const customProviders = updatedProviders.filter(p => !p.isDefault);
-    localStorage.setItem('rag_custom_providers', JSON.stringify(customProviders));
+    setSelectedProviderId(internalId);
+    // 自动保存选中状态
+    localStorage.setItem('rag_selected_provider', internalId);
     
-    setSelectedProviderId(newModelId);
     setNewModelName('');
     setNewModelId('');
     setNewModelBaseUrl('');
+    
+    alert(`模型 ${name} 添加成功并已自动保存！\n请在上方配置该模型的 API Key。`);
   };
 
   const removeCustomModel = (idToRemove) => {
@@ -316,7 +337,7 @@ SCREENSHOT PARSING RULES (When generating UI from image):
       }
 
       // 注意 MiMo API 要求的 header 是 api-key，而标准 OpenAI 是 Authorization: Bearer
-      const isMimo = selectedProviderId.startsWith('mimo');
+      const isMimo = currentProvider.id.startsWith('mimo') || currentProvider.originalId?.startsWith('mimo');
       const headers = {
         'Content-Type': 'application/json',
       };
@@ -327,8 +348,11 @@ SCREENSHOT PARSING RULES (When generating UI from image):
         headers['Authorization'] = `Bearer ${apiKey}`;
       }
 
+      // 这里必须使用真实提供商的 originalId 或 id 来发起请求
+      const actualModelId = currentProvider.originalId || currentProvider.id;
+
       const requestBody = {
-        model: currentProvider.id,
+        model: actualModelId,
         messages: apiMessages,
         max_completion_tokens: 8192,
         temperature: 0.7,
@@ -710,7 +734,9 @@ SCREENSHOT PARSING RULES (When generating UI from image):
               清空对话历史
             </button>
             <div style={{ flex: 1 }}></div>
-            <button onClick={() => setShowSettings(false)} className="rag-settings-cancel-btn">取消</button>
+            <button onClick={() => setShowSettings(false)} className="rag-settings-cancel-btn">
+              关闭
+            </button>
             <button onClick={handleSaveSettings} className="rag-settings-save-btn">保存设置</button>
           </div>
         </div>
