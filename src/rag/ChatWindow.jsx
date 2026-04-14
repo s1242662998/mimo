@@ -296,13 +296,31 @@ IMPORTANT INSTRUCTIONS:
 
 CANVAS INTERACTION RULES (When adding interactive events):
 - To add a self hover effect (e.g. change color when hovering), use 'hoverProps': \`"hoverProps": { "fill": "#FF0000", "scale": 1.1 }\`
-- Interaction triggers support: "onClick", "onMouseEnter", "onMouseLeave", "onLoad".
+- Interaction triggers support: "onClick", "onMouseEnter", "onMouseLeave", "onLoad", "onChange".
+  - "onChange" fires when a component's built-in value changes (e.g., switch toggled, checkbox clicked, slider dragged).
 - You can add an optional "delay" in ms to ANY interaction: \`"interactions": [{ "trigger": "onClick", "delay": 2000, "action": "toggleVisibility", "targetId": "..." }]\`
-- Action types support: "toggleVisibility", "setProps", "setVariable", "switchState", "nextState", "prevState".
+- Action types support: "toggleVisibility", "setProps", "setVariable", "switchState", "nextState", "prevState", "setChecked", "toggleChecked", "setValue", "incrementValue", "startAnimation", "stopAnimation".
+  - "setChecked": target a switch/checkbox/radio, payload { "checked": true/false }
+  - "toggleChecked": target a switch/checkbox/radio, no payload needed
+  - "setValue": target a slider/progress, payload { "value": 50 }
+  - "incrementValue": target a slider/progress, payload { "delta": 10 }
+  - "startAnimation": continuously animate a property. payload: { "prop": "value"|"opacity", "delta": 1, "interval": 100, "min": 0, "max": 100, "loop": false }. Stops automatically when reaching boundary (unless loop=true).
+  - "stopAnimation": stop an ongoing animation on the target. No payload needed.
 - Example of setting global variable: \`"interactions": [{ "trigger": "onClick", "action": "setVariable", "payload": { "key": "currentTab", "value": "profile" } }]\`
 - To conditionally render a shape based on global variables, add 'visibleIf' object: \`"visibleIf": { "key": "currentTab", "operator": "==", "value": "profile" }\`
 - Example of click to toggle visibility: \`"interactions": [{ "trigger": "onClick", "action": "toggleVisibility", "targetId": "target-element-id" }]\`
 - Example of mouse enter to change target's properties: \`"interactions": [{ "trigger": "onMouseEnter", "action": "setProps", "targetId": "target-element-id", "payload": { "fill": "blue" } }]\`
+- Example of switch onChange to set a variable: \`"interactions": [{ "trigger": "onChange", "action": "setVariable", "payload": { "key": "darkMode", "value": "true" } }]\`
+- Example of button click to set a slider value: \`"interactions": [{ "trigger": "onClick", "action": "setValue", "targetId": "slider-1", "payload": { "value": 80 } }]\`
+- Example of progress bar auto-fill on load: \`"interactions": [{ "trigger": "onLoad", "action": "startAnimation", "targetId": "progress-1", "payload": { "prop": "value", "delta": 1, "interval": 50, "min": 0, "max": 100, "loop": false } }]\`
+- Example of fade-out on click: \`"interactions": [{ "trigger": "onClick", "action": "startAnimation", "targetId": "rect-1", "payload": { "prop": "opacity", "delta": -0.05, "interval": 50, "min": 0, "max": 1, "loop": false } }]\`
+- Example of stop animation: \`"interactions": [{ "trigger": "onClick", "action": "stopAnimation", "targetId": "rect-1" }]\`
+
+BUILT-IN INTERACTIVE BEHAVIORS (No interaction rules needed):
+- switch, checkbox, radio: Automatically toggle their 'checked' state on click in preview mode. No interaction configuration needed.
+- slider: Users can drag the thumb to change the 'value' (0-100) in preview mode. No interaction configuration needed.
+- These built-in behaviors fire "onChange" triggers automatically when the value changes.
+- Example: A switch will auto-toggle on click. Add an "onChange" interaction on the switch to react to this (e.g., set a variable or change another component).
 
 DYNAMIC PANEL RULES (For creating multi-state containers):
 - type: 'dynamicPanel', requires x, y, width, height, states (array of state objects)

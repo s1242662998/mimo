@@ -29,9 +29,11 @@ function App() {
   const [pages, setPages] = useState([{ id: 'page-1', name: '页面 1', shapes: [] }]);
   const [currentPageId, setCurrentPageId] = useState('page-1');
 
-  // 当进入或退出演示模式时，重置全局状态
-  useEffect(() => { 
+  // 当进入或退出演示模式时，重置全局状态并清除动画
+  useEffect(() => {
     setVariables({});
+    Object.values(animationIntervals.current).forEach(v => clearInterval(v.intervalId));
+    animationIntervals.current = {};
   }, [isPreviewMode]);
 
   // 撤销/重做历史
@@ -41,6 +43,7 @@ function App() {
   // 剪贴板
   const clipboardRef = useRef([]);
   const canvasRef = useRef(null);
+  const animationIntervals = useRef({}); // { [targetId]: { intervalId, delta } }
 
   // 同步当前画布数据到页面列表
   useEffect(() => {
@@ -615,6 +618,88 @@ function App() {
       return; // 全局变量修改不需要直接操作 shapes
     }
 
+    // 动画类动作：在 setShapes 之外处理（需要副作用）
+    if (interaction.action === 'startAnimation' && interaction.targetId) {
+      const { targetId, payload } = interaction;
+      const prop = payload?.prop || 'value';
+      const rawDelta = Number(payload?.delta);
+      const delta = Number.isNaN(rawDelta) ? 1 : rawDelta;
+      const rawInterval = Number(payload?.interval);
+      const intervalMs = Number.isNaN(rawInterval) ? 100 : Math.max(10, rawInterval);
+      const rawMin = Number(payload?.min);
+      const min = Number.isNaN(rawMin) ? 0 : rawMin;
+      const rawMax = Number(payload?.max);
+      const max = Number.isNaN(rawMax) ? 100 : rawMax;
+      const loop = payload?.loop === true || payload?.loop === 'true';
+
+      // 先清除该 target 已有的动画
+      if (animationIntervals.current[targetId]) {
+        clearInterval(animationIntervals.current[targetId].intervalId);
+      }
+
+      // delta 为 0 时不启动动画
+      if (delta === 0) return;
+
+      let currentDelta = delta; // 用于 loop 模式下的方向翻转
+      let active = true; // 标记动画是否仍在运行
+
+      const intervalId = setInterval(() => {
+        if (!active) return;
+
+        setShapes(prev => prev.map(s => {
+          if (s.id !== targetId) return s;
+
+          const rawVal = Number(s.props[prop]);
+          const currentVal = Number.isNaN(rawVal) ? (prop === 'opacity' ? 1 : 0) : rawVal;
+          let newVal = currentVal + currentDelta;
+
+          // 边界处理
+          if (newVal >= max) {
+            if (loop) {
+              newVal = max;
+              currentDelta = -Math.abs(delta);
+            } else {
+              newVal = max;
+              active = false;
+              clearInterval(intervalId);
+              delete animationIntervals.current[targetId];
+            }
+          } else if (newVal <= min) {
+            if (loop) {
+              newVal = min;
+              currentDelta = Math.abs(delta);
+            } else {
+              newVal = min;
+              active = false;
+              clearInterval(intervalId);
+              delete animationIntervals.current[targetId];
+            }
+          }
+
+          // 对 opacity 精度特殊处理
+          if (prop === 'opacity') {
+            newVal = Math.round(newVal * 100) / 100;
+          } else {
+            newVal = Math.round(newVal);
+          }
+
+          return { ...s, props: { ...s.props, [prop]: newVal } };
+        }));
+      }, intervalMs);
+
+      animationIntervals.current[targetId] = { intervalId, delta: currentDelta };
+      return;
+    }
+
+    if (interaction.action === 'stopAnimation' && interaction.targetId) {
+      const { targetId } = interaction;
+      if (animationIntervals.current[targetId]) {
+        clearInterval(animationIntervals.current[targetId].intervalId);
+        delete animationIntervals.current[targetId];
+      }
+      return;
+    }
+
     if (!interaction.targetId) return;
 
     setShapes(prev => prev.map(s => {
@@ -653,6 +738,27 @@ function App() {
           const prevIndex = (currentIndex - 1 + s.states.length) % s.states.length;
           updatedShape.activeStateId = s.states[prevIndex].id;
         }
+      } else if (interaction.action === 'setChecked') {
+        // 设置开关/复选框/单选框的选中状态
+        const checked = interaction.payload?.checked;
+        if (checked !== undefined) {
+          updatedShape.props = { ...s.props, checked: Boolean(checked) };
+        }
+      } else if (interaction.action === 'toggleChecked') {
+        // 切换开关/复选框/单选框的选中状态
+        const currentChecked = s.props.checked === true || s.props.checked === 'true';
+        updatedShape.props = { ...s.props, checked: !currentChecked };
+      } else if (interaction.action === 'setValue') {
+        // 设置滑块/进度条的值
+        const value = interaction.payload?.value;
+        if (value !== undefined) {
+          updatedShape.props = { ...s.props, value: Math.max(0, Math.min(100, Number(value))) };
+        }
+      } else if (interaction.action === 'incrementValue') {
+        // 增减滑块/进度条的值
+        const delta = interaction.payload?.delta ?? 1;
+        const currentValue = Number(s.props.value) || 0;
+        updatedShape.props = { ...s.props, value: Math.max(0, Math.min(100, currentValue + Number(delta))) };
       }
 
       return updatedShape;

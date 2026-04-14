@@ -692,7 +692,7 @@ function getHandlePosition(shape, handlePos) {
   return { x: rotatedX, y: rotatedY };
 }
 
-function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode, isConnectionMode, variables, selectedChildId, onSelectChild, onHandleMouseDown, snapToGrid, showGuides }) {
+function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode, isConnectionMode, variables, selectedChildId, onSelectChild, onHandleMouseDown, snapToGrid, showGuides, onSliderDragStart }) {
   const shapeRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -774,20 +774,46 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
     draggable: !isPreviewMode && !(shape.type === 'arrow' && shape.startBinding),
     onClick: (e) => {
       e.cancelBubble = true;
+      const prefix = shape.id.split('-')[0];
+      const isToggleable = ['switch', 'checkbox', 'radio'].includes(prefix);
+      if ((isPreviewMode || e.evt.altKey) && isToggleable) {
+        // 内置切换行为：点击切换 checked 状态
+        const currentChecked = shape.props.checked === true || shape.props.checked === 'true';
+        onChange({ ...shape, props: { ...shape.props, checked: !currentChecked } });
+        // 触发 onChange 交互
+        shape.interactions?.forEach(interaction => {
+          if (interaction.trigger === 'onChange') {
+            triggerInteraction(interaction);
+          }
+        });
+      }
       if ((isPreviewMode || e.evt.altKey) && shape.interactions?.length > 0) {
         shape.interactions.forEach(interaction => {
           if (interaction.trigger === 'onClick') {
             triggerInteraction(interaction);
           }
         });
-      } else if (!isPreviewMode && (e.evt.ctrlKey || e.evt.metaKey)) {
+      } else if (!isPreviewMode && !isToggleable && (e.evt.ctrlKey || e.evt.metaKey)) {
         onSelectMultiple?.(shape.id);
-      } else if (!isPreviewMode) {
+      } else if (!isPreviewMode && !isToggleable) {
+        onSelect(shape.id);
+      } else if (!isPreviewMode && isToggleable) {
         onSelect(shape.id);
       }
     },
     onTap: (e) => {
       e.cancelBubble = true;
+      const prefix = shape.id.split('-')[0];
+      const isToggleable = ['switch', 'checkbox', 'radio'].includes(prefix);
+      if ((isPreviewMode || e.evt.altKey) && isToggleable) {
+        const currentChecked = shape.props.checked === true || shape.props.checked === 'true';
+        onChange({ ...shape, props: { ...shape.props, checked: !currentChecked } });
+        shape.interactions?.forEach(interaction => {
+          if (interaction.trigger === 'onChange') {
+            triggerInteraction(interaction);
+          }
+        });
+      }
       if ((isPreviewMode || e.evt.altKey) && shape.interactions?.length > 0) {
         shape.interactions.forEach(interaction => {
           if (interaction.trigger === 'onClick') {
@@ -1143,7 +1169,8 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               x={centerX}
               y={centerY}
               rotation={rotation}
-              draggable
+              draggable={!isPreviewMode}
+              opacity={activeProps.opacity}
               onClick={shapeProps.onClick}
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
@@ -1170,7 +1197,6 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 height={height}
                 fill={isChecked ? (activeProps.fill || '#22C55E') : (activeProps.fillOff || '#E2E8F0')}
                 cornerRadius={height / 2}
-                opacity={activeProps.opacity}
               />
               <Circle
                 x={isChecked ? width / 2 - height / 2 : -width / 2 + height / 2}
@@ -1197,7 +1223,8 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               x={centerX}
               y={centerY}
               rotation={rotation}
-              draggable
+              draggable={!isPreviewMode}
+              opacity={activeProps.opacity}
               onClick={shapeProps.onClick}
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
@@ -1226,7 +1253,6 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 stroke={activeProps.stroke || '#CBD5E1'}
                 strokeWidth={activeProps.strokeWidth || 2}
                 cornerRadius={activeProps.cornerRadius || 4}
-                opacity={activeProps.opacity}
               />
               {isChecked && (
                 <Text
@@ -1262,6 +1288,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               y={centerY}
               rotation={rotation}
               draggable
+              opacity={activeProps.opacity}
               onClick={shapeProps.onClick}
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
@@ -1288,7 +1315,6 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 height={height}
                 fill={activeProps.fill || '#EF4444'}
                 cornerRadius={activeProps.cornerRadius || 10}
-                opacity={activeProps.opacity}
               />
               <Text
                 text={activeProps.text || '5'}
@@ -1310,7 +1336,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           const height = activeProps.height || 20;
           const centerX = shape.x + width / 2;
           const centerY = shape.y + height / 2;
-          const value = Math.max(0, Math.min(100, Number(activeProps.value) || 50));
+          const value = Math.max(0, Math.min(100, Number(activeProps.value ?? 50)));
           const trackHeight = Math.max(4, height * 0.3);
           const barWidth = width * value / 100;
           const thumbRadius = height / 2 - 1;
@@ -1322,7 +1348,8 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               x={centerX}
               y={centerY}
               rotation={rotation}
-              draggable
+              draggable={!isPreviewMode}
+              opacity={activeProps.opacity}
               onClick={shapeProps.onClick}
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
@@ -1340,6 +1367,21 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               }}
               onMouseEnter={shapeProps.onMouseEnter}
               onMouseLeave={shapeProps.onMouseLeave}
+              onMouseDown={(e) => {
+                if (!isPreviewMode) return;
+                e.cancelBubble = true;
+                const stage = e.target.getStage();
+                if (!stage) return;
+                const pointerPos = stage.getPointerPosition();
+                if (!pointerPos) return;
+                // 根据点击位置计算 value
+                const trackLeft = shape.x;
+                const relX = pointerPos.x - trackLeft;
+                const newValue = Math.max(0, Math.min(100, (relX / width) * 100));
+                onChange({ ...shape, props: { ...shape.props, value: Math.round(newValue) } });
+                // 开始拖拽跟踪
+                onSliderDragStart?.(shape.id, shape.x, width);
+              }}
             >
               {/* 轨道 */}
               <Rect
@@ -1350,7 +1392,6 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 height={trackHeight}
                 fill={activeProps.fill || '#E2E8F0'}
                 cornerRadius={activeProps.cornerRadius || 4}
-                opacity={activeProps.opacity}
               />
               {/* 激活轨道 */}
               <Rect
@@ -1381,7 +1422,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           const height = activeProps.height || 8;
           const centerX = shape.x + width / 2;
           const centerY = shape.y + height / 2;
-          const value = Math.max(0, Math.min(100, Number(activeProps.value) || 60));
+          const value = Math.max(0, Math.min(100, Number(activeProps.value ?? 60)));
           const barWidth = width * value / 100;
 
           return (
@@ -1392,6 +1433,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               y={centerY}
               rotation={rotation}
               draggable
+              opacity={activeProps.opacity}
               onClick={shapeProps.onClick}
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
@@ -1449,6 +1491,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               y={centerY}
               rotation={rotation}
               draggable
+              opacity={activeProps.opacity}
               onClick={shapeProps.onClick}
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
@@ -1474,7 +1517,6 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 width={width}
                 height={height}
                 fill={activeProps.fill || '#E2E8F0'}
-                opacity={activeProps.opacity}
               />
             </Group>
           );
@@ -1495,6 +1537,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               y={centerY}
               rotation={rotation}
               draggable
+              opacity={activeProps.opacity}
               onClick={shapeProps.onClick}
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
@@ -1521,7 +1564,6 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 height={height}
                 fill={activeProps.fill || '#DBEAFE'}
                 cornerRadius={activeProps.cornerRadius || 20}
-                opacity={activeProps.opacity}
               />
               <Text
                 text={activeProps.text || 'A'}
@@ -1615,7 +1657,8 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               x={shape.x}
               y={shape.y}
               rotation={rotation}
-              draggable
+              draggable={!isPreviewMode}
+              opacity={activeProps.opacity}
               onClick={shapeProps.onClick}
               onTap={shapeProps.onTap}
               onDragStart={shapeProps.onDragStart}
@@ -1640,7 +1683,6 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 fill={activeProps.fill || '#FFFFFF'}
                 stroke={activeProps.stroke || '#CBD5E1'}
                 strokeWidth={activeProps.strokeWidth || 2}
-                opacity={activeProps.opacity}
               />
               {isChecked && (
                 <Circle
@@ -2678,6 +2720,7 @@ const Canvas = forwardRef(function Canvas({
   const [selectedChildId, setSelectedChildId] = useState(null);
   const lastPosRef = useRef(null);
   const editInputRef = useRef(null);
+  const draggingSliderRef = useRef(null); // 跟踪滑块拖拽 { shapeId, shapeX, width }
 
   const layerRef = useRef(null);
 
@@ -2790,7 +2833,26 @@ const Canvas = forwardRef(function Canvas({
         setDrawingConnection(prev => ({ ...prev, currentPos: adjustedPos }));
       }
     }
-  }, [isPanning, isSelecting, drawingConnection, position, scale]);
+
+    // 滑块拖拽
+    if (draggingSliderRef.current && isPreviewMode) {
+      const stage = stageRef.current;
+      if (stage) {
+        const pos = stage.getPointerPosition();
+        if (pos) {
+          const { shapeId, shapeX, width } = draggingSliderRef.current;
+          const adjustedX = (pos.x - position.x) / scale;
+          const relX = adjustedX - shapeX;
+          const newValue = Math.max(0, Math.min(100, (relX / width) * 100));
+          setShapes(prev => prev.map(s =>
+            s.id === shapeId
+              ? { ...s, props: { ...s.props, value: Math.round(newValue) } }
+              : s
+          ));
+        }
+      }
+    }
+  }, [isPanning, isSelecting, drawingConnection, position, scale, isPreviewMode]);
 
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
@@ -2884,7 +2946,21 @@ const Canvas = forwardRef(function Canvas({
       }
       setDrawingConnection(null);
     }
-  }, [isSelecting, selectionStart, selectionEnd, shapes, drawingConnection, position, scale, setSelectedId, setSelectedIds, setShapes, onSaveToHistory]);
+
+    // 滑块拖拽结束：触发 onChange 交互
+    if (draggingSliderRef.current) {
+      const { shapeId } = draggingSliderRef.current;
+      draggingSliderRef.current = null;
+      const sliderShape = shapes.find(s => s.id === shapeId);
+      if (sliderShape?.interactions) {
+        sliderShape.interactions.forEach(interaction => {
+          if (interaction.trigger === 'onChange') {
+            onExecuteInteraction?.(interaction);
+          }
+        });
+      }
+    }
+  }, [isSelecting, selectionStart, selectionEnd, shapes, drawingConnection, position, scale, setSelectedId, setSelectedIds, setShapes, onSaveToHistory, onExecuteInteraction]);
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
@@ -3283,6 +3359,9 @@ const Canvas = forwardRef(function Canvas({
               onHandleMouseDown={handleConnectionMouseDown}
               snapToGrid={snapToGrid}
               showGuides={showGuides}
+              onSliderDragStart={(shapeId, shapeX, width) => {
+                draggingSliderRef.current = { shapeId, shapeX, width };
+              }}
             />
           ))}
           {/* 然后渲染其他组件 */}
@@ -3342,6 +3421,9 @@ const Canvas = forwardRef(function Canvas({
               onHandleMouseDown={handleConnectionMouseDown}
               snapToGrid={snapToGrid}
               showGuides={showGuides}
+              onSliderDragStart={(shapeId, shapeX, width) => {
+                draggingSliderRef.current = { shapeId, shapeX, width };
+              }}
             />
           ))}
           {/* 将箭头的渲染提前，让组件显示在箭头上方，或者通过zIndex控制。为了避免选中框被覆盖，把绘制箭头逻辑放这里 */}

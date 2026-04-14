@@ -751,3 +751,105 @@ return {
 ***
 
 *更多详情请查看* *`DESIGN.md`* *设计手册*
+
+## 版本 1.11.0 (2026-04-14)
+
+### ✨ 新增组件交互控制能力
+
+#### 1. 新增交互触发器：onChange
+- **触发时机**：当组件内置状态发生变化时自动触发（如开关切换、复选框点击、滑块拖动）。
+- **使用场景**：开关组件添加 `onChange` 触发器 + `setVariable` 动作，即可实现"切换开关 → 修改全局变量 → 控制其他组件显隐"的联动效果。
+- **适用组件**：switch（开关）、checkbox（复选框）、radio（单选框）、slider（滑块）。
+
+#### 2. 新增交互动作：状态控制类
+- **setChecked**：直接设置开关/复选框/单选框的选中状态。payload: `{ "checked": true/false }`
+- **toggleChecked**：切换开关/复选框/单选框的选中状态，无需 payload。
+- **setValue**：直接设置滑块/进度条的值（0-100）。payload: `{ "value": 50 }`
+- **incrementValue**：增减滑块/进度条的值。payload: `{ "delta": 10 }`（正数增加，负数减少）
+
+#### 3. 新增交互动作：持续动画类
+- **startAnimation**：启动持续动画，逐帧修改目标组件的属性值。
+  - `prop`：要修改的属性，支持 `value`（滑块/进度条值）和 `opacity`（透明度）
+  - `delta`：每次 tick 的变化量，支持正数（递增）和负数（递减）
+  - `interval`：每次 tick 的间隔毫秒数
+  - `min` / `max`：值的边界范围
+  - `loop`：到达边界后是否反向循环
+  - 不勾选循环时，到达边界自动停止
+- **stopAnimation**：停止目标组件上正在进行的动画。
+
+#### 4. 组件内置交互行为
+- **开关/复选框/单选框**：预览模式下点击自动切换选中状态，无需手动配置交互。组件添加后自带 `onChange` 能力，可通过交互面板配置联动逻辑。
+- **滑块**：预览模式下支持鼠标拖拽实时调整值，拖动过程中自动触发 `onChange` 交互。
+
+#### 5. AI 助手联动
+- 以上所有新触发器和动作均已同步至 AI 助手的系统提示，AI 可根据自然语言描述自动配置交互。
+- 示例："点击按钮后进度条自动从0增长到100" → AI 自动生成 `startAnimation` 交互配置。
+- 示例："开关打开时显示暗色面板" → AI 自动生成 `onChange` + `setVariable` + `visibleIf` 联动。
+
+#### 6. 属性面板交互编辑器更新
+- 触发器下拉新增 `onChange` 选项。
+- 动作下拉新增 6 个选项：`setChecked`、`toggleChecked`、`setValue`、`incrementValue`、`startAnimation`、`stopAnimation`。
+- 每种动作配有对应的配置 UI：
+  - setChecked/toggleChecked：目标选择器（自动过滤开关/复选框/单选框）
+  - setValue/incrementValue：目标选择器（自动过滤滑块/进度条）+ 值/变化量输入
+  - startAnimation：目标选择器 + 属性下拉 + 变化量 + 间隔 + 最小值 + 最大值 + 循环开关
+  - stopAnimation：目标选择器
+
+---
+
+### 🐛 修复开始动画交互中的边界与参数解析问题
+
+#### 1. 修复默认 min/max 下动画不停止的问题
+- **问题**：`Number(payload?.delta) || 1` 中，`||` 运算符会将 `delta=0` 静默转换为 `1`；同理 `Number(payload?.interval) || 100` 也存在类似隐患。当用户未手动修改最小值/最大值时，`payload.min` / `payload.max` 为 `undefined`，`Number(undefined)` 返回 `NaN`，虽然 `NaN ?? 0` 能正确回退，但 `||` 与 `??` 的混用导致参数解析不一致，出现动画一直增加/减少不停止的异常。
+- **修复**：将 App.jsx 中 `startAnimation` 的参数解析全部改为显式 `Number.isNaN()` 检查，替代原先 `||` 与 `??` 混用的方式。同时为 `delta=0` 增加前置守卫（不启动动画），为 `interval` 增加最小值限制 `Math.max(10, ...)`。
+
+#### 2. 修复自定义 min/max 时循环边界异常
+- **问题**：PropertiesPanel 中 min/max/delta 的 `onChange` 处理使用 `parseFloat(e.target.value) || 0`，当用户输入 `0` 时 `0 || 0 = 0` 虽然结果正确，但无法区分"用户输入了 0"和"输入为空回退到 0"，导致用户清空输入框后值变为 0 而非恢复默认。此外，当 min=1、max=99、loop=true 时，值到 11 即开始循环反向，推测与参数解析不一致有关。
+- **修复**：PropertiesPanel 中 startAnimation 的 delta/interval/min/max 四个输入框的 `onChange` 改为 `Number.isNaN` 检查，空值时传入空字符串触发 `handleUpdatePayload` 的删除逻辑（回退到 App.jsx 中的默认值），非空值原样传递，确保用户输入的 0 和负数都能正确保留。
+
+#### 3. 关键代码变更
+
+**`src/App.jsx` — startAnimation 参数解析**
+```javascript
+// 旧代码（|| 与 ?? 混用）
+const delta = Number(payload?.delta) || 1;
+const intervalMs = Number(payload?.interval) || 100;
+const min = Number(payload?.min) ?? 0;
+const max = Number(payload?.max) ?? 100;
+
+// 新代码（显式 NaN 检查）
+const rawDelta = Number(payload?.delta);
+const delta = Number.isNaN(rawDelta) ? 1 : rawDelta;
+const rawInterval = Number(payload?.interval);
+const intervalMs = Number.isNaN(rawInterval) ? 100 : Math.max(10, rawInterval);
+const rawMin = Number(payload?.min);
+const min = Number.isNaN(rawMin) ? 0 : rawMin;
+const rawMax = Number(payload?.max);
+const max = Number.isNaN(rawMax) ? 100 : rawMax;
+
+// delta 为 0 时不启动动画
+if (delta === 0) return;
+```
+
+**`src/components/PropertiesPanel.jsx` — onChange 处理**
+```javascript
+// 旧代码（|| 0 无法区分空值和 0）
+onChange={(e) => handleUpdatePayload(idx, 'min', parseFloat(e.target.value) || 0)}
+
+// 新代码（NaN 时传空字符串触发删除逻辑）
+onChange={(e) => { const v = parseFloat(e.target.value); handleUpdatePayload(idx, 'min', Number.isNaN(v) ? '' : v); }}
+```
+
+#### 经验总结
+
+| 问题 | 原因 | 解决方案 |
+| --- | --- | --- |
+| 动画不停止 | `||` 将 0 视为假值回退 | 统一用 `Number.isNaN()` 替代 `||` 和 `??` |
+| min=1 到 11 就循环 | `|| 0` 无法区分空值和 0，参数传递链路不一致 | 空值传空字符串走删除逻辑，确保默认值回退 |
+| 负数 delta 不生效 | `||` 运算符对 0 的处理干扰参数解析 | 显式 NaN 检查，0 值单独守卫 |
+
+#### 关键教训
+
+1. **`||` vs `??` vs `Number.isNaN()`**：`||` 会将 `0`、`''`、`false` 等所有假值都回退，`??` 只对 `null`/`undefined` 回退，`Number.isNaN()` 最精确——只对 `NaN` 回退。数值参数解析应优先使用 `Number.isNaN()`。
+2. **受控输入的空值处理**：`parseFloat('')` 返回 `NaN`，`NaN || 0` 返回 `0`，导致空值被误认为有效输入。应显式检测 `NaN` 并走删除/回退逻辑。
+3. **动画参数一致性**：参数解析逻辑（UI 层 onChange → 数据层 payload → 执行层 App.jsx）必须保持一致，任何一层的 `||`/`??` 混用都可能导致边界值异常。

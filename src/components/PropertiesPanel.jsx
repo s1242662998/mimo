@@ -951,6 +951,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                       <option value="onMouseEnter">鼠标移入</option>
                       <option value="onMouseLeave">鼠标移出</option>
                       <option value="onLoad">加载完成时 (onLoad)</option>
+                      <option value="onChange">值改变时 (onChange)</option>
                     </select>
                   </div>
                   <div className="interaction-field">
@@ -962,6 +963,12 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                       <option value="switchState">切换到指定状态</option>
                       <option value="nextState">切换到下一状态</option>
                       <option value="prevState">切换到上一状态</option>
+                      <option value="setChecked">设置选中状态 (setChecked)</option>
+                      <option value="toggleChecked">切换选中状态 (toggleChecked)</option>
+                      <option value="setValue">设置值 (setValue)</option>
+                      <option value="incrementValue">增减值 (incrementValue)</option>
+                      <option value="startAnimation">开始动画 (startAnimation)</option>
+                      <option value="stopAnimation">停止动画 (stopAnimation)</option>
                     </select>
                   </div>
                   {ix.action === 'setVariable' ? (
@@ -1032,6 +1039,170 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                         {shapes.filter(s => s.type === 'dynamicPanel').map(s => (
                           <option key={s.id} value={s.id}>
                             动态面板 ({s.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : ix.action === 'setChecked' ? (
+                    <>
+                      <div className="interaction-field">
+                        <label>目标</label>
+                        <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
+                          <option value="">请选择开关/复选框/单选框...</option>
+                          {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => s.id.startsWith(p))).map(s => (
+                            <option key={s.id} value={s.id}>
+                              {TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="interaction-field">
+                        <label>状态</label>
+                        <select value={String(ix.payload?.checked ?? 'true')} onChange={(e) => handleUpdatePayload(idx, 'checked', e.target.value === 'true')} className="property-select">
+                          <option value="true">选中/开启</option>
+                          <option value="false">未选中/关闭</option>
+                        </select>
+                      </div>
+                    </>
+                  ) : ix.action === 'toggleChecked' ? (
+                    <div className="interaction-field">
+                      <label>目标</label>
+                      <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
+                        <option value="">请选择开关/复选框/单选框...</option>
+                        {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => s.id.startsWith(p))).map(s => (
+                          <option key={s.id} value={s.id}>
+                            {TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : ix.action === 'setValue' ? (
+                    <>
+                      <div className="interaction-field">
+                        <label>目标</label>
+                        <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
+                          <option value="">请选择滑块/进度条...</option>
+                          {shapes.filter(s => ['slider', 'progress'].some(p => s.id.startsWith(p))).map(s => (
+                            <option key={s.id} value={s.id}>
+                              {TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="interaction-field">
+                        <label>值 (0-100)</label>
+                        <input
+                          type="number"
+                          className="property-number"
+                          min={0}
+                          max={100}
+                          value={ix.payload?.value ?? 50}
+                          onChange={(e) => handleUpdatePayload(idx, 'value', parseInt(e.target.value, 10) || 0)}
+                        />
+                      </div>
+                    </>
+                  ) : ix.action === 'incrementValue' ? (
+                    <>
+                      <div className="interaction-field">
+                        <label>目标</label>
+                        <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
+                          <option value="">请选择滑块/进度条...</option>
+                          {shapes.filter(s => ['slider', 'progress'].some(p => s.id.startsWith(p))).map(s => (
+                            <option key={s.id} value={s.id}>
+                              {TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="interaction-field">
+                        <label>增减量</label>
+                        <input
+                          type="number"
+                          className="property-number"
+                          value={ix.payload?.delta ?? 10}
+                          onChange={(e) => handleUpdatePayload(idx, 'delta', parseInt(e.target.value, 10) || 0)}
+                        />
+                      </div>
+                    </>
+                  ) : ix.action === 'startAnimation' ? (
+                    <>
+                      <div className="interaction-field">
+                        <label>目标</label>
+                        <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
+                          <option value="">请选择目标组件...</option>
+                          {shapes.filter(s => s.id !== selectedShape.id).map(s => (
+                            <option key={s.id} value={s.id}>
+                              {TypeNameMap[s.id.split('-')[0]] || '组件'} ({s.id})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="interaction-field">
+                        <label>修改属性</label>
+                        <select value={ix.payload?.prop || 'value'} onChange={(e) => handleUpdatePayload(idx, 'prop', e.target.value)} className="property-select">
+                          <option value="value">值 (value)</option>
+                          <option value="opacity">透明度 (opacity)</option>
+                        </select>
+                      </div>
+                      <div className="interaction-field">
+                        <label>每次变化量</label>
+                        <input
+                          type="number"
+                          className="property-number"
+                          step={ix.payload?.prop === 'opacity' ? 0.05 : 1}
+                          value={ix.payload?.delta ?? 1}
+                          onChange={(e) => { const v = parseFloat(e.target.value); handleUpdatePayload(idx, 'delta', Number.isNaN(v) ? '' : v); }}
+                        />
+                      </div>
+                      <div className="interaction-field">
+                        <label>间隔 (ms)</label>
+                        <input
+                          type="number"
+                          className="property-number"
+                          min={10}
+                          value={ix.payload?.interval ?? 100}
+                          onChange={(e) => { const v = parseInt(e.target.value, 10); handleUpdatePayload(idx, 'interval', Number.isNaN(v) ? '' : v); }}
+                        />
+                      </div>
+                      <div className="interaction-field">
+                        <label>最小值</label>
+                        <input
+                          type="number"
+                          className="property-number"
+                          step={ix.payload?.prop === 'opacity' ? 0.1 : 1}
+                          value={ix.payload?.min ?? 0}
+                          onChange={(e) => { const v = parseFloat(e.target.value); handleUpdatePayload(idx, 'min', Number.isNaN(v) ? '' : v); }}
+                        />
+                      </div>
+                      <div className="interaction-field">
+                        <label>最大值</label>
+                        <input
+                          type="number"
+                          className="property-number"
+                          step={ix.payload?.prop === 'opacity' ? 0.1 : 1}
+                          value={ix.payload?.max ?? 100}
+                          onChange={(e) => { const v = parseFloat(e.target.value); handleUpdatePayload(idx, 'max', Number.isNaN(v) ? '' : v); }}
+                        />
+                      </div>
+                      <div className="interaction-field">
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', width: 'auto', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={ix.payload?.loop === true || ix.payload?.loop === 'true'}
+                            onChange={(e) => handleUpdatePayload(idx, 'loop', e.target.checked)}
+                          />
+                          到达边界后循环
+                        </label>
+                      </div>
+                    </>
+                  ) : ix.action === 'stopAnimation' ? (
+                    <div className="interaction-field">
+                      <label>目标</label>
+                      <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
+                        <option value="">请选择目标组件...</option>
+                        {shapes.filter(s => s.id !== selectedShape.id).map(s => (
+                          <option key={s.id} value={s.id}>
+                            {TypeNameMap[s.id.split('-')[0]] || '组件'} ({s.id})
                           </option>
                         ))}
                       </select>
