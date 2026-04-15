@@ -246,7 +246,7 @@ export default function Toolbar({
   return (
     <div className="toolbar">
       <div className="toolbar-group">
-        <button onClick={onImport} title="导入截图">
+        <button onClick={onImport} title="导入 JSON">
           <ImportIcon />
           <span>导入</span>
         </button>

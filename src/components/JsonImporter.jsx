@@ -1,14 +1,7 @@
-import { useState, useRef, useCallback } from 'react';
-import './ScreenshotImporter.css';
+import { useState, useCallback } from 'react';
+import './JsonImporter.css';
 
 const Icons = {
-  Upload: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
-    </svg>
-  ),
   Close: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="18" y1="6" x2="6" y2="18" />
@@ -49,6 +42,7 @@ function convertType(jsonType) {
     rectangle: 'rect',
     circle: 'circle',
     image: 'image',
+    dynamicPanel: 'dynamicPanel',
     switch: 'rect',
     checkbox: 'rect',
     radio: 'circle',
@@ -62,24 +56,23 @@ function convertType(jsonType) {
 }
 
 function convertToShapes(data) {
-  // 如果是旧版的 update 格式或包含 action 类型的 JSON，拦截提示
   if (data && data.type === 'update') {
-    throw new Error('当前面板仅支持导入 "截图生成 (replace_all/elements)" 的数据结构，更新组件请在右侧 AI 助手聊天框中直接输入指令。');
+    throw new Error('当前面板仅支持导入组件数据，更新组件请在右侧 AI 助手聊天框中直接输入指令。');
   }
 
   if (!data || !Array.isArray(data.elements)) {
-    throw new Error('JSON 格式错误：缺少 elements 数组。如果您想更新现有组件，请关闭此弹窗并在右侧 AI 助手中直接发送指令。');
+    throw new Error('JSON 格式错误：缺少 elements 数组。');
   }
 
   const timestamp = Date.now();
-  
+
   return data.elements.map((el, index) => {
     if (!el.type || el.x === undefined || el.y === undefined) {
       throw new Error(`第 ${index + 1} 个元素缺少必需字段 (type, x, y)`);
     }
 
     const shape = {
-      id: `${el.type}-${timestamp}-${index}`,
+      id: el.id || `${el.type}-${timestamp}-${index}`,
       type: convertType(el.type),
       x: Number(el.x) || 0,
       y: Number(el.y) || 0,
@@ -251,53 +244,112 @@ function convertToShapes(data) {
   });
 }
 
-export default function ScreenshotImporter({ onClose, onImport }) {
-  const [image, setImage] = useState(null);
-  const [imageName, setImageName] = useState('');
-  const [jsonText, setJsonText] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef(null);
+const VALID_TRIGGERS = ['onClick', 'onMouseEnter', 'onMouseLeave', 'onLoad', 'onChange'];
+const VALID_ACTIONS = [
+  'toggleVisibility', 'setProps', 'setVariable', 'switchState',
+  'nextState', 'prevState', 'setChecked', 'toggleChecked',
+  'setValue', 'incrementValue', 'startAnimation', 'stopAnimation',
+];
 
-  const handleFile = useCallback((file) => {
-    if (!file) return;
-    
-    if (!file.type.startsWith('image/')) {
-      setError('请上传图片文件 (PNG, JPG)');
+function validateInteractions(interactions, itemLabel, existingShapeIds) {
+  const errors = [];
+
+  if (!Array.isArray(interactions)) {
+    errors.push(`${itemLabel}：interactions 必须是数组`);
+    return errors;
+  }
+
+  interactions.forEach((inter, j) => {
+    const interPrefix = `${itemLabel} 第 ${j + 1} 条交互`;
+
+    if (!inter.trigger) {
+      errors.push(`${interPrefix}：缺少 trigger 字段`);
+    } else if (!VALID_TRIGGERS.includes(inter.trigger)) {
+      errors.push(`${interPrefix}：trigger "${inter.trigger}" 无效，必须是 ${VALID_TRIGGERS.join('、')} 之一`);
+    }
+
+    if (!inter.action) {
+      errors.push(`${interPrefix}：缺少 action 字段`);
+    } else if (!VALID_ACTIONS.includes(inter.action)) {
+      errors.push(`${interPrefix}：action "${inter.action}" 无效，必须是 ${VALID_ACTIONS.join('、')} 之一`);
+    }
+
+    if (inter.targetId && !existingShapeIds.has(inter.targetId)) {
+      errors.push(`${interPrefix}：画布中不存在 ID 为 "${inter.targetId}" 的目标组件`);
+    }
+
+    // 校验 onComplete
+    if (inter.onComplete) {
+      const oc = inter.onComplete;
+      if (!oc.action || !VALID_ACTIONS.includes(oc.action)) {
+        errors.push(`${interPrefix} 的完成后动作：action "${oc.action || ''}" 无效`);
+      }
+      if (oc.targetId && !existingShapeIds.has(oc.targetId)) {
+        errors.push(`${interPrefix} 的完成后动作：画布中不存在 ID 为 "${oc.targetId}" 的目标组件`);
+      }
+    }
+  });
+
+  return errors;
+}
+
+/**
+ * 校验并归一化交互 JSON，支持两种格式：
+ * 1. 按组件分组数组: [{ sourceId: "x", interactions: [...] }]
+ * 2. batch_update 格式: { type: "batch_update", batchUpdates: [{ id: "x", updates: { interactions: [...] } }] }
+ *
+ * 返回统一格式: [{ sourceId: string, interactions: array }]
+ */
+function validateAndNormalizeInteractions(data, existingShapeIds) {
+  let items = [];
+
+  if (Array.isArray(data)) {
+    // 格式 1: 按组件分组数组
+    items = data;
+  } else if (data && data.type === 'batch_update' && Array.isArray(data.batchUpdates)) {
+    // 格式 2: batch_update 格式，归一化为分组数组
+    items = data.batchUpdates.map(bu => ({
+      sourceId: bu.id,
+      interactions: bu.updates?.interactions || [],
+    }));
+  } else {
+    throw new Error('交互 JSON 格式错误：\n• 按组件分组数组: [{ "sourceId": "...", "interactions": [...] }]\n• batch_update 格式: { "type": "batch_update", "batchUpdates": [...] }');
+  }
+
+  if (items.length === 0) {
+    throw new Error('交互 JSON 不能为空。');
+  }
+
+  const errors = [];
+
+  items.forEach((item, i) => {
+    const prefix = `第 ${i + 1} 个条目`;
+
+    if (!item.sourceId || typeof item.sourceId !== 'string') {
+      errors.push(`${prefix}：缺少 sourceId 字段`);
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImage(e.target.result);
-      setImageName(file.name);
-      setError('');
-    };
-    reader.readAsDataURL(file);
-  }, []);
+    if (!existingShapeIds.has(item.sourceId)) {
+      errors.push(`${prefix}：画布中不存在 ID 为 "${item.sourceId}" 的组件`);
+    }
 
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const file = e.dataTransfer.files[0];
-    handleFile(file);
-  }, [handleFile]);
+    const interErrors = validateInteractions(item.interactions, prefix, existingShapeIds);
+    errors.push(...interErrors);
+  });
 
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
+  if (errors.length > 0) {
+    throw new Error(errors.join('\n'));
+  }
 
-  const handleDragLeave = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+  return items;
+}
 
-  const handleFileSelect = useCallback((e) => {
-    const file = e.target.files[0];
-    handleFile(file);
-  }, [handleFile]);
+export default function JsonImporter({ onClose, onImport, onImportInteractions, canvasShapes }) {
+  const [activeTab, setActiveTab] = useState('components');
+  const [jsonText, setJsonText] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handlePaste = useCallback(async () => {
     try {
@@ -316,12 +368,19 @@ export default function ScreenshotImporter({ onClose, onImport }) {
     setSuccess('');
   }, []);
 
-  const handleGenerate = useCallback(() => {
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
+    setJsonText('');
+    setError('');
+    setSuccess('');
+  }, []);
+
+  const handleImportComponents = useCallback(() => {
     setError('');
     setSuccess('');
 
     if (!jsonText.trim()) {
-      setError('请粘贴 JSON 数据');
+      setError('请粘贴组件 JSON 数据');
       return;
     }
 
@@ -329,8 +388,8 @@ export default function ScreenshotImporter({ onClose, onImport }) {
       const data = JSON.parse(jsonText);
       const shapes = convertToShapes(data);
       onImport(shapes);
-      setSuccess(`成功生成 ${shapes.length} 个组件`);
-      
+      setSuccess(`成功导入 ${shapes.length} 个组件`);
+
       setTimeout(() => {
         onClose();
       }, 500);
@@ -339,72 +398,41 @@ export default function ScreenshotImporter({ onClose, onImport }) {
     }
   }, [jsonText, onImport, onClose]);
 
-  const handleRemoveImage = useCallback(() => {
-    setImage(null);
-    setImageName('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handleImportInteractions = useCallback(() => {
+    setError('');
+    setSuccess('');
+
+    if (!jsonText.trim()) {
+      setError('请粘贴交互 JSON 数据');
+      return;
     }
-  }, []);
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="screenshot-importer" onClick={(e) => e.stopPropagation()}>
-        <div className="importer-header">
-          <h3>截图导入</h3>
-          <button className="close-btn" onClick={onClose}>
-            <Icons.Close />
-          </button>
-        </div>
+    try {
+      const data = JSON.parse(jsonText);
+      const existingShapeIds = new Set(canvasShapes.map(s => s.id));
+      const validated = validateAndNormalizeInteractions(data, existingShapeIds);
+      onImportInteractions(validated);
 
-        <div className="importer-content">
-          {/* 上传区域 */}
-          <div className="section">
-            <label className="section-label">截图预览</label>
-            {!image ? (
-              <div
-                className={`upload-zone ${isDragging ? 'dragging' : ''}`}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Icons.Upload />
-                <p>拖拽截图到此处或点击上传</p>
-                <span>支持 PNG、JPG 格式</span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  hidden
-                />
-              </div>
-            ) : (
-              <div className="preview-container">
-                <img src={image} alt="预览" className="preview-image" />
-                <div className="preview-info">
-                  <span className="preview-name">{imageName}</span>
-                  <button className="reupload-btn" onClick={handleRemoveImage}>
-                    重新上传
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+      const count = validated.reduce((sum, item) => sum + item.interactions.length, 0);
+      setSuccess(`成功为 ${validated.length} 个组件应用了 ${count} 条交互`);
 
-          {/* JSON输入区域 */}
-          <div className="section">
-            <label className="section-label">AI 分析结果 (JSON)</label>
-            <textarea
-              className="json-input"
-              value={jsonText}
-              onChange={(e) => {
-                setJsonText(e.target.value);
-                setError('');
-                setSuccess('');
-              }}
-              placeholder={`{
+      setTimeout(() => {
+        onClose();
+      }, 500);
+    } catch (err) {
+      setError(err.message || 'JSON 解析失败，请检查格式');
+    }
+  }, [jsonText, canvasShapes, onImportInteractions, onClose]);
+
+  const handleGenerate = useCallback(() => {
+    if (activeTab === 'components') {
+      handleImportComponents();
+    } else {
+      handleImportInteractions();
+    }
+  }, [activeTab, handleImportComponents, handleImportInteractions]);
+
+  const componentsPlaceholder = `{
   "screenshotWidth": 375,
   "screenshotHeight": 812,
   "elements": [
@@ -425,8 +453,85 @@ export default function ScreenshotImporter({ onClose, onImport }) {
       "fill": "#0891B2"
     }
   ]
-}`}
-              rows={12}
+}`;
+
+  const interactionsPlaceholder = `支持两种格式：
+
+格式 1 - 按组件分组数组:
+[
+  {
+    "sourceId": "button-1",
+    "interactions": [
+      {
+        "trigger": "onClick",
+        "action": "setVariable",
+        "payload": { "key": "currentTab", "value": "home" }
+      }
+    ]
+  }
+]
+
+格式 2 - batch_update:
+{
+  "type": "batch_update",
+  "batchUpdates": [
+    {
+      "id": "card1-bg",
+      "updates": {
+        "interactions": [
+          {
+            "trigger": "onMouseEnter",
+            "action": "setProps",
+            "targetId": "card1-bg",
+            "payload": { "fill": "#000000" }
+          }
+        ]
+      }
+    }
+  ]
+}`;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="json-importer" onClick={(e) => e.stopPropagation()}>
+        <div className="importer-header">
+          <h3>导入 JSON</h3>
+          <button className="close-btn" onClick={onClose}>
+            <Icons.Close />
+          </button>
+        </div>
+
+        {/* Tab 切换 */}
+        <div className="importer-tabs">
+          <button
+            className={`importer-tab ${activeTab === 'components' ? 'active' : ''}`}
+            onClick={() => handleTabChange('components')}
+          >
+            导入组件
+          </button>
+          <button
+            className={`importer-tab ${activeTab === 'interactions' ? 'active' : ''}`}
+            onClick={() => handleTabChange('interactions')}
+          >
+            导入交互
+          </button>
+        </div>
+
+        <div className="importer-content">
+          <div className="section">
+            <label className="section-label">
+              {activeTab === 'components' ? '组件数据 (JSON)' : '交互数据 (JSON)'}
+            </label>
+            <textarea
+              className="json-input"
+              value={jsonText}
+              onChange={(e) => {
+                setJsonText(e.target.value);
+                setError('');
+                setSuccess('');
+              }}
+              placeholder={activeTab === 'components' ? componentsPlaceholder : interactionsPlaceholder}
+              rows={14}
             />
             <div className="json-actions">
               <button className="action-btn" onClick={handlePaste}>
@@ -440,11 +545,23 @@ export default function ScreenshotImporter({ onClose, onImport }) {
             </div>
           </div>
 
-          {/* 状态提示 */}
+          {activeTab === 'components' && (
+            <div className="importer-hint">
+              格式要求：JSON 需包含 <code>elements</code> 数组，每个元素需要 <code>type</code>、<code>x</code>、<code>y</code> 字段。
+            </div>
+          )}
+
+          {activeTab === 'interactions' && (
+            <div className="importer-hint">
+              支持两种格式：<code>[&#123; "sourceId": "...", "interactions": [...] &#125;]</code> 或 <code>&#123; "type": "batch_update", "batchUpdates": [...] &#125;</code>。
+              <code>sourceId</code> / <code>id</code> 需匹配画布中已有组件的 ID。
+            </div>
+          )}
+
           {error && (
             <div className="status-message error">
               <Icons.Alert />
-              {error}
+              <span style={{ whiteSpace: 'pre-line' }}>{error}</span>
             </div>
           )}
           {success && (
@@ -460,7 +577,7 @@ export default function ScreenshotImporter({ onClose, onImport }) {
             取消
           </button>
           <button className="generate-btn" onClick={handleGenerate}>
-            生成到画布
+            {activeTab === 'components' ? '导入到画布' : '应用交互'}
           </button>
         </div>
       </div>

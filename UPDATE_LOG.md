@@ -853,3 +853,106 @@ onChange={(e) => { const v = parseFloat(e.target.value); handleUpdatePayload(idx
 1. **`||` vs `??` vs `Number.isNaN()`**：`||` 会将 `0`、`''`、`false` 等所有假值都回退，`??` 只对 `null`/`undefined` 回退，`Number.isNaN()` 最精确——只对 `NaN` 回退。数值参数解析应优先使用 `Number.isNaN()`。
 2. **受控输入的空值处理**：`parseFloat('')` 返回 `NaN`，`NaN || 0` 返回 `0`，导致空值被误认为有效输入。应显式检测 `NaN` 并走删除/回退逻辑。
 3. **动画参数一致性**：参数解析逻辑（UI 层 onChange → 数据层 payload → 执行层 App.jsx）必须保持一致，任何一层的 `||`/`??` 混用都可能导致边界值异常。
+
+---
+
+## 版本 1.12.0 (2026-04-15)
+
+### ✨ 新增功能
+
+#### 1. 导入功能重构：JSON 导入取代截图导入
+- **移除截图导入**：删除 `ScreenshotImporter` 组件，移除图片导入功能。
+- **新增 JSON 导入**：替换为 `JsonImporter` 组件，支持两个标签页：
+  - **导入组件**：粘贴 AI 生成的组件 JSON（`elements` 数组格式），批量创建画布组件。组件 ID 优先使用 JSON 中指定的 `id` 字段。
+  - **导入交互**：粘贴 AI 生成的交互 JSON，为画布上已有组件批量添加交互配置。
+- **双格式支持**：交互导入同时支持两种 AI 输出格式：
+  - 按组件分组数组：`[{ "sourceId": "x", "interactions": [...] }]`
+  - batch_update 格式：`{ "type": "batch_update", "batchUpdates": [{ "id": "x", "updates": { "interactions": [...] } }] }`
+- **JSON 校验**：导入时校验 trigger/action 合法性、targetId 是否存在于画布、onComplete 字段完整性等，错误信息逐条列出。
+
+#### 2. 交互目标可选择组件自身
+- **现状**：属性面板中交互的 targetId 下拉框排除了组件自身（`s.id !== selectedShape.id`），但 AI 导入的 JSON 允许 targetId 指向自身且实际生效。
+- **修改**：移除 `startAnimation`、`stopAnimation` 及默认 action 的 targetId 下拉框中的自身过滤，统一允许选择组件自身作为交互目标。
+
+#### 3. startAnimation 增加总时长模式（duration）
+- **新增参数**：`duration`（总时长，毫秒）。设置后系统根据 `(to - from) / (duration / intervalMs)` 自动推算 delta，用户无需手动计算变化量。
+- **UI 变化**：startAnimation 配置区新增"总时长 (ms)"输入框。填写 duration 后，"每次变化量"变为只读自动计算值；清空后恢复手动输入。
+- **向后兼容**：未设置 duration 时仍使用原有的 delta + interval 手动模式。
+
+#### 4. startAnimation 参数重命名：min/max → 起始值/目标值
+- **原因**：用户设置从 100 降到 1 时需要 min>max，这种表示方式不直观。
+- **修改**：UI 层将 min/max 重命名为"起始值 (from)"和"目标值 (to)"，系统自动根据 from/to 推算 min/max 供引擎使用。
+- **负数支持**：from 和 to 均支持负数和零值输入。
+
+#### 5. 动画完成后的回调动作（onComplete）
+- **新增字段**：`interaction.onComplete`，存储动画自然结束（非 loop 模式到达边界）后执行的交互对象。
+- **数据结构**：
+  ```json
+  {
+    "trigger": "onClick",
+    "action": "startAnimation",
+    "targetId": "rect-1",
+    "payload": { "prop": "opacity", "from": 1, "to": 100, "duration": 1000, "loop": false },
+    "onComplete": { "action": "setProps", "targetId": "rect-2", "payload": { "fill": "#FF0000" } }
+  }
+  ```
+- **支持动作**：onComplete 的 action 支持所有交互动作类型（setProps、setVariable、setChecked、toggleChecked、setValue、incrementValue、switchState、nextState、prevState）。
+- **UI 配置**：属性面板中 startAnimation 区域底部新增"完成后动作"配置区，可添加/移除，根据选择的动作类型显示对应的 targetId 选择器和 payload 配置。
+- **setProps 预填**：选择 setProps 动作的目标组件后，自动用目标组件的当前属性值预填 payload，方便用户在此基础上修改。
+
+#### 6. 动画执行中的抢占机制
+- **问题**：快速触发同一组件的不同交互（如快速鼠标移入移出），旧动画/延迟执行未被清理，导致状态冲突。
+- **方案**：引入 `pendingTimeouts` 跟踪和 `clearPendingForShape` 机制：
+  - 当新交互触发时，清除该 source 组件上所有待执行的 setTimeout（延迟交互）。
+  - startAnimation 已有的同 targetId 动画清除逻辑保留。
+  - Canvas 的 `triggerInteraction` 在触发前先调用 `onClearPendingForShape` 清除旧的待执行交互。
+  - 延迟交互的 timeoutId 通过 `onRegisterTimeout` 注册，可被后续交互抢占清除。
+
+### 🐛 Bug 修复
+
+#### 1. 修复交互输入框无法输入数字的问题
+- **问题**：交互配置区的所有数字输入框（起始值、目标值、总时长、每次变化量、间隔、延迟触发、setValue 值、incrementValue 增减量等）在输入时触发画布键盘快捷键（方向键移动组件、Delete 删除组件），导致无法正常输入。
+- **修复**：为交互配置区所有 `<input type="number">` 添加 `onKeyDown={(e) => e.stopPropagation()}`，阻止键盘事件冒泡到画布。
+
+#### 2. 修复起始值/目标值输入后值被重置的问题
+- **问题**：`handleUpdatePayload` 在值为空字符串 `''` 时会从 payload 中删除该属性，导致下一次渲染时输入框回退到默认值。同时 from/to 的 onChange 调用多次 `handleUpdatePayload`（分别设置 from、min、max），但每次调用都从 `selectedShape.interactions` 读取旧状态，导致后续调用覆盖前面的修改。
+- **修复**：
+  - `handleUpdatePayload` 不再因空字符串而删除属性（仅 `null` 触发删除）。
+  - `handleUpdatePayload` 支持批量更新签名：`handleUpdatePayload(idx, { from, min, max })`，在同一次状态更新中修改所有相关字段。
+  - from/to 的 onChange 改为单次批量调用。
+
+#### 3. 修复 onComplete setProps 不显示属性面板的问题
+- **问题**：onComplete 选择 setProps 动作并选择目标组件后，不显示属性配置面板。
+- **修复**：onComplete 的 setProps 改为使用 `PropertyInput` 组件渲染各属性输入（与主交互编辑器一致），支持 color、number、text、select、range 等类型。
+
+#### 4. 修复 setProps 预填值为空的问题
+- **问题**：选择 setProps 动作的目标组件后，payload 为 `{}`，属性输入框全部为空。
+- **修复**：在 `handleUpdateInteraction` 和 `handleUpdateOnComplete` 中，当 targetId 变更且动作为 setProps 时，自动读取目标组件的当前属性值预填到 payload 中。
+
+#### 5. 修复动画不支持负方向变化的问题
+- **问题**：`effectiveDelta` 始终为正数（使用 `Math.abs`），导致透明度无法从 100% 降到 1%。
+- **修复**：delta 根据 from/to 的大小关系自动确定正负方向，手动模式下也根据 from/to 调整 delta 的符号。
+
+#### 6. 修复组件默认透明度读取为 0% 的问题
+- **问题**：setProps 预填值时，组件未显式设置 opacity 属性，fallback 到 `prop.min`（0），导致透明度显示为 0% 而非实际的 100%。
+- **修复**：所有组件类型的 opacity 配置增加 `defaultValue: 1`，预填逻辑优先使用 `defaultValue`。
+
+#### 7. 修复鼠标在组件子元素间移动误触发 onMouseLeave 交互的问题
+- **问题**：当鼠标从一个 Group 子元素移动到另一个子元素时，Konva 触发 Group 的 `mouseleave` 事件，导致 `onMouseLeave` 交互被错误执行。
+- **修复**：在 `onMouseLeave` 处理函数中，通过 `getClientRect()` 获取 Group 的实际包围盒，检查当前鼠标位置是否仍在盒内。如果仍在范围内则忽略此次 leave 事件，只有真正离开包围盒时才触发。
+
+#### 8. 修复动画不支持负方向变化的问题（详细）
+- **问题**：startAnimation 引擎中 `effectiveDelta` 的计算使用 `Math.abs(max - min)` 始终为正，配合 from/to 重命名后，`effectiveDelta = to >= from ? abs(delta) : -abs(delta)` 确保方向正确。
+
+### 🔧 代码变更
+
+| 文件 | 变更内容 |
+|------|----------|
+| `src/components/JsonImporter.jsx` | **新增**：替代 ScreenshotImporter，支持组件/交互双标签页导入，JSON 校验，双格式归一化 |
+| `src/components/JsonImporter.css` | **新增**：JSON 导入弹窗样式 |
+| `src/components/ScreenshotImporter.jsx` | **删除**：移除截图导入功能 |
+| `src/components/ScreenshotImporter.css` | **删除**：移除截图导入样式 |
+| `src/components/PropertiesPanel.jsx` | targetId 允许选自身；startAnimation 增加 duration/from/to/onComplete 配置区；所有交互数字输入 stopPropagation；handleUpdatePayload 支持批量更新；setProps 预填当前属性值；opacity defaultValue |
+| `src/App.jsx` | 导入改为 JsonImporter；新增 handleImportInteractions；startAnimation 引擎支持 duration 自动计算 delta/from/to 方向/onComplete 回调；pendingTimeouts 抢占机制；clearPendingForShape/registerTimeout |
+| `src/components/Canvas.jsx` | triggerInteraction 传递 sourceId 并清除 pending；onMouseLeave 包围盒检测防误触 |
+| `src/components/Toolbar.jsx` | 导入按钮 tooltip 更新 |

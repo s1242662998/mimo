@@ -4,7 +4,7 @@ import ComponentPanel from './components/ComponentPanel';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import PropertiesPanel from './components/PropertiesPanel';
-import ScreenshotImporter from './components/ScreenshotImporter';
+import JsonImporter from './components/JsonImporter';
 import ChatWindow from './rag/ChatWindow';
 import PagePanel from './components/PagePanel';
 import './App.css';
@@ -44,6 +44,25 @@ function App() {
   const clipboardRef = useRef([]);
   const canvasRef = useRef(null);
   const animationIntervals = useRef({}); // { [targetId]: { intervalId, delta } }
+  const pendingTimeouts = useRef({}); // { [sourceId]: [timeoutId, ...] }
+  const handleExecuteInteractionRef = useRef(null);
+
+  // 清除指定 source 上所有待执行的延迟交互
+  const clearPendingForShape = useCallback((sourceId) => {
+    const timeouts = pendingTimeouts.current[sourceId];
+    if (timeouts) {
+      timeouts.forEach(clearTimeout);
+      delete pendingTimeouts.current[sourceId];
+    }
+  }, []);
+
+  // 注册一个待清除的 timeout
+  const registerTimeout = useCallback((sourceId, timeoutId) => {
+    if (!pendingTimeouts.current[sourceId]) {
+      pendingTimeouts.current[sourceId] = [];
+    }
+    pendingTimeouts.current[sourceId].push(timeoutId);
+  }, []);
 
   // 同步当前画布数据到页面列表
   useEffect(() => {
@@ -387,6 +406,21 @@ function App() {
     saveToHistory(newShapes);
   }, [shapes, saveToHistory]);
 
+  // 导入交互 JSON
+  const handleImportInteractions = useCallback((interactionData) => {
+    setShapes(prevShapes => {
+      const newShapes = prevShapes.map(shape => ({ ...shape }));
+      interactionData.forEach(item => {
+        const shape = newShapes.find(s => s.id === item.sourceId);
+        if (shape) {
+          shape.interactions = [...(shape.interactions || []), ...item.interactions];
+        }
+      });
+      saveToHistory(newShapes);
+      return newShapes;
+    });
+  }, [saveToHistory]);
+
   // 复制
   const handleCopy = useCallback(() => {
     const idsToCopy = selectedIds.length > 0 ? selectedIds : (selectedId ? [selectedId] : []);
@@ -626,21 +660,48 @@ function App() {
       const delta = Number.isNaN(rawDelta) ? 1 : rawDelta;
       const rawInterval = Number(payload?.interval);
       const intervalMs = Number.isNaN(rawInterval) ? 100 : Math.max(10, rawInterval);
-      const rawMin = Number(payload?.min);
-      const min = Number.isNaN(rawMin) ? 0 : rawMin;
-      const rawMax = Number(payload?.max);
-      const max = Number.isNaN(rawMax) ? 100 : rawMax;
+
+      // from/to 为新的直观参数，min/max 保留兼容
+      const rawFrom = Number(payload?.from);
+      const rawTo = Number(payload?.to);
+      const hasFromTo = !Number.isNaN(rawFrom) && !Number.isNaN(rawTo);
+      const from = hasFromTo ? rawFrom : (prop === 'opacity' ? 1 : 0);
+      const to = hasFromTo ? rawTo : (prop === 'opacity' ? 0 : 100);
+      const min = Math.min(from, to);
+      const max = Math.max(from, to);
+
       const loop = payload?.loop === true || payload?.loop === 'true';
+
+      // 如果设置了总时长，自动计算 delta（从 from 到 to 的方向）
+      const rawDuration = Number(payload?.duration);
+      const duration = Number.isNaN(rawDuration) ? 0 : rawDuration;
+      let effectiveDelta = delta;
+      if (duration > 0 && intervalMs > 0) {
+        const totalTicks = duration / intervalMs;
+        const range = to - from;
+        if (totalTicks > 0 && range !== 0) {
+          effectiveDelta = range / totalTicks;
+        }
+      } else if (hasFromTo && delta > 0) {
+        // 手动模式：如果指定了 from/to，delta 方向应匹配
+        effectiveDelta = to >= from ? Math.abs(delta) : -Math.abs(delta);
+      }
 
       // 先清除该 target 已有的动画
       if (animationIntervals.current[targetId]) {
         clearInterval(animationIntervals.current[targetId].intervalId);
       }
 
-      // delta 为 0 时不启动动画
-      if (delta === 0) return;
+      // 先将属性设置为起始值
+      setShapes(prev => prev.map(s => {
+        if (s.id !== targetId) return s;
+        return { ...s, props: { ...s.props, [prop]: prop === 'opacity' ? Math.round(from * 100) / 100 : Math.round(from) } };
+      }));
 
-      let currentDelta = delta; // 用于 loop 模式下的方向翻转
+      // effectiveDelta 为 0 时不启动动画
+      if (effectiveDelta === 0) return;
+
+      let currentDelta = effectiveDelta; // 用于 loop 模式下的方向翻转
       let active = true; // 标记动画是否仍在运行
 
       const intervalId = setInterval(() => {
@@ -650,29 +711,35 @@ function App() {
           if (s.id !== targetId) return s;
 
           const rawVal = Number(s.props[prop]);
-          const currentVal = Number.isNaN(rawVal) ? (prop === 'opacity' ? 1 : 0) : rawVal;
+          const currentVal = Number.isNaN(rawVal) ? from : rawVal;
           let newVal = currentVal + currentDelta;
 
           // 边界处理
           if (newVal >= max) {
             if (loop) {
               newVal = max;
-              currentDelta = -Math.abs(delta);
+              currentDelta = -Math.abs(effectiveDelta);
             } else {
               newVal = max;
               active = false;
               clearInterval(intervalId);
               delete animationIntervals.current[targetId];
+              if (interaction.onComplete) {
+                setTimeout(() => handleExecuteInteractionRef.current?.(interaction.onComplete), 0);
+              }
             }
           } else if (newVal <= min) {
             if (loop) {
               newVal = min;
-              currentDelta = Math.abs(delta);
+              currentDelta = Math.abs(effectiveDelta);
             } else {
               newVal = min;
               active = false;
               clearInterval(intervalId);
               delete animationIntervals.current[targetId];
+              if (interaction.onComplete) {
+                setTimeout(() => handleExecuteInteractionRef.current?.(interaction.onComplete), 0);
+              }
             }
           }
 
@@ -764,6 +831,9 @@ function App() {
       return updatedShape;
     }));
   }, []);
+
+  // 保持 ref 引用最新，以便 setInterval 中的 onComplete 回调可以递归调用
+  handleExecuteInteractionRef.current = handleExecuteInteraction;
 
   // 处理 AI 发出的精准修改指令
   const handleAiAction = useCallback((action) => {
@@ -1025,6 +1095,8 @@ function App() {
           snapToGrid={snapToGrid}
           showGuides={showGuides}
           onExecuteInteraction={handleExecuteInteraction}
+          onClearPendingForShape={clearPendingForShape}
+          onRegisterTimeout={registerTimeout}
           isPreviewMode={isPreviewMode}
           isConnectionMode={isConnectionMode}
           variables={variables}
@@ -1048,9 +1120,11 @@ function App() {
       />
 
       {showImporter && (
-        <ScreenshotImporter
+        <JsonImporter
           onClose={() => setShowImporter(false)}
           onImport={handleImport}
+          onImportInteractions={handleImportInteractions}
+          canvasShapes={shapes}
         />
       )}
 

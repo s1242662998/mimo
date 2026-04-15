@@ -106,7 +106,7 @@ const propertyConfigs = {
       { value: 'system-ui', label: 'System UI' },
     ]},
     { key: 'textColor', label: '文字颜色', type: 'color' },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   input: [
     { key: 'text', label: '默认值', type: 'text' },
@@ -146,7 +146,7 @@ const propertyConfigs = {
     ]},
     { key: 'lineHeight', label: '行高', type: 'number', min: 0.5, max: 3, step: 0.1 },
     { key: 'textColor', label: '文字颜色', type: 'color' },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   text: [
     { key: 'text', label: '内容', type: 'text' },
@@ -183,7 +183,7 @@ const propertyConfigs = {
     { key: 'lineHeight', label: '行高', type: 'number', min: 0.5, max: 3, step: 0.1 },
     { key: 'fill', label: '颜色', type: 'color' },
     { key: 'width', label: '宽度', type: 'number', min: 20, max: 800 },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   image: [
     { key: 'width', label: '宽度', type: 'number', min: 20, max: 800 },
@@ -193,7 +193,7 @@ const propertyConfigs = {
     { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 10 },
     { key: 'scale', label: '缩放', type: 'number', min: 0.1, max: 5, step: 0.05, defaultValue: 1 },
     { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 50 },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   rectangle: [
     { key: 'text', label: '文字', type: 'text' },
@@ -212,7 +212,7 @@ const propertyConfigs = {
       { value: 'system-ui', label: 'System UI' },
     ]},
     { key: 'textColor', label: '文字颜色', type: 'color' },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   circle: [
     { key: 'text', label: '文字', type: 'text' },
@@ -229,17 +229,17 @@ const propertyConfigs = {
       { value: 'system-ui', label: 'System UI' },
     ]},
     { key: 'textColor', label: '文字颜色', type: 'color' },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   line: [
     { key: 'stroke', label: '颜色', type: 'color' },
     { key: 'strokeWidth', label: '宽度', type: 'number', min: 1, max: 20 },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   arrow: [
     { key: 'stroke', label: '线条颜色', type: 'color' },
     { key: 'strokeWidth', label: '线条宽度', type: 'number', min: 1, max: 20 },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   dynamicPanel: [
     { key: 'width', label: '宽度', type: 'number', min: 50, max: 1200 },
@@ -248,7 +248,7 @@ const propertyConfigs = {
     { key: 'stroke', label: '边框', type: 'color' },
     { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 10 },
     { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 50 },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   icon: [
     { key: 'width', label: '宽度', type: 'number', min: 8, max: 200 },
@@ -257,7 +257,7 @@ const propertyConfigs = {
     { key: 'strokeWidth', label: '描边宽度', type: 'number', min: 0.5, max: 10, step: 0.5 },
     { key: 'fill', label: '填充颜色', type: 'color' },
     { key: 'scale', label: '缩放', type: 'number', min: 0.1, max: 5, step: 0.05, defaultValue: 1 },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   switch: [
     { key: 'width', label: '宽度', type: 'number', min: 30, max: 200 },
@@ -270,7 +270,7 @@ const propertyConfigs = {
       { value: 'true', label: '开启' },
       { value: 'false', label: '关闭' },
     ]},
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   checkbox: [
     { key: 'width', label: '宽度', type: 'number', min: 12, max: 50 },
@@ -284,7 +284,7 @@ const propertyConfigs = {
       { value: 'false', label: '未选中' },
     ]},
     { key: 'checkColor', label: '勾选颜色', type: 'color' },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   radio: [
     { key: 'radius', label: '半径', type: 'number', min: 5, max: 30 },
@@ -296,7 +296,7 @@ const propertyConfigs = {
       { value: 'false', label: '未选中' },
     ]},
     { key: 'checkColor', label: '选中颜色', type: 'color' },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   badge: [
     { key: 'width', label: '宽度', type: 'number', min: 8, max: 60 },
@@ -306,7 +306,7 @@ const propertyConfigs = {
     { key: 'text', label: '文字', type: 'text' },
     { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 24 },
     { key: 'textColor', label: '文字颜色', type: 'color' },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   slider: [
     { key: 'width', label: '宽度', type: 'number', min: 50, max: 600 },
@@ -317,7 +317,7 @@ const propertyConfigs = {
     { key: 'knobStroke', label: '滑块边框', type: 'color' },
     { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 20 },
     { key: 'value', label: '值', type: 'number', min: 0, max: 100 },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   progress: [
     { key: 'width', label: '宽度', type: 'number', min: 20, max: 600 },
@@ -326,13 +326,13 @@ const propertyConfigs = {
     { key: 'barFill', label: '进度颜色', type: 'color' },
     { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 15 },
     { key: 'value', label: '进度', type: 'number', min: 0, max: 100 },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   divider: [
     { key: 'width', label: '宽度', type: 'number', min: 10, max: 1200 },
     { key: 'height', label: '高度', type: 'number', min: 1, max: 10 },
     { key: 'fill', label: '颜色', type: 'color' },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   avatar: [
     { key: 'width', label: '宽度', type: 'number', min: 16, max: 200 },
@@ -342,7 +342,7 @@ const propertyConfigs = {
     { key: 'text', label: '文字', type: 'text' },
     { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 72 },
     { key: 'textColor', label: '文字颜色', type: 'color' },
-    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1 },
+    { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
 };
 
@@ -522,35 +522,106 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
 
   const handleUpdateInteraction = (index, key, value) => {
     const newInteractions = [...(selectedShape.interactions || [])];
-    
-    // 如果修改了 targetId 且动作为 setProps，为了防止目标组件没有该属性，可以清空 payload
+
+    // 如果修改了 targetId 且动作为 setProps，用目标组件当前属性预填 payload
     if (key === 'targetId' && newInteractions[index].action === 'setProps') {
-       newInteractions[index] = { ...newInteractions[index], [key]: value, payload: {} };
+      const targetShape = shapes.find(s => s.id === value);
+      let prefilled = {};
+      if (targetShape) {
+        const targetPrefix = targetShape.id.split('-')[0];
+        let targetType = targetShape.type === 'rect' ? targetPrefix : targetShape.type;
+        if (!propertyConfigs[targetType]) targetType = 'rectangle';
+        const config = propertyConfigs[targetType] || [];
+        config.forEach(prop => {
+          if (prop.key === 'text' || prop.key === 'placeholder') {
+            prefilled[prop.key] = targetShape.props?.[prop.key] || '';
+          } else {
+            prefilled[prop.key] = targetShape.props?.[prop.key] ?? prop.defaultValue ?? prop.min ?? prop.default ?? '';
+          }
+        });
+      }
+       newInteractions[index] = { ...newInteractions[index], [key]: value, payload: prefilled };
     } else {
        newInteractions[index] = { ...newInteractions[index], [key]: value };
     }
-    
+
     onUpdate({ ...selectedShape, interactions: newInteractions });
   };
 
-  const handleUpdatePayload = (index, propKey, propValue) => {
+  const handleUpdatePayload = (index, keyOrUpdates, value) => {
     const newInteractions = [...(selectedShape.interactions || [])];
     const currentPayload = newInteractions[index].payload || {};
-    
-    // 如果值为空字符串，则从 payload 中删除该属性
+
     let newPayload = { ...currentPayload };
-    if (propValue === '' || propValue === null) {
-      delete newPayload[propKey];
-    } else {
-      newPayload[propKey] = propValue;
-    }
-    
+    // Support both signatures: handleUpdatePayload(idx, 'key', val) and handleUpdatePayload(idx, {key: val})
+    const updates = typeof keyOrUpdates === 'string' ? { [keyOrUpdates]: value } : keyOrUpdates;
+    Object.entries(updates).forEach(([propKey, propValue]) => {
+      if (propValue === null) {
+        delete newPayload[propKey];
+      } else {
+        newPayload[propKey] = propValue;
+      }
+    });
+
     newInteractions[index] = { ...newInteractions[index], payload: newPayload };
     onUpdate({ ...selectedShape, interactions: newInteractions });
   };
 
   const handleRemoveInteraction = (index) => {
     const newInteractions = (selectedShape.interactions || []).filter((_, i) => i !== index);
+    onUpdate({ ...selectedShape, interactions: newInteractions });
+  };
+
+  const handleUpdateOnComplete = (index, key, value) => {
+    const newInteractions = [...(selectedShape.interactions || [])];
+    const current = newInteractions[index].onComplete || {};
+    const newOnComplete = { ...current, [key]: value };
+    // action 变更时重置 payload 和 targetId
+    if (key === 'action') {
+      newOnComplete.payload = {};
+      newOnComplete.targetId = '';
+    }
+    // 选择 targetId 时，如果是 setProps，用目标组件当前属性预填 payload
+    if (key === 'targetId' && current.action === 'setProps' && value) {
+      const targetShape = shapes.find(s => s.id === value);
+      if (targetShape) {
+        const targetPrefix = targetShape.id.split('-')[0];
+        let targetType = targetShape.type === 'rect' ? targetPrefix : targetShape.type;
+        if (!propertyConfigs[targetType]) targetType = 'rectangle';
+        const config = propertyConfigs[targetType] || [];
+        const prefilled = {};
+        config.forEach(prop => {
+          if (prop.key === 'text' || prop.key === 'placeholder') {
+            prefilled[prop.key] = targetShape.props?.[prop.key] || '';
+          } else {
+            prefilled[prop.key] = targetShape.props?.[prop.key] ?? prop.defaultValue ?? prop.min ?? prop.default ?? '';
+          }
+        });
+        newOnComplete.payload = prefilled;
+      }
+    }
+    newInteractions[index] = { ...newInteractions[index], onComplete: newOnComplete };
+    onUpdate({ ...selectedShape, interactions: newInteractions });
+  };
+
+  const handleUpdateOnCompletePayload = (index, propKey, propValue) => {
+    const newInteractions = [...(selectedShape.interactions || [])];
+    const current = newInteractions[index].onComplete || {};
+    const currentPayload = current.payload || {};
+    let newPayload = { ...currentPayload };
+    if (propValue === '' || propValue === null) {
+      delete newPayload[propKey];
+    } else {
+      newPayload[propKey] = propValue;
+    }
+    newInteractions[index] = { ...newInteractions[index], onComplete: { ...current, payload: newPayload } };
+    onUpdate({ ...selectedShape, interactions: newInteractions });
+  };
+
+  const handleRemoveOnComplete = (index) => {
+    const newInteractions = [...(selectedShape.interactions || [])];
+    const { onComplete, ...rest } = newInteractions[index];
+    newInteractions[index] = rest;
     onUpdate({ ...selectedShape, interactions: newInteractions });
   };
 
@@ -1098,6 +1169,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                           max={100}
                           value={ix.payload?.value ?? 50}
                           onChange={(e) => handleUpdatePayload(idx, 'value', parseInt(e.target.value, 10) || 0)}
+                          onKeyDown={(e) => e.stopPropagation()}
                         />
                       </div>
                     </>
@@ -1121,6 +1193,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                           className="property-number"
                           value={ix.payload?.delta ?? 10}
                           onChange={(e) => handleUpdatePayload(idx, 'delta', parseInt(e.target.value, 10) || 0)}
+                          onKeyDown={(e) => e.stopPropagation()}
                         />
                       </div>
                     </>
@@ -1130,7 +1203,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                         <label>目标</label>
                         <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
                           <option value="">请选择目标组件...</option>
-                          {shapes.filter(s => s.id !== selectedShape.id).map(s => (
+                          {shapes.map(s => (
                             <option key={s.id} value={s.id}>
                               {TypeNameMap[s.id.split('-')[0]] || '组件'} ({s.id})
                             </option>
@@ -1145,13 +1218,78 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                         </select>
                       </div>
                       <div className="interaction-field">
-                        <label>每次变化量</label>
+                        <label>总时长 (ms)</label>
+                        <input
+                          type="number"
+                          className="property-number"
+                          min={0}
+                          placeholder="不填则手动设置"
+                          value={ix.payload?.duration ?? ''}
+                          onChange={(e) => { const v = e.target.value === '' ? null : parseInt(e.target.value, 10); handleUpdatePayload(idx, 'duration', Number.isNaN(v) ? null : v); }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="interaction-field">
+                        <label>起始值</label>
+                        <input
+                          type="number"
+                          className="property-number"
+                          step={ix.payload?.prop === 'opacity' ? 0.1 : 1}
+                          value={ix.payload?.from !== undefined ? ix.payload.from : (ix.payload?.prop === 'opacity' ? 1 : 0)}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const from = raw === '' ? '' : parseFloat(raw);
+                            const to = ix.payload?.to !== undefined ? ix.payload.to : (ix.payload?.prop === 'opacity' ? 0 : 100);
+                            if (from !== '' && typeof from === 'number' && !Number.isNaN(from)) {
+                              handleUpdatePayload(idx, { from, min: Math.min(from, to), max: Math.max(from, to) });
+                            } else {
+                              handleUpdatePayload(idx, 'from', from);
+                            }
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="interaction-field">
+                        <label>目标值</label>
+                        <input
+                          type="number"
+                          className="property-number"
+                          step={ix.payload?.prop === 'opacity' ? 0.1 : 1}
+                          value={ix.payload?.to !== undefined ? ix.payload.to : (ix.payload?.prop === 'opacity' ? 0 : 100)}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const to = raw === '' ? '' : parseFloat(raw);
+                            const from = ix.payload?.from !== undefined ? ix.payload.from : (ix.payload?.prop === 'opacity' ? 1 : 0);
+                            if (to !== '' && typeof to === 'number' && !Number.isNaN(to)) {
+                              handleUpdatePayload(idx, { to, min: Math.min(from, to), max: Math.max(from, to) });
+                            } else {
+                              handleUpdatePayload(idx, 'to', to);
+                            }
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="interaction-field">
+                        <label>每次变化量{ix.payload?.duration ? ' (自动)' : ''}</label>
                         <input
                           type="number"
                           className="property-number"
                           step={ix.payload?.prop === 'opacity' ? 0.05 : 1}
-                          value={ix.payload?.delta ?? 1}
-                          onChange={(e) => { const v = parseFloat(e.target.value); handleUpdatePayload(idx, 'delta', Number.isNaN(v) ? '' : v); }}
+                          value={ix.payload?.duration ? (() => {
+                            const dur = Number(ix.payload.duration) || 0;
+                            const interval = Number(ix.payload?.interval) || 100;
+                            const from = Number(ix.payload?.from) ?? 0;
+                            const to = Number(ix.payload?.to) ?? 100;
+                            if (dur > 0 && interval > 0) {
+                              const range = to - from;
+                              return Math.round(((range / (dur / interval)) * 100)) / 100;
+                            }
+                            return ix.payload?.delta ?? 1;
+                          })() : (ix.payload?.delta ?? 1)}
+                          onChange={(e) => { if (!ix.payload?.duration) { const v = parseFloat(e.target.value); handleUpdatePayload(idx, 'delta', Number.isNaN(v) ? '' : v); } }}
+                          readOnly={!!ix.payload?.duration}
+                          style={ix.payload?.duration ? { opacity: 0.6 } : {}}
+                          onKeyDown={(e) => e.stopPropagation()}
                         />
                       </div>
                       <div className="interaction-field">
@@ -1162,26 +1300,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                           min={10}
                           value={ix.payload?.interval ?? 100}
                           onChange={(e) => { const v = parseInt(e.target.value, 10); handleUpdatePayload(idx, 'interval', Number.isNaN(v) ? '' : v); }}
-                        />
-                      </div>
-                      <div className="interaction-field">
-                        <label>最小值</label>
-                        <input
-                          type="number"
-                          className="property-number"
-                          step={ix.payload?.prop === 'opacity' ? 0.1 : 1}
-                          value={ix.payload?.min ?? 0}
-                          onChange={(e) => { const v = parseFloat(e.target.value); handleUpdatePayload(idx, 'min', Number.isNaN(v) ? '' : v); }}
-                        />
-                      </div>
-                      <div className="interaction-field">
-                        <label>最大值</label>
-                        <input
-                          type="number"
-                          className="property-number"
-                          step={ix.payload?.prop === 'opacity' ? 0.1 : 1}
-                          value={ix.payload?.max ?? 100}
-                          onChange={(e) => { const v = parseFloat(e.target.value); handleUpdatePayload(idx, 'max', Number.isNaN(v) ? '' : v); }}
+                          onKeyDown={(e) => e.stopPropagation()}
                         />
                       </div>
                       <div className="interaction-field">
@@ -1194,13 +1313,198 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                           到达边界后循环
                         </label>
                       </div>
+                      {/* 完成后动作 */}
+                      <div className="payload-divider"></div>
+                      <div className="payload-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>完成后动作</span>
+                        {ix.onComplete ? (
+                          <button className="remove-interaction-btn" onClick={() => handleRemoveOnComplete(idx)} title="移除完成动作">
+                            <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2" fill="none"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                          </button>
+                        ) : (
+                          <button
+                            className="add-interaction-btn"
+                            style={{ fontSize: 11, padding: '2px 8px' }}
+                            onClick={() => handleUpdateOnComplete(idx, 'action', 'toggleVisibility')}
+                          >
+                            + 添加
+                          </button>
+                        )}
+                      </div>
+                      {ix.onComplete && (
+                        <>
+                          <div className="interaction-field">
+                            <label>动作</label>
+                            <select value={ix.onComplete.action || 'toggleVisibility'} onChange={(e) => handleUpdateOnComplete(idx, 'action', e.target.value)} className="property-select">
+                              <option value="toggleVisibility">切换显示/隐藏</option>
+                              <option value="setProps">修改属性 (setProps)</option>
+                              <option value="setVariable">修改全局变量 (setVariable)</option>
+                              <option value="switchState">切换到指定状态</option>
+                              <option value="nextState">切换到下一状态</option>
+                              <option value="prevState">切换到上一状态</option>
+                              <option value="setChecked">设置选中状态</option>
+                              <option value="toggleChecked">切换选中状态</option>
+                              <option value="setValue">设置值</option>
+                              <option value="incrementValue">增减值</option>
+                            </select>
+                          </div>
+                          {ix.onComplete.action === 'setVariable' ? (
+                            <>
+                              <div className="interaction-field">
+                                <label>变量名</label>
+                                <input type="text" className="property-text" value={ix.onComplete.payload?.key || ''} onChange={(e) => handleUpdateOnCompletePayload(idx, 'key', e.target.value)} />
+                              </div>
+                              <div className="interaction-field">
+                                <label>变量值</label>
+                                <input type="text" className="property-text" value={ix.onComplete.payload?.value || ''} onChange={(e) => handleUpdateOnCompletePayload(idx, 'value', e.target.value)} />
+                              </div>
+                            </>
+                          ) : ix.onComplete.action === 'switchState' ? (
+                            <>
+                              <div className="interaction-field">
+                                <label>目标</label>
+                                <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
+                                  <option value="">请选择动态面板...</option>
+                                  {shapes.filter(s => s.type === 'dynamicPanel').map(s => (
+                                    <option key={s.id} value={s.id}>动态面板 ({s.id})</option>
+                                  ))}
+                                </select>
+                              </div>
+                              {ix.onComplete.targetId && (() => {
+                                const panel = shapes.find(s => s.id === ix.onComplete.targetId);
+                                if (!panel?.states) return null;
+                                return (
+                                  <div className="interaction-field">
+                                    <label>目标状态</label>
+                                    <select value={ix.onComplete.payload?.stateId || ''} onChange={(e) => handleUpdateOnCompletePayload(idx, 'stateId', e.target.value)} className="property-select">
+                                      <option value="">请选择状态...</option>
+                                      {panel.states.map(st => (<option key={st.id} value={st.id}>{st.name}</option>))}
+                                    </select>
+                                  </div>
+                                );
+                              })()}
+                            </>
+                          ) : ix.onComplete.action === 'nextState' || ix.onComplete.action === 'prevState' ? (
+                            <div className="interaction-field">
+                              <label>目标</label>
+                              <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
+                                <option value="">请选择动态面板...</option>
+                                {shapes.filter(s => s.type === 'dynamicPanel').map(s => (
+                                  <option key={s.id} value={s.id}>动态面板 ({s.id})</option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : ix.onComplete.action === 'setChecked' ? (
+                            <>
+                              <div className="interaction-field">
+                                <label>目标</label>
+                                <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
+                                  <option value="">请选择开关/复选框/单选框...</option>
+                                  {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => s.id.startsWith(p))).map(s => (
+                                    <option key={s.id} value={s.id}>{TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="interaction-field">
+                                <label>状态</label>
+                                <select value={String(ix.onComplete.payload?.checked ?? 'true')} onChange={(e) => handleUpdateOnCompletePayload(idx, 'checked', e.target.value === 'true')} className="property-select">
+                                  <option value="true">选中/开启</option>
+                                  <option value="false">未选中/关闭</option>
+                                </select>
+                              </div>
+                            </>
+                          ) : ix.onComplete.action === 'toggleChecked' ? (
+                            <div className="interaction-field">
+                              <label>目标</label>
+                              <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
+                                <option value="">请选择开关/复选框/单选框...</option>
+                                {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => s.id.startsWith(p))).map(s => (
+                                  <option key={s.id} value={s.id}>{TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})</option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : ix.onComplete.action === 'setValue' ? (
+                            <>
+                              <div className="interaction-field">
+                                <label>目标</label>
+                                <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
+                                  <option value="">请选择滑块/进度条...</option>
+                                  {shapes.filter(s => ['slider', 'progress'].some(p => s.id.startsWith(p))).map(s => (
+                                    <option key={s.id} value={s.id}>{TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="interaction-field">
+                                <label>值 (0-100)</label>
+                                <input type="number" className="property-number" min={0} max={100} value={ix.onComplete.payload?.value ?? 50}
+                                  onChange={(e) => handleUpdateOnCompletePayload(idx, 'value', parseInt(e.target.value, 10) || 0)}
+                                  onKeyDown={(e) => e.stopPropagation()} />
+                              </div>
+                            </>
+                          ) : ix.onComplete.action === 'incrementValue' ? (
+                            <>
+                              <div className="interaction-field">
+                                <label>目标</label>
+                                <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
+                                  <option value="">请选择滑块/进度条...</option>
+                                  {shapes.filter(s => ['slider', 'progress'].some(p => s.id.startsWith(p))).map(s => (
+                                    <option key={s.id} value={s.id}>{TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="interaction-field">
+                                <label>增减量</label>
+                                <input type="number" className="property-number" value={ix.onComplete.payload?.delta ?? 10}
+                                  onChange={(e) => handleUpdateOnCompletePayload(idx, 'delta', parseInt(e.target.value, 10) || 0)}
+                                  onKeyDown={(e) => e.stopPropagation()} />
+                              </div>
+                            </>
+                          ) : (
+                            <div className="interaction-field">
+                              <label>目标</label>
+                              <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
+                                <option value="">请选择目标组件...</option>
+                                {shapes.map(s => (
+                                  <option key={s.id} value={s.id}>
+                                    {TypeNameMap[s.type || s.id.split('-')[0]] || '组件'} ({s.id})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          {ix.onComplete.action === 'setProps' && ix.onComplete.targetId && (() => {
+                            const targetShape = shapes.find(s => s.id === ix.onComplete.targetId);
+                            if (!targetShape) return null;
+                            const targetPrefix = targetShape.id.split('-')[0];
+                            let targetType = targetShape.type === 'rect' ? targetPrefix : targetShape.type;
+                            if (!propertyConfigs[targetType]) targetType = 'rectangle';
+                            const config = propertyConfigs[targetType] || [];
+                            return (
+                              <div className="interaction-payload-config">
+                                <div className="payload-divider"></div>
+                                <div className="payload-title">配置完成动作属性</div>
+                                {config.map(prop => (
+                                  <div key={prop.key} className="property-row payload-row">
+                                    <label>{prop.label}</label>
+                                    <PropertyInput
+                                      config={prop}
+                                      value={ix.onComplete.payload?.[prop.key]}
+                                      onChange={(key, val) => handleUpdateOnCompletePayload(idx, key, val)}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </>
+                      )}
                     </>
                   ) : ix.action === 'stopAnimation' ? (
                     <div className="interaction-field">
                       <label>目标</label>
                       <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
                         <option value="">请选择目标组件...</option>
-                        {shapes.filter(s => s.id !== selectedShape.id).map(s => (
+                        {shapes.map(s => (
                           <option key={s.id} value={s.id}>
                             {TypeNameMap[s.id.split('-')[0]] || '组件'} ({s.id})
                           </option>
@@ -1212,7 +1516,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                       <label>目标</label>
                       <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
                         <option value="">请选择目标...</option>
-                        {shapes.filter(s => s.id !== selectedShape.id).map(s => (
+                        {shapes.map(s => (
                           <option key={s.id} value={s.id}>
                             {TypeNameMap[s.type || s.id.split('-')[0]] || '组件'} ({s.id})
                           </option>
@@ -1264,12 +1568,13 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                     </label>
                     {ix.delay !== undefined && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
-                        <input 
-                          type="number" 
-                          className="property-number" 
+                        <input
+                          type="number"
+                          className="property-number"
                           style={{ width: '60px' }}
-                          value={ix.delay} 
+                          value={ix.delay}
                           onChange={(e) => handleUpdateInteraction(idx, 'delay', parseInt(e.target.value, 10) || 0)}
+                          onKeyDown={(e) => e.stopPropagation()}
                         />
                         <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>ms</span>
                       </div>

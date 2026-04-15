@@ -692,7 +692,7 @@ function getHandlePosition(shape, handlePos) {
   return { x: rotatedX, y: rotatedY };
 }
 
-function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, isPreviewMode, isConnectionMode, variables, selectedChildId, onSelectChild, onHandleMouseDown, snapToGrid, showGuides, onSliderDragStart }) {
+function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, onSelect, onSelectMultiple, onChange, onDragEnd, onResizeEnd, onRotateEnd, onDoubleClick, stageRef, onExecuteInteraction, onClearPendingForShape, onRegisterTimeout, isPreviewMode, isConnectionMode, variables, selectedChildId, onSelectChild, onHandleMouseDown, snapToGrid, showGuides, onSliderDragStart }) {
   const shapeRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -721,14 +721,18 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
   }
 
   const triggerInteraction = useCallback((interaction) => {
+    // 清除该 source 上所有待执行的延迟交互（抢占机制）
+    onClearPendingForShape?.(shape.id);
+
     if (interaction.delay && interaction.delay > 0) {
-      setTimeout(() => {
-        onExecuteInteraction?.(interaction);
+      const timeoutId = setTimeout(() => {
+        onExecuteInteraction?.(interaction, shape.id);
       }, interaction.delay);
+      onRegisterTimeout?.(shape.id, timeoutId);
     } else {
-      onExecuteInteraction?.(interaction);
+      onExecuteInteraction?.(interaction, shape.id);
     }
-  }, [onExecuteInteraction]);
+  }, [onExecuteInteraction, onClearPendingForShape, onRegisterTimeout, shape.id]);
 
   // 定时器交互 (仅在演示模式下激活)
   useEffect(() => {
@@ -871,7 +875,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
       if (stage) {
         stage.container().style.cursor = (isPreviewMode || e.evt.altKey) && hasInteraction ? 'pointer' : (isPreviewMode ? 'default' : 'move');
       }
-      
+
       if ((isPreviewMode || e.evt.altKey) && hasInteraction) {
         shape.interactions.forEach(interaction => {
           if (interaction.trigger === 'onMouseEnter') {
@@ -881,12 +885,26 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
       }
     },
     onMouseLeave: (e) => {
+      // 检查鼠标是否真的离开了 Group 的包围盒（排除子元素间移动产生的虚假 leave）
+      const group = e.currentTarget;
+      const stage = group.getStage();
+      if (stage) {
+        const pointerPos = stage.getPointerPosition();
+        if (pointerPos) {
+          const box = group.getClientRect();
+          if (pointerPos.x >= box.x && pointerPos.x <= box.x + box.width &&
+              pointerPos.y >= box.y && pointerPos.y <= box.y + box.height) {
+            // 鼠标仍在 Group 范围内，忽略此次 leave
+            return;
+          }
+        }
+      }
+
       setIsHovered(false);
-      const stage = e.target.getStage();
       if (stage) {
         stage.container().style.cursor = 'default';
       }
-      
+
       const hasInteraction = shape.interactions?.length > 0;
       if ((isPreviewMode || e.evt.altKey) && hasInteraction) {
         shape.interactions.forEach(interaction => {
@@ -2700,6 +2718,8 @@ const Canvas = forwardRef(function Canvas({
   snapToGrid,
   showGuides,
   onExecuteInteraction,
+  onClearPendingForShape,
+  onRegisterTimeout,
   isPreviewMode,
   isConnectionMode,
   variables,
@@ -3351,6 +3371,8 @@ const Canvas = forwardRef(function Canvas({
               onDoubleClick={handleDoubleClick}
               stageRef={stageRef}
               onExecuteInteraction={onExecuteInteraction}
+              onClearPendingForShape={onClearPendingForShape}
+              onRegisterTimeout={onRegisterTimeout}
               isPreviewMode={isPreviewMode}
               isConnectionMode={isConnectionMode}
               variables={variables}
@@ -3413,6 +3435,8 @@ const Canvas = forwardRef(function Canvas({
               onDoubleClick={handleDoubleClick}
               stageRef={stageRef}
               onExecuteInteraction={onExecuteInteraction}
+              onClearPendingForShape={onClearPendingForShape}
+              onRegisterTimeout={onRegisterTimeout}
               isPreviewMode={isPreviewMode}
               isConnectionMode={isConnectionMode}
               variables={variables}
