@@ -956,3 +956,107 @@ onChange={(e) => { const v = parseFloat(e.target.value); handleUpdatePayload(idx
 | `src/App.jsx` | 导入改为 JsonImporter；新增 handleImportInteractions；startAnimation 引擎支持 duration 自动计算 delta/from/to 方向/onComplete 回调；pendingTimeouts 抢占机制；clearPendingForShape/registerTimeout |
 | `src/components/Canvas.jsx` | triggerInteraction 传递 sourceId 并清除 pending；onMouseLeave 包围盒检测防误触 |
 | `src/components/Toolbar.jsx` | 导入按钮 tooltip 更新 |
+
+---
+
+## 版本 1.13.0 (2026-04-16)
+
+### ✨ 新增功能
+
+#### 1. 视频上传与 AI 视频理解
+- **视频上传**：AI 聊天窗口新增视频上传按钮（位于图片上传旁），支持上传本地视频文件（最大 20MB）。
+- **视频预览**：上传后在输入区域显示视频缩略图预览和文件信息，支持一键移除。
+- **多模态视频理解**：视频以 Base64 格式通过 `video_url` 内容块发送给多模态模型（mimo-v2-omni），模型可直接理解视频中的 UI 界面和交互流程。
+- **视频生成原型**：AI 可根据视频内容自动生成画布原型，支持多页面场景通过 `dynamicPanel` + `switchState` 交互还原视频中的导航流程。
+- **模型校验**：非多模态模型（如 mimo-v2-pro）选择视频时会提示不支持，引导用户切换到 mimo-v2-omni。
+
+#### 2. AI 生成组件自定义 ID 全面兼容
+- **componentType 字段**：在组件数据结构中新增 `componentType` 字段，保留 AI 生成的原始类型（如 `button`、`switch`、`slider`），与底层 Konva 渲染类型（`rect`、`circle`）解耦。
+- **自定义 ID 无障碍**：AI 现在可以使用任意自定义 ID（如 `card-1`、`list-item-1`、`tab-home`）而不再强制要求 `type-N` 命名格式。所有依赖 ID 前缀匹配的逻辑（渲染、图层、属性面板、交互过滤器）均已改为优先使用 `componentType`。
+- **JSON 导入兼容**：JsonImporter 导入的组件同样自动携带 `componentType`，图层正确显示中文类型名而非"形状"。
+
+#### 3. AI 文本组件宽度智能适配
+- **自动宽度估算**：AI 生成文本组件未指定 `width` 时，系统根据文本内容长度、字号和字重自动估算合理宽度（最小 150px），避免文字被截断换行。
+- **提示词优化**：系统提示中明确要求 AI 为文本组件指定 `width`，并给出估算公式（`text.length * fontSize * 0.6`）。
+
+### 🤖 AI 提示词全面重构
+
+#### 1. 提示词动态生成机制
+- **新增 `buildSystemPrompt.js`**：从 `componentList` 和 `propertyConfigs` 自动生成组件描述和属性列表，新增组件/属性时 prompt 自动同步，无需手动维护。
+- **结构化分区**：将提示词拆分为 6 个独立区块（组件类型、交互系统、内置行为、动态面板、全局规则、视频规则），便于维护和扩展。
+
+#### 2. 四层交互架构完整说明
+- **LAYER 1 - hoverProps**：自悬浮属性覆写，仅影响组件自身，鼠标离开自动还原。
+- **LAYER 2 - interactions[]**：事件驱动跨组件控制，一个组件可配置多个交互目标多个不同组件。
+- **LAYER 3 - visibleIf**：基于全局变量的条件渲染，支持 ==、!=、>、< 等运算符。
+- **LAYER 4 - dynamicPanel**：多状态容器，每个状态拥有独立子组件，支持 switchState/nextState/prevState 切换。
+
+#### 3. 5 种触发器 + 12 种动作类型完整文档
+- 触发器：onClick、onMouseEnter、onMouseLeave、onLoad、onChange（仅限 switch/checkbox/radio/slider）
+- 动作类型：toggleVisibility、setProps、setVariable、switchState、nextState、prevState、setChecked、toggleChecked、setValue、incrementValue、startAnimation、stopAnimation
+- 每种动作的 payload 格式、适用组件、限制条件均有详细说明
+
+#### 4. 8 种常见 UI 模式精确 JSON 示例
+- 卡片悬浮（hoverProps + interactions 联动）
+- Tab 导航（dynamicPanel + switchState + setProps 高亮切换）
+- 模态框/对话框（setVariable + visibleIf 确定性显隐）
+- 下拉菜单（overlay 点击外部关闭）
+- Toast 自动消失（onLoad + delay + startAnimation + onComplete）
+- 轮播图（dynamicPanel + nextState/prevState）
+- 进度条动画（onLoad + startAnimation value）
+- 暗色模式切换（setVariable + visibleIf 双副本方案）
+- 手风琴展开/折叠（dynamicPanel 两状态切换）
+
+#### 5. 平面结构强制约束
+- **CRITICAL: SHAPE DATA STRUCTURE**：明确所有组件为扁平兄弟关系，不存在 HTML 式嵌套。rectangle 不支持 children 字段，仅 dynamicPanel 的 states 有 children。
+- **错误 vs 正确示例**：用完整 JSON 对比展示错误嵌套写法和正确扁平写法，包括坐标计算规则（绝对坐标而非相对坐标）。
+
+#### 6. 工具调用格式规范
+- **TOOL CALL FORMAT**：明确 `modify_canvas_shapes` 参数必须为顶层扁平 JSON，`type`、`elements`、`newShape` 等字段直接在顶层，禁止嵌套在 `params`/`data`/`body` 等包装对象中。
+
+#### 7. 重要限制清单
+- 不能通过 setProps 修改 visible（需用 toggleVisibility 或 setVariable+visibleIf）
+- 不能动画化颜色或位置（startAnimation 仅支持 opacity 和 value）
+- 不能读取组件属性到变量
+- 不能有条件交互（if var==X then Y）
+- 不能访问 dynamicPanel 子组件 ID
+- 不能检测点击外部（需用 overlay 模式）
+- onChange 不响应输入框文本输入（仅限 switch/checkbox/slider）
+- onMouseLeave 不自动还原 onMouseEnter 的修改
+
+### 🐛 Bug 修复
+
+#### 1. AI 生成组件在图层中全部显示为"形状"
+- **问题**：AI 生成的组件使用自定义 ID（如 `card-1`、`text-1`），图层面板通过 `shape.id.split('-')[0]` 解析类型前缀，无法匹配到 TypeNameMap，统一降级为"形状"。
+- **根因**：Canvas 渲染、图层面板、属性面板、交互过滤器等多处使用 `shape.id.startsWith()` 或 `shape.id.split('-')[0]` 进行类型判断，与 AI 自定义 ID 不兼容。
+- **修复**：
+  - `App.jsx` convertAiShape 新增 `componentType` 字段保留原始类型
+  - `Canvas.jsx` 所有渲染分支改用 `(shape.componentType || shape.id)` 进行类型判断
+  - `ComponentPanel.jsx` 图层图标和名称改用 `shape.componentType`
+  - `PropertiesPanel.jsx` 类型名称、目标选择器、交互过滤器等 20+ 处改用 `componentType`
+  - `ChatWindow.jsx` 上下文组件标签改用 `componentType`
+  - `JsonImporter.jsx` 导入时自动添加 `componentType`
+
+#### 2. JSON 导入组件图层显示"形状"
+- **问题**：通过 JSON 导入面板粘贴 AI 生成的 JSON 后，图层面板中所有组件显示为"形状"而非正确的类型名。
+- **根因**：`JsonImporter.jsx` 的 `convertToShapes` 函数创建 shape 对象时未设置 `componentType` 字段。
+- **修复**：`convertToShapes` 中添加 `componentType: el.type`，导入的组件与 AI 直接生成的组件行为一致。
+
+#### 3. AI 生成的文本组件宽度不足导致文字换行
+- **问题**：AI 生成文本组件时常不指定 `width`，系统使用默认 150px，对于较长文本或较大字号的文字内容导致强制换行，与预期效果不符。
+- **修复**：
+  - `App.jsx` convertAiShape 新增文本宽度自动估算逻辑：根据 `text.length * fontSize * 0.6 * fontWeight系数 + 20` 计算，最小 150px
+  - `buildSystemPrompt.js` 全局规则新增文本宽度规范，要求 AI 为 text 组件指定 width 并给出估算公式
+
+### 📁 更新文件清单 (v1.13.0)
+
+| 文件 | 变更内容 |
+|------|----------|
+| `src/utils/buildSystemPrompt.js` | **新增**：动态生成 AI 系统提示，6 大区块结构化组织，自动同步组件/属性 |
+| `src/App.jsx` | convertAiShape 新增 componentType 和文本宽度自动估算；handleAiAction 日志增强 |
+| `src/components/Canvas.jsx` | 所有 shape.id.startsWith/shape.id.split 改为 shape.componentType 优先；渲染分发、交互触发、双击编辑统一修复 |
+| `src/components/ComponentPanel.jsx` | 图层图标和类型名称改用 componentType |
+| `src/components/PropertiesPanel.jsx` | 类型解析、交互目标过滤器、目标名称显示等 20+ 处改用 componentType |
+| `src/components/JsonImporter.jsx` | convertToShapes 添加 componentType 字段 |
+| `src/rag/ChatWindow.jsx` | 新增视频上传功能（上传/预览/移除/发送）；系统提示改用 buildSystemPrompt；上下文组件标签改用 componentType |
+| `src/rag/ChatWindow.css` | 新增视频预览相关样式 |

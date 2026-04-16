@@ -90,7 +90,7 @@ function ColorInput({ config, value, onChange }) {
   );
 }
 
-const propertyConfigs = {
+export const propertyConfigs = {
   button: [
     { key: 'text', label: '文字', type: 'text' },
     { key: 'width', label: '宽度', type: 'number', min: 20, max: 800 },
@@ -480,7 +480,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
   }
 
   // 获取形状类型，对于 icon 类型需要特殊处理
-  const idPrefix = selectedShape.id.split('-')[0];
+  const idPrefix = selectedShape.componentType || selectedShape.id.split('-')[0];
   let shapeType;
   if (selectedShape.type === 'rect') {
     shapeType = idPrefix;
@@ -528,7 +528,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
       const targetShape = shapes.find(s => s.id === value);
       let prefilled = {};
       if (targetShape) {
-        const targetPrefix = targetShape.id.split('-')[0];
+        const targetPrefix = targetShape.componentType || targetShape.id.split('-')[0];
         let targetType = targetShape.type === 'rect' ? targetPrefix : targetShape.type;
         if (!propertyConfigs[targetType]) targetType = 'rectangle';
         const config = propertyConfigs[targetType] || [];
@@ -585,7 +585,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
     if (key === 'targetId' && current.action === 'setProps' && value) {
       const targetShape = shapes.find(s => s.id === value);
       if (targetShape) {
-        const targetPrefix = targetShape.id.split('-')[0];
+        const targetPrefix = targetShape.componentType || targetShape.id.split('-')[0];
         let targetType = targetShape.type === 'rect' ? targetPrefix : targetShape.type;
         if (!propertyConfigs[targetType]) targetType = 'rectangle';
         const config = propertyConfigs[targetType] || [];
@@ -899,7 +899,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                       ) : (
                         (state.children || []).map((child, childIdx) => (
                           <div key={child.id} className="state-child-item">
-                            <span className="child-type">{TypeNameMap[child.id.split('-')[0]] || child.type}</span>
+                            <span className="child-type">{TypeNameMap[child.componentType || child.id.split('-')[0]] || child.type}</span>
                             <span className="child-id">{child.id}</span>
                             <button 
                               className="remove-child-btn"
@@ -1120,9 +1120,9 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                         <label>目标</label>
                         <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
                           <option value="">请选择开关/复选框/单选框...</option>
-                          {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => s.id.startsWith(p))).map(s => (
+                          {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => (s.componentType || s.id).startsWith(p))).map(s => (
                             <option key={s.id} value={s.id}>
-                              {TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})
+                              {TypeNameMap[s.componentType || s.id.split('-')[0]] || s.componentType || s.id.split('-')[0]} ({s.id})
                             </option>
                           ))}
                         </select>
@@ -1140,9 +1140,9 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                       <label>目标</label>
                       <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
                         <option value="">请选择开关/复选框/单选框...</option>
-                        {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => s.id.startsWith(p))).map(s => (
+                        {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => (s.componentType || s.id).startsWith(p))).map(s => (
                           <option key={s.id} value={s.id}>
-                            {TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})
+                            {TypeNameMap[s.componentType || s.id.split('-')[0]] || s.componentType || s.id.split('-')[0]} ({s.id})
                           </option>
                         ))}
                       </select>
@@ -1153,9 +1153,9 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                         <label>目标</label>
                         <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
                           <option value="">请选择滑块/进度条...</option>
-                          {shapes.filter(s => ['slider', 'progress'].some(p => s.id.startsWith(p))).map(s => (
+                          {shapes.filter(s => ['slider', 'progress'].some(p => (s.componentType || s.id).startsWith(p))).map(s => (
                             <option key={s.id} value={s.id}>
-                              {TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})
+                              {TypeNameMap[s.componentType || s.id.split('-')[0]] || s.componentType || s.id.split('-')[0]} ({s.id})
                             </option>
                           ))}
                         </select>
@@ -1179,9 +1179,9 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                         <label>目标</label>
                         <select value={ix.targetId} onChange={(e) => handleUpdateInteraction(idx, 'targetId', e.target.value)} className="property-select">
                           <option value="">请选择滑块/进度条...</option>
-                          {shapes.filter(s => ['slider', 'progress'].some(p => s.id.startsWith(p))).map(s => (
+                          {shapes.filter(s => ['slider', 'progress'].some(p => (s.componentType || s.id).startsWith(p))).map(s => (
                             <option key={s.id} value={s.id}>
-                              {TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})
+                              {TypeNameMap[s.componentType || s.id.split('-')[0]] || s.componentType || s.id.split('-')[0]} ({s.id})
                             </option>
                           ))}
                         </select>
@@ -1205,7 +1205,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                           <option value="">请选择目标组件...</option>
                           {shapes.map(s => (
                             <option key={s.id} value={s.id}>
-                              {TypeNameMap[s.id.split('-')[0]] || '组件'} ({s.id})
+                              {TypeNameMap[s.componentType || s.id.split('-')[0]] || '组件'} ({s.id})
                             </option>
                           ))}
                         </select>
@@ -1400,8 +1400,8 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                                 <label>目标</label>
                                 <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
                                   <option value="">请选择开关/复选框/单选框...</option>
-                                  {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => s.id.startsWith(p))).map(s => (
-                                    <option key={s.id} value={s.id}>{TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})</option>
+                                  {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => (s.componentType || s.id).startsWith(p))).map(s => (
+                                    <option key={s.id} value={s.id}>{TypeNameMap[s.componentType || s.id.split('-')[0]] || s.componentType || s.id.split('-')[0]} ({s.id})</option>
                                   ))}
                                 </select>
                               </div>
@@ -1418,8 +1418,8 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                               <label>目标</label>
                               <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
                                 <option value="">请选择开关/复选框/单选框...</option>
-                                {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => s.id.startsWith(p))).map(s => (
-                                  <option key={s.id} value={s.id}>{TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})</option>
+                                {shapes.filter(s => ['switch', 'checkbox', 'radio'].some(p => (s.componentType || s.id).startsWith(p))).map(s => (
+                                  <option key={s.id} value={s.id}>{TypeNameMap[s.componentType || s.id.split('-')[0]] || s.componentType || s.id.split('-')[0]} ({s.id})</option>
                                 ))}
                               </select>
                             </div>
@@ -1429,8 +1429,8 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                                 <label>目标</label>
                                 <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
                                   <option value="">请选择滑块/进度条...</option>
-                                  {shapes.filter(s => ['slider', 'progress'].some(p => s.id.startsWith(p))).map(s => (
-                                    <option key={s.id} value={s.id}>{TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})</option>
+                                  {shapes.filter(s => ['slider', 'progress'].some(p => (s.componentType || s.id).startsWith(p))).map(s => (
+                                    <option key={s.id} value={s.id}>{TypeNameMap[s.componentType || s.id.split('-')[0]] || s.componentType || s.id.split('-')[0]} ({s.id})</option>
                                   ))}
                                 </select>
                               </div>
@@ -1447,8 +1447,8 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                                 <label>目标</label>
                                 <select value={ix.onComplete.targetId || ''} onChange={(e) => handleUpdateOnComplete(idx, 'targetId', e.target.value)} className="property-select">
                                   <option value="">请选择滑块/进度条...</option>
-                                  {shapes.filter(s => ['slider', 'progress'].some(p => s.id.startsWith(p))).map(s => (
-                                    <option key={s.id} value={s.id}>{TypeNameMap[s.id.split('-')[0]] || s.id.split('-')[0]} ({s.id})</option>
+                                  {shapes.filter(s => ['slider', 'progress'].some(p => (s.componentType || s.id).startsWith(p))).map(s => (
+                                    <option key={s.id} value={s.id}>{TypeNameMap[s.componentType || s.id.split('-')[0]] || s.componentType || s.id.split('-')[0]} ({s.id})</option>
                                   ))}
                                 </select>
                               </div>
@@ -1466,7 +1466,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                                 <option value="">请选择目标组件...</option>
                                 {shapes.map(s => (
                                   <option key={s.id} value={s.id}>
-                                    {TypeNameMap[s.type || s.id.split('-')[0]] || '组件'} ({s.id})
+                                    {TypeNameMap[s.componentType || s.type || s.id.split('-')[0]] || '组件'} ({s.id})
                                   </option>
                                 ))}
                               </select>
@@ -1475,7 +1475,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                           {ix.onComplete.action === 'setProps' && ix.onComplete.targetId && (() => {
                             const targetShape = shapes.find(s => s.id === ix.onComplete.targetId);
                             if (!targetShape) return null;
-                            const targetPrefix = targetShape.id.split('-')[0];
+                            const targetPrefix = targetShape.componentType || targetShape.id.split('-')[0];
                             let targetType = targetShape.type === 'rect' ? targetPrefix : targetShape.type;
                             if (!propertyConfigs[targetType]) targetType = 'rectangle';
                             const config = propertyConfigs[targetType] || [];
@@ -1506,7 +1506,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                         <option value="">请选择目标组件...</option>
                         {shapes.map(s => (
                           <option key={s.id} value={s.id}>
-                            {TypeNameMap[s.id.split('-')[0]] || '组件'} ({s.id})
+                            {TypeNameMap[s.componentType || s.id.split('-')[0]] || '组件'} ({s.id})
                           </option>
                         ))}
                       </select>
@@ -1518,7 +1518,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                         <option value="">请选择目标...</option>
                         {shapes.map(s => (
                           <option key={s.id} value={s.id}>
-                            {TypeNameMap[s.type || s.id.split('-')[0]] || '组件'} ({s.id})
+                            {TypeNameMap[s.componentType || s.type || s.id.split('-')[0]] || '组件'} ({s.id})
                           </option>
                         ))}
                       </select>
@@ -1532,7 +1532,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                         const targetShape = shapes.find(s => s.id === ix.targetId);
                         if (!targetShape) return <div className="payload-empty">请重新选择目标</div>;
                         
-                        const targetPrefix = targetShape.id.split('-')[0];
+                        const targetPrefix = targetShape.componentType || targetShape.id.split('-')[0];
                         let targetType = targetShape.type === 'rect' ? targetPrefix : targetShape.type;
                         if (!propertyConfigs[targetType]) targetType = 'rectangle';
                         const targetProps = propertyConfigs[targetType] || [];

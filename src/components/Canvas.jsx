@@ -778,7 +778,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
     draggable: !isPreviewMode && !(shape.type === 'arrow' && shape.startBinding),
     onClick: (e) => {
       e.cancelBubble = true;
-      const prefix = shape.id.split('-')[0];
+      const prefix = shape.componentType || shape.id.split('-')[0];
       const isToggleable = ['switch', 'checkbox', 'radio'].includes(prefix);
       if ((isPreviewMode || e.evt.altKey) && isToggleable) {
         // 内置切换行为：点击切换 checked 状态
@@ -807,7 +807,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
     },
     onTap: (e) => {
       e.cancelBubble = true;
-      const prefix = shape.id.split('-')[0];
+      const prefix = shape.componentType || shape.id.split('-')[0];
       const isToggleable = ['switch', 'checkbox', 'radio'].includes(prefix);
       if ((isPreviewMode || e.evt.altKey) && isToggleable) {
         const currentChecked = shape.props.checked === true || shape.props.checked === 'true';
@@ -832,13 +832,13 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
     },
     onDblClick: (e) => {
       e.cancelBubble = true;
-      if (['text', 'rect', 'circle'].includes(shape.type) || shape.id.startsWith('input') || shape.id.startsWith('button')) {
+      if (['text', 'rect', 'circle'].includes(shape.type) || (shape.componentType || shape.id).startsWith('input') || (shape.componentType || shape.id).startsWith('button')) {
         onDoubleClick?.(shape);
       }
     },
     onDblTap: (e) => {
       e.cancelBubble = true;
-      if (['text', 'rect', 'circle'].includes(shape.type) || shape.id.startsWith('input') || shape.id.startsWith('button')) {
+      if (['text', 'rect', 'circle'].includes(shape.type) || (shape.componentType || shape.id).startsWith('input') || (shape.componentType || shape.id).startsWith('button')) {
         onDoubleClick?.(shape);
       }
     },
@@ -1086,12 +1086,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
         );
       case 'rect':
         // 输入框或按钮类型需要显示内部文本
-        if (shape.id.startsWith('input') || shape.id.startsWith('button')) {
+        if ((shape.componentType || shape.id).startsWith('input') || (shape.componentType || shape.id).startsWith('button')) {
           const displayText = activeProps.text || activeProps.placeholder || '';
-          const textColor = shape.id.startsWith('input') 
+          const textColor = (shape.componentType || shape.id).startsWith('input') 
             ? (activeProps.textColor || '#0F172A')
             : (activeProps.textColor || '#FFFFFF'); // 按钮默认白色文字
-          const isPlaceholder = shape.id.startsWith('input') && !activeProps.text;
+          const isPlaceholder = (shape.componentType || shape.id).startsWith('input') && !activeProps.text;
           const fontSize = activeProps.fontSize || 14;
           const padding = 12;
           const width = activeProps.width || 200;
@@ -1172,7 +1172,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           );
         }
         // 开关组件
-        else if (shape.id.startsWith('switch')) {
+        else if ((shape.componentType || shape.id).startsWith('switch')) {
           const width = activeProps.width || 44;
           const height = activeProps.height || 24;
           const centerX = shape.x + width / 2;
@@ -1227,7 +1227,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           );
         }
         // 复选框组件
-        else if (shape.id.startsWith('checkbox')) {
+        else if ((shape.componentType || shape.id).startsWith('checkbox')) {
           const width = activeProps.width || 20;
           const height = activeProps.height || 20;
           const centerX = shape.x + width / 2;
@@ -1291,7 +1291,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           );
         }
         // 徽标组件
-        else if (shape.id.startsWith('badge')) {
+        else if ((shape.componentType || shape.id).startsWith('badge')) {
           const width = activeProps.width || 20;
           const height = activeProps.height || 20;
           const fontSize = activeProps.fontSize || 11;
@@ -1349,7 +1349,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           );
         }
         // 滑块组件
-        else if (shape.id.startsWith('slider')) {
+        else if ((shape.componentType || shape.id).startsWith('slider')) {
           const width = activeProps.width || 200;
           const height = activeProps.height || 20;
           const centerX = shape.x + width / 2;
@@ -1435,7 +1435,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           );
         }
         // 进度条组件
-        else if (shape.id.startsWith('progress')) {
+        else if ((shape.componentType || shape.id).startsWith('progress')) {
           const width = activeProps.width || 200;
           const height = activeProps.height || 8;
           const centerX = shape.x + width / 2;
@@ -1495,7 +1495,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           );
         }
         // 分割线组件
-        else if (shape.id.startsWith('divider')) {
+        else if ((shape.componentType || shape.id).startsWith('divider')) {
           const width = activeProps.width || 200;
           const height = activeProps.height || 1;
           const centerX = shape.x + width / 2;
@@ -1540,7 +1540,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           );
         }
         // 头像组件
-        else if (shape.id.startsWith('avatar')) {
+        else if ((shape.componentType || shape.id).startsWith('avatar')) {
           const width = activeProps.width || 40;
           const height = activeProps.height || 40;
           const fontSize = activeProps.fontSize || 16;
@@ -1665,7 +1665,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
         }
       case 'circle': {
         // 单选框组件
-        if (shape.id.startsWith('radio')) {
+        if ((shape.componentType || shape.id).startsWith('radio')) {
           const radius = activeProps.radius || 10;
           const isChecked = activeProps.checked === true || activeProps.checked === 'true';
           return (

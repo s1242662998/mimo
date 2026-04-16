@@ -333,8 +333,9 @@ function LayerItem({
   onFocusShape,
 }) {
   const isGroup = shape.type === 'group';
-  const Icon = isGroup ? Icons.Layers : (IconMap[shape.id.split('-')[0]] || Icons.Rect);
-  const typeName = isGroup ? '组' : (TypeNameMap[shape.id.split('-')[0]] || '形状');
+  const typeKey = shape.componentType || shape.id.split('-')[0];
+  const Icon = isGroup ? Icons.Layers : (IconMap[typeKey] || Icons.Rect);
+  const typeName = isGroup ? '组' : (TypeNameMap[typeKey] || '形状');
   const isVisible = shape.visible !== false;
   const isLocked = shape.locked === true;
 
@@ -424,9 +425,9 @@ function LayerItem({
         >
           <div className="layer-drag-handle" style={{ width: 24 }}></div>
           <div className="layer-icon">
-            {IconMap[child.id?.split('-')[0]] ? (() => { const ChildIcon = IconMap[child.id.split('-')[0]]; return <ChildIcon />; })() : <Icons.Rect />}
+            {(() => { const childTypeKey = child.componentType || child.id?.split('-')[0]; const ChildIcon = IconMap[childTypeKey]; return ChildIcon ? <ChildIcon /> : <Icons.Rect />; })()}
           </div>
-          <span className="layer-name" title={child.id}>{TypeNameMap[child.id?.split('-')[0]] || '形状'}（{child.id}）</span>
+          <span className="layer-name" title={child.id}>{TypeNameMap[child.componentType || child.id?.split('-')[0]] || '形状'}（{child.id}）</span>
         </div>
       ))}
     </>

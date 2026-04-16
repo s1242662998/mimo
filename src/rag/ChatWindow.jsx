@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { IconMap, TypeNameMap, Icons } from '../components/ComponentPanel';
+import { buildSystemPrompt } from '../utils/buildSystemPrompt';
 import './ChatWindow.css';
 
 const DEFAULT_PROVIDERS = [
@@ -41,6 +42,9 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
   // 图片上传相关状态
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  // 视频上传相关状态
+  const [selectedVideo, setSelectedVideo] = useState(null); // base64 dataUrl
+  const [videoMeta, setVideoMeta] = useState(null); // { name, duration, size }
   const [copiedId, setCopiedId] = useState(null);
 
   // 初始化从 localStorage 加载配置
@@ -65,10 +69,23 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
     }
   }, []);
 
-  // 监听 messages 变化并保存到 localStorage
+  // 监听 messages 变化并保存到 localStorage（去除大型媒体数据）
   useEffect(() => {
     try {
-      localStorage.setItem('rag_chat_history', JSON.stringify(messages));
+      const messagesToSave = messages.map(msg => {
+        const saveMsg = { ...msg };
+        // 保留图片缩略图用于历史展示，但限制大小
+        if (saveMsg.image && saveMsg.image.length > 200000) {
+          saveMsg.image = null;
+        }
+        // 视频不保存 base64（太大），只保留元信息
+        if (saveMsg.video) {
+          const { dataUrl, ...meta } = saveMsg.video;
+          saveMsg.video = meta;
+        }
+        return saveMsg;
+      });
+      localStorage.setItem('rag_chat_history', JSON.stringify(messagesToSave));
     } catch (e) {
       console.error("Failed to save chat history to localStorage", e);
     }
@@ -193,11 +210,47 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
     }
   };
 
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('video/')) {
+      alert('请选择视频文件');
+      return;
+    }
+
+    // 视频大小限制 20MB（base64 会更大）
+    if (file.size > 20 * 1024 * 1024) {
+      alert('视频文件不能超过 20MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSelectedVideo(reader.result);
+      setVideoMeta({ name: file.name, size: file.size, type: file.type });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const removeVideo = () => {
+    setSelectedVideo(null);
+    setVideoMeta(null);
+  };
+
   const handleSend = async () => {
-    if ((!input.trim() && !selectedImage) || isLoading) return;
+    if ((!input.trim() && !selectedImage && !selectedVideo) || isLoading) return;
 
     const currentProvider = providers.find(p => p.id === selectedProviderId);
     const apiKey = apiKeys[selectedProviderId];
+
+    // 非多模态模型提示
+    if ((selectedImage || selectedVideo) && selectedProviderId !== 'mimo-v2-omni') {
+      alert('图片和视频功能需要使用多模态模型 (MiMo Omni)，请在设置中切换模型');
+      setShowSettings(true);
+      return;
+    }
 
     if (!apiKey) {
       alert(`请先在设置中配置 ${currentProvider?.name} 的 API Key`);
@@ -209,13 +262,15 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
       id: Date.now(),
       role: 'user',
       content: input,
-      image: selectedImage // 附带图片数据
+      image: selectedImage,
+      video: selectedVideo ? { dataUrl: selectedVideo, ...videoMeta } : null
     };
 
     const newMessagesList = [...messages, newMessage];
     setMessages(newMessagesList);
     setInput('');
     removeImage(); // 发送后清除图片预览
+    removeVideo(); // 发送后清除视频预览
     setIsLoading(true);
 
     try {
@@ -229,6 +284,22 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
 
       // 组装发给 OpenAI 格式 API 的消息历史
       const apiMessages = newMessagesList.map(msg => {
+        // 视频消息：直接发送 video_url
+        if (msg.video && msg.video.dataUrl && selectedProviderId === 'mimo-v2-omni') {
+          const content = [];
+          content.push({
+            type: 'video_url',
+            video_url: {
+              url: msg.video.dataUrl
+            }
+          });
+          content.push({
+            type: 'text',
+            text: msg.content || '请分析这段视频内容并根据视频中的 UI 设计生成原型'
+          });
+          return { role: msg.role, content };
+        }
+
         if (msg.image && selectedProviderId === 'mimo-v2-omni') {
           // 多模态消息格式
           return {
@@ -284,69 +355,8 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
         const today = new Date();
         const dateStr = today.toISOString().split('T')[0];
         const weekStr = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][today.getDay()];
-        
-        const systemPrompt = `You are MiMo, an AI assistant developed by Xiaomi. Today's date: ${dateStr} ${weekStr}. Your knowledge cutoff date is December 2024.
 
-IMPORTANT INSTRUCTIONS:
-1. If the user asks to modify, update, move, or re-layout existing elements on the canvas, YOU MUST use the 'modify_canvas_shapes' tool.
-2. If the user uploads a UI screenshot and asks you to generate or parse it, YOU MUST use the 'modify_canvas_shapes' tool with type='replace_all' to directly draw it on the canvas. 
-3. DO NOT output raw JSON code blocks in your chat response unless the user explicitly asks for JSON code. Just use the tool silently to complete the task and tell the user it's done.
-4. When you need to add MULTIPLE new elements to the canvas, use type='add' and put all the new elements in the 'elements' array instead of using 'newShape'.
-5. Keep your reasoning brief to avoid hitting the maximum token limit.
-
-CANVAS INTERACTION RULES (When adding interactive events):
-- To add a self hover effect (e.g. change color when hovering), use 'hoverProps': \`"hoverProps": { "fill": "#FF0000", "scale": 1.1 }\`
-- Interaction triggers support: "onClick", "onMouseEnter", "onMouseLeave", "onLoad", "onChange".
-  - "onChange" fires when a component's built-in value changes (e.g., switch toggled, checkbox clicked, slider dragged).
-- You can add an optional "delay" in ms to ANY interaction: \`"interactions": [{ "trigger": "onClick", "delay": 2000, "action": "toggleVisibility", "targetId": "..." }]\`
-- Action types support: "toggleVisibility", "setProps", "setVariable", "switchState", "nextState", "prevState", "setChecked", "toggleChecked", "setValue", "incrementValue", "startAnimation", "stopAnimation".
-  - "setChecked": target a switch/checkbox/radio, payload { "checked": true/false }
-  - "toggleChecked": target a switch/checkbox/radio, no payload needed
-  - "setValue": target a slider/progress, payload { "value": 50 }
-  - "incrementValue": target a slider/progress, payload { "delta": 10 }
-  - "startAnimation": continuously animate a property. payload: { "prop": "value"|"opacity", "delta": 1, "interval": 100, "min": 0, "max": 100, "loop": false }. Stops automatically when reaching boundary (unless loop=true).
-  - "stopAnimation": stop an ongoing animation on the target. No payload needed.
-- Example of setting global variable: \`"interactions": [{ "trigger": "onClick", "action": "setVariable", "payload": { "key": "currentTab", "value": "profile" } }]\`
-- To conditionally render a shape based on global variables, add 'visibleIf' object: \`"visibleIf": { "key": "currentTab", "operator": "==", "value": "profile" }\`
-- Example of click to toggle visibility: \`"interactions": [{ "trigger": "onClick", "action": "toggleVisibility", "targetId": "target-element-id" }]\`
-- Example of mouse enter to change target's properties: \`"interactions": [{ "trigger": "onMouseEnter", "action": "setProps", "targetId": "target-element-id", "payload": { "fill": "blue" } }]\`
-- Example of switch onChange to set a variable: \`"interactions": [{ "trigger": "onChange", "action": "setVariable", "payload": { "key": "darkMode", "value": "true" } }]\`
-- Example of button click to set a slider value: \`"interactions": [{ "trigger": "onClick", "action": "setValue", "targetId": "slider-1", "payload": { "value": 80 } }]\`
-- Example of progress bar auto-fill on load: \`"interactions": [{ "trigger": "onLoad", "action": "startAnimation", "targetId": "progress-1", "payload": { "prop": "value", "delta": 1, "interval": 50, "min": 0, "max": 100, "loop": false } }]\`
-- Example of fade-out on click: \`"interactions": [{ "trigger": "onClick", "action": "startAnimation", "targetId": "rect-1", "payload": { "prop": "opacity", "delta": -0.05, "interval": 50, "min": 0, "max": 1, "loop": false } }]\`
-- Example of stop animation: \`"interactions": [{ "trigger": "onClick", "action": "stopAnimation", "targetId": "rect-1" }]\`
-
-BUILT-IN INTERACTIVE BEHAVIORS (No interaction rules needed):
-- switch, checkbox, radio: Automatically toggle their 'checked' state on click in preview mode. No interaction configuration needed.
-- slider: Users can drag the thumb to change the 'value' (0-100) in preview mode. No interaction configuration needed.
-- These built-in behaviors fire "onChange" triggers automatically when the value changes.
-- Example: A switch will auto-toggle on click. Add an "onChange" interaction on the switch to react to this (e.g., set a variable or change another component).
-
-DYNAMIC PANEL RULES (For creating multi-state containers):
-- type: 'dynamicPanel', requires x, y, width, height, states (array of state objects)
-- Each state has: { id: 'state-1', name: 'State 1', children: [] }
-- Must include 'activeStateId' to set initial visible state
-- Example: \`{ "type": "dynamicPanel", "x": 100, "y": 100, "width": 300, "height": 200, "states": [{ "id": "state-1", "name": "Tab 1", "children": [] }, { "id": "state-2", "name": "Tab 2", "children": [] }], "activeStateId": "state-1" }\`
-- To switch states via interaction: \`"interactions": [{ "trigger": "onClick", "action": "switchState", "targetId": "panel-id", "payload": { "stateId": "state-2" } }]\`
-- To cycle states: use "nextState" or "prevState" actions
-
-SCREENSHOT PARSING RULES (When generating UI from image):
-- Supported types: 'text', 'button', 'input', 'rectangle', 'circle', 'image', 'dynamicPanel', 'switch', 'checkbox', 'radio', 'badge', 'slider', 'progress', 'divider', 'avatar'
-- text: requires x, y, text (optional: fontSize, fill, width)
-- button/input/rectangle/image: requires x, y, width, height (optional: fill, stroke, cornerRadius, text/placeholder)
-- circle: requires x, y, radius (optional: fill, stroke)
-- switch: requires x, y (optional: width default 44, height default 24, checked default true, fill default #22C55E, fillOff default #E2E8F0)
-- checkbox: requires x, y (optional: width default 20, height default 20, checked default true, fill default #FFFFFF, stroke, checkColor default #0891B2)
-- radio: requires x, y, radius (optional: checked default true, fill default #FFFFFF, stroke, checkColor default #0891B2)
-- badge: requires x, y (optional: width default 20, height default 20, fill default #EF4444, text default '5', fontSize default 11, textColor default #FFFFFF)
-- slider: requires x, y (optional: width default 200, height default 20, value default 50, fill default #E2E8F0, barFill default #0891B2, knobColor default #FFFFFF)
-- progress: requires x, y (optional: width default 200, height default 8, value default 60, fill default #E2E8F0, barFill default #0891B2)
-- divider: requires x, y (optional: width default 200, height default 1, fill default #E2E8F0)
-- avatar: requires x, y (optional: width default 40, height default 40, fill default #DBEAFE, text default 'A', cornerRadius default 20, textColor default #1E40AF)
-- dynamicPanel: requires x, y, width, height, states array, activeStateId
-- Coordinate system: (0,0) is top-left.
-- Colors MUST be in HEX format (e.g., #FFFFFF).
-- Z-index: Background elements first, foreground elements last.`;
+        const systemPrompt = buildSystemPrompt(dateStr, weekStr);
 
         apiMessages.unshift({
           role: 'system',
@@ -765,11 +775,19 @@ SCREENSHOT PARSING RULES (When generating UI from image):
               <div key={msg.id} className={`rag-message ${msg.role}`}>
                 <div className="rag-message-content">
                   {msg.image && (
-                    <img 
-                      src={msg.image} 
-                      alt="uploaded" 
-                      className="rag-message-image" 
+                    <img
+                      src={msg.image}
+                      alt="uploaded"
+                      className="rag-message-image"
                     />
+                  )}
+                  {msg.video && (
+                    <div className="rag-message-video">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                      <span>{msg.video.name || '视频'}</span>
+                    </div>
                   )}
                   {renderMessageContent(msg)}
                 </div>
@@ -788,7 +806,7 @@ SCREENSHOT PARSING RULES (When generating UI from image):
             {chatContextShapes && chatContextShapes.length > 0 && (
               <div className="rag-context-shapes">
                 {chatContextShapes.map(shape => {
-                  const typeKey = shape.id.split('-')[0];
+                  const typeKey = shape.componentType || shape.id.split('-')[0];
                   const Icon = IconMap[typeKey] || Icons.Rect;
                   const typeName = TypeNameMap[typeKey] || '组件';
                   return (
@@ -812,18 +830,41 @@ SCREENSHOT PARSING RULES (When generating UI from image):
                 <button onClick={removeImage} className="rag-remove-image-btn">×</button>
               </div>
             )}
+            {selectedVideo && (
+              <div className="rag-video-preview">
+                <video src={selectedVideo} muted />
+                <div className="rag-video-info">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                  <span>{videoMeta?.name || '视频'}</span>
+                </div>
+                <button onClick={removeVideo} className="rag-remove-image-btn">×</button>
+              </div>
+            )}
             <div className="rag-input-controls">
               <label className="rag-upload-btn" title="上传图片">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleImageUpload} 
-                  style={{ display: 'none' }} 
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
                 />
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
+                </svg>
+              </label>
+              <label className="rag-upload-btn" title="上传视频">
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoUpload}
+                  style={{ display: 'none' }}
+                />
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="5 3 19 12 5 21 5 3" />
                 </svg>
               </label>
               <textarea
@@ -835,7 +876,7 @@ SCREENSHOT PARSING RULES (When generating UI from image):
                 rows={3}
                 disabled={isLoading}
               />
-              <button onClick={handleSend} disabled={(!input.trim() && !selectedImage) || isLoading} className="rag-send-btn">
+              <button onClick={handleSend} disabled={(!input.trim() && !selectedImage && !selectedVideo) || isLoading} className="rag-send-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                 </svg>

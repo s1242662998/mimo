@@ -74,6 +74,7 @@ function convertToShapes(data) {
     const shape = {
       id: el.id || `${el.type}-${timestamp}-${index}`,
       type: convertType(el.type),
+      componentType: el.type,
       x: Number(el.x) || 0,
       y: Number(el.y) || 0,
       props: {},

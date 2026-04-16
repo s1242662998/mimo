@@ -3,7 +3,10 @@
     "allow": [
       "Bash(git:*)",
       "Bash(npx vite:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(ls \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/\"*.md \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/src/\"*.md)",
+      "Bash(ls \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/docs/\"*)",
+      "Bash(ls \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/\"更新* \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/\"CHANGE*)"
     ]
   }
 }

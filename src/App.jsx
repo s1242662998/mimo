@@ -438,7 +438,7 @@ function App() {
     const offset = 20;
     const newShapes = clipboardRef.current.map((shape, index) => ({
       ...shape,
-      id: `${shape.id.split('-')[0]}-${++shapeIdCounter}`,
+      id: `${shape.componentType || shape.id.split('-')[0]}-${++shapeIdCounter}`,
       x: shape.x + offset * (index + 1),
       y: shape.y + offset * (index + 1),
     }));
@@ -612,7 +612,7 @@ function App() {
       ...child,
       x: selectedShape.x + child.x,
       y: selectedShape.y + child.y,
-      id: `${child.id.split('-')[0]}-${++shapeIdCounter}`,
+      id: `${child.componentType || child.id.split('-')[0]}-${++shapeIdCounter}`,
     }));
 
     // 移除组，添加子组件
@@ -871,10 +871,18 @@ function App() {
       if (['text', 'badge', 'avatar'].includes(jsonType)) {
          props.fontFamily = props.fontFamily || 'Inter';
       }
+      // 文本组件：AI未指定宽度时，根据文本内容和字号自动估算宽度，避免文字被截断换行
+      if (jsonType === 'text' && !el.width && props.text) {
+        const fs = Number(props.fontSize) || 16;
+        const fw = props.fontWeight === '700' || props.fontWeight === 'bold' ? 1.15 : 1;
+        const estimatedWidth = Math.ceil(props.text.length * fs * 0.6 * fw) + 20;
+        props.width = Math.max(150, estimatedWidth);
+      }
       
       const result = {
         id: el.id || `${jsonType}-${shapeIdCounter++}`,
         type: elType,
+        componentType: jsonType, // 保留原始AI类型，用于Canvas渲染分发
         x: x || 0,
         y: y || 0,
         visible: visible !== false, // 默认显示
@@ -900,11 +908,13 @@ function App() {
 
       if (type === 'replace_all') {
         if (!elements || !Array.isArray(elements)) {
-          console.error('replace_all requires elements array');
+          console.error('replace_all requires elements array. Received args:', args);
           return nextShapes;
         }
         // 直接根据截图生成的元素替换整个画布
+        console.log('AI replace_all elements:', elements.map(el => ({ id: el.id, type: el.type })));
         nextShapes = elements.map((el, index) => convertAiShape(el, index));
+        console.log('Converted shapes:', nextShapes.map(s => ({ id: s.id, type: s.type, propsKeys: Object.keys(s.props) })));
         setSelectedIds([]);
         setSelectedId(null);
       } else if (type === 'update') {
@@ -975,9 +985,12 @@ function App() {
         // 添加新组件 (支持批量或单个)
         if (elements && Array.isArray(elements)) {
           const addedShapes = elements.map((el, index) => convertAiShape(el, index));
+          console.log('AI add elements:', addedShapes.map(s => ({ id: s.id, type: s.type })));
           nextShapes.push(...addedShapes);
         } else if (newShape) {
-          nextShapes.push(convertAiShape(newShape));
+          const added = convertAiShape(newShape);
+          console.log('AI add single:', { id: added.id, type: added.type });
+          nextShapes.push(added);
         }
       }
 
