@@ -227,7 +227,7 @@ function DraggableIcon({ icon }) {
       type: 'icon',
       props: {
         iconId: icon.id,
-        iconPath: icon.path,
+        iconPath: icon.id,
         width: 24,
         height: 24,
         stroke: '#64748B',

@@ -6,7 +6,30 @@
       "Bash(node:*)",
       "Bash(ls \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/\"*.md \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/src/\"*.md)",
       "Bash(ls \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/docs/\"*)",
-      "Bash(ls \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/\"更新* \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/\"CHANGE*)"
+      "Bash(ls \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/\"更新* \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/\"CHANGE*)",
+      "Bash(npm run *)",
+      "WebFetch(domain:platform.minimaxi.com)",
+      "WebSearch",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(rm -rf node_modules/.vite)",
+      "WebFetch(domain:claude.ai)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh repo *)",
+      "Bash(curl -s https://raw.githubusercontent.com/nextlevelbuilder/ui-ux-pro-max-skill/main/README.md)",
+      "Bash(npm list *)",
+      "Bash(uipro init *)",
+      "Bash(cp \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/.claude/skills/ui-ux-pro-max/data/styles.csv\" \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/.claude/skills/mimo-prototyper/data/styles.csv\")",
+      "Bash(cp \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/.claude/skills/ui-ux-pro-max/data/colors.csv\" \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/.claude/skills/mimo-prototyper/data/colors.csv\")",
+      "Bash(cp \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/.claude/skills/ui-ux-pro-max/data/ux-guidelines.csv\" \"C:/Users/zmh/Desktop/TraeProject/mimo/prototyper/.claude/skills/mimo-prototyper/data/ux-guidelines.csv\")",
+      "Bash(python3 \".claude/skills/mimo-prototyper/scripts/search.py\" \"button card layout\" --domain component)",
+      "Bash(python \".claude/skills/mimo-prototyper/scripts/search.py\" \"card\" --domain component)",
+      "Bash(python search.py \"card\" --domain component)",
+      "Bash(python -c \"import core; print\\(core\\)\")",
+      "Bash(python -c \"import sys; print\\(sys.path\\); import os; print\\(os.getcwd\\(\\)\\)\")",
+      "Bash(python search.py \"rectangle\" --domain component)",
+      "Bash(python -c ' *)",
+      "Bash(python search.py \"dashboard analytics\" --design-system)"
     ]
   }
 }

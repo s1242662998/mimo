@@ -51,6 +51,9 @@ function convertType(jsonType) {
     progress: 'rect',
     divider: 'rect',
     avatar: 'rect',
+    line: 'line',
+    arrow: 'arrow',
+    icon: 'icon',
   };
   return typeMap[jsonType] || 'rect';
 }
@@ -66,6 +69,20 @@ function convertToShapes(data) {
 
   const timestamp = Date.now();
 
+  // 辅助函数：从 el 或 el.props 中获取值
+  const getVal = (el, key, defaultVal) => {
+    if (el[key] !== undefined) return el[key];
+    if (el.props && el.props[key] !== undefined) return el.props[key];
+    return defaultVal;
+  };
+
+  // 辅助函数：安全转数字
+  const getNum = (el, key, defaultVal) => {
+    const val = getVal(el, key, defaultVal);
+    const num = Number(val);
+    return isNaN(num) ? defaultVal : num;
+  };
+
   return data.elements.map((el, index) => {
     if (!el.type || el.x === undefined || el.y === undefined) {
       throw new Error(`第 ${index + 1} 个元素缺少必需字段 (type, x, y)`);
@@ -75,169 +92,206 @@ function convertToShapes(data) {
       id: el.id || `${el.type}-${timestamp}-${index}`,
       type: convertType(el.type),
       componentType: el.type,
-      x: Number(el.x) || 0,
-      y: Number(el.y) || 0,
+      x: getNum(el, 'x', 0),
+      y: getNum(el, 'y', 0),
+      zIndex: getNum(el, 'zIndex', 0),
       props: {},
     };
 
     switch (el.type) {
       case 'text':
         shape.props = {
-          text: el.text || '文本',
-          fontSize: Number(el.fontSize) || 16,
-          fontFamily: 'Inter',
-          fill: el.fill || '#0F172A',
-          width: Number(el.width) || 150,
-        };
-        break;
-
-      case 'button':
-        shape.props = {
-          width: Number(el.width) || 100,
-          height: Number(el.height) || 36,
-          fill: el.fill || '#0891B2',
-          cornerRadius: Number(el.cornerRadius) || 8,
+          text: getVal(el, 'text', '文本'),
+          fontSize: getNum(el, 'fontSize', 16),
+          fontFamily: getVal(el, 'fontFamily', 'Inter'),
+          fontWeight: getVal(el, 'fontWeight', '400'),
+          fontStyle: getVal(el, 'fontStyle', 'normal'),
+          textDecoration: getVal(el, 'textDecoration', 'none'),
+          align: getVal(el, 'align', 'left'),
+          lineHeight: getNum(el, 'lineHeight', 1.5),
+          fill: getVal(el, 'fill', '#0F172A'),
+          width: getNum(el, 'width', 150),
         };
         break;
 
       case 'input':
         shape.props = {
-          width: Number(el.width) || 200,
-          height: Number(el.height) || 40,
-          fill: el.fill || '#FFFFFF',
-          stroke: el.stroke || '#E2E8F0',
+          width: getNum(el, 'width', 200),
+          height: getNum(el, 'height', 40),
+          fill: getVal(el, 'fill', '#FFFFFF'),
+          stroke: getVal(el, 'stroke', '#E2E8F0'),
           strokeWidth: 1,
-          cornerRadius: Number(el.cornerRadius) || 8,
+          cornerRadius: getNum(el, 'cornerRadius', 8),
         };
         break;
 
       case 'rectangle':
         shape.props = {
-          width: Number(el.width) || 100,
-          height: Number(el.height) || 100,
-          fill: el.fill || '#F1F5F9',
-          stroke: el.stroke,
-          strokeWidth: el.stroke ? 1 : 0,
-          cornerRadius: Number(el.cornerRadius) || 0,
+          text: getVal(el, 'text', ''),
+          fontSize: getNum(el, 'fontSize', 14),
+          fontFamily: getVal(el, 'fontFamily', 'Inter'),
+          textColor: getVal(el, 'textColor', '#0F172A'),
+          width: getNum(el, 'width', 100),
+          height: getNum(el, 'height', 100),
+          fill: getVal(el, 'fill', '#F1F5F9'),
+          stroke: getVal(el, 'stroke', ''),
+          strokeWidth: getVal(el, 'stroke', '') ? getNum(el, 'strokeWidth', 1) : 0,
+          cornerRadius: getNum(el, 'cornerRadius', 0),
+          opacity: getNum(el, 'opacity', 1),
         };
         break;
 
       case 'circle':
         shape.props = {
-          radius: Number(el.radius) || 40,
-          fill: el.fill || '#F1F5F9',
-          stroke: el.stroke,
-          strokeWidth: el.stroke ? 1 : 0,
+          text: getVal(el, 'text', ''),
+          fontSize: getNum(el, 'fontSize', 14),
+          fontFamily: getVal(el, 'fontFamily', 'Inter'),
+          textColor: getVal(el, 'textColor', '#0F172A'),
+          radius: getNum(el, 'radius', 40),
+          fill: getVal(el, 'fill', '#F1F5F9'),
+          stroke: getVal(el, 'stroke', ''),
+          strokeWidth: getVal(el, 'stroke', '') ? getNum(el, 'strokeWidth', 1) : 0,
+          opacity: getNum(el, 'opacity', 1),
         };
         break;
 
       case 'image':
         shape.props = {
-          width: Number(el.width) || 120,
-          height: Number(el.height) || 80,
-          fill: el.fill || '#F1F5F9',
-          stroke: el.stroke || '#E2E8F0',
+          width: getNum(el, 'width', 120),
+          height: getNum(el, 'height', 80),
+          fill: getVal(el, 'fill', '#F1F5F9'),
+          stroke: getVal(el, 'stroke', '#E2E8F0'),
           strokeWidth: 1,
-          cornerRadius: Number(el.cornerRadius) || 8,
+          cornerRadius: getNum(el, 'cornerRadius', 8),
         };
         break;
 
       case 'switch':
         shape.props = {
-          width: Number(el.width) || 44,
-          height: Number(el.height) || 24,
-          fill: el.fill || '#22C55E',
-          fillOff: el.fillOff || '#E2E8F0',
-          knobColor: el.knobColor || '#FFFFFF',
-          cornerRadius: Number(el.cornerRadius) || 12,
+          width: getNum(el, 'width', 44),
+          height: getNum(el, 'height', 24),
+          fill: getVal(el, 'fill', '#22C55E'),
+          fillOff: getVal(el, 'fillOff', '#E2E8F0'),
+          knobColor: getVal(el, 'knobColor', '#FFFFFF'),
+          cornerRadius: getNum(el, 'cornerRadius', 12),
           checked: el.checked !== false,
         };
         break;
 
       case 'checkbox':
         shape.props = {
-          width: Number(el.width) || 20,
-          height: Number(el.height) || 20,
-          fill: el.fill || '#FFFFFF',
-          stroke: el.stroke || '#CBD5E1',
-          strokeWidth: Number(el.strokeWidth) || 2,
-          cornerRadius: Number(el.cornerRadius) || 4,
+          width: getNum(el, 'width', 20),
+          height: getNum(el, 'height', 20),
+          fill: getVal(el, 'fill', '#FFFFFF'),
+          stroke: getVal(el, 'stroke', '#CBD5E1'),
+          strokeWidth: getNum(el, 'strokeWidth', 2),
+          cornerRadius: getNum(el, 'cornerRadius', 4),
           checked: el.checked === true || el.checked === 'true',
-          checkColor: el.checkColor || '#0891B2',
+          checkColor: getVal(el, 'checkColor', '#0891B2'),
         };
         break;
 
       case 'radio':
         shape.props = {
-          radius: Number(el.radius) || 10,
-          fill: el.fill || '#FFFFFF',
-          stroke: el.stroke || '#CBD5E1',
-          strokeWidth: Number(el.strokeWidth) || 2,
+          radius: getNum(el, 'radius', 10),
+          fill: getVal(el, 'fill', '#FFFFFF'),
+          stroke: getVal(el, 'stroke', '#CBD5E1'),
+          strokeWidth: getNum(el, 'strokeWidth', 2),
           checked: el.checked === true || el.checked === 'true',
-          checkColor: el.checkColor || '#0891B2',
+          checkColor: getVal(el, 'checkColor', '#0891B2'),
         };
         break;
 
       case 'badge':
         shape.props = {
-          width: Number(el.width) || 20,
-          height: Number(el.height) || 20,
-          fill: el.fill || '#EF4444',
-          cornerRadius: Number(el.cornerRadius) || 10,
-          text: el.text || '5',
-          fontSize: Number(el.fontSize) || 11,
-          textColor: el.textColor || '#FFFFFF',
+          width: getNum(el, 'width', 20),
+          height: getNum(el, 'height', 20),
+          fill: getVal(el, 'fill', '#EF4444'),
+          cornerRadius: getNum(el, 'cornerRadius', 10),
+          text: getVal(el, 'text', '5'),
+          fontSize: getNum(el, 'fontSize', 11),
+          textColor: getVal(el, 'textColor', '#FFFFFF'),
         };
         break;
 
       case 'slider':
         shape.props = {
-          width: Number(el.width) || 200,
-          height: Number(el.height) || 20,
-          fill: el.fill || '#E2E8F0',
-          barFill: el.barFill || '#0891B2',
-          knobColor: el.knobColor || '#FFFFFF',
-          cornerRadius: Number(el.cornerRadius) || 4,
-          value: Number(el.value) || 50,
+          width: getNum(el, 'width', 200),
+          height: getNum(el, 'height', 20),
+          fill: getVal(el, 'fill', '#E2E8F0'),
+          barFill: getVal(el, 'barFill', '#0891B2'),
+          knobColor: getVal(el, 'knobColor', '#FFFFFF'),
+          cornerRadius: getNum(el, 'cornerRadius', 4),
+          value: getNum(el, 'value', 50),
         };
         break;
 
       case 'progress':
         shape.props = {
-          width: Number(el.width) || 200,
-          height: Number(el.height) || 8,
-          fill: el.fill || '#E2E8F0',
-          barFill: el.barFill || '#0891B2',
-          cornerRadius: Number(el.cornerRadius) || 4,
-          value: Number(el.value) || 60,
+          width: getNum(el, 'width', 200),
+          height: getNum(el, 'height', 8),
+          fill: getVal(el, 'fill', '#E2E8F0'),
+          barFill: getVal(el, 'barFill', '#0891B2'),
+          cornerRadius: getNum(el, 'cornerRadius', 4),
+          value: getNum(el, 'value', 60),
         };
         break;
 
       case 'divider':
         shape.props = {
-          width: Number(el.width) || 200,
-          height: Number(el.height) || 1,
-          fill: el.fill || '#E2E8F0',
+          width: getNum(el, 'width', 200),
+          height: getNum(el, 'height', 1),
+          fill: getVal(el, 'fill', '#E2E8F0'),
         };
         break;
 
       case 'avatar':
         shape.props = {
-          width: Number(el.width) || 40,
-          height: Number(el.height) || 40,
-          fill: el.fill || '#DBEAFE',
-          cornerRadius: Number(el.cornerRadius) || 20,
-          text: el.text || 'A',
-          fontSize: Number(el.fontSize) || 16,
-          textColor: el.textColor || '#1E40AF',
+          width: getNum(el, 'width', 40),
+          height: getNum(el, 'height', 40),
+          fill: getVal(el, 'fill', '#DBEAFE'),
+          cornerRadius: getNum(el, 'cornerRadius', 20),
+          text: getVal(el, 'text', 'A'),
+          fontSize: getNum(el, 'fontSize', 16),
+          textColor: getVal(el, 'textColor', '#1E40AF'),
+          opacity: getNum(el, 'opacity', 1),
+        };
+        break;
+
+      case 'line':
+        shape.props = {
+          stroke: getVal(el, 'stroke', '#000000'),
+          strokeWidth: getNum(el, 'strokeWidth', 1),
+          opacity: getNum(el, 'opacity', 1),
+        };
+        break;
+
+      case 'arrow':
+        shape.props = {
+          stroke: getVal(el, 'stroke', '#000000'),
+          strokeWidth: getNum(el, 'strokeWidth', 1),
+          opacity: getNum(el, 'opacity', 1),
+        };
+        break;
+
+      case 'icon':
+        shape.props = {
+          width: getNum(el, 'width', 24),
+          height: getNum(el, 'height', 24),
+          stroke: getVal(el, 'stroke', '#000000'),
+          strokeWidth: getNum(el, 'strokeWidth', 2),
+          fill: getVal(el, 'fill', '#FFFFFF'),
+          iconId: getVal(el, 'iconId', 'arrow-right'),
+          iconPath: getVal(el, 'iconPath', ''),
+          opacity: getNum(el, 'opacity', 1),
         };
         break;
 
       default:
         shape.props = {
-          width: Number(el.width) || 100,
-          height: Number(el.height) || 100,
-          fill: el.fill || '#E2E8F0',
+          width: getNum(el, 'width', 100),
+          height: getNum(el, 'height', 100),
+          fill: getVal(el, 'fill', '#E2E8F0'),
         };
     }
 

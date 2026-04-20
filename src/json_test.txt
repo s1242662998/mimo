@@ -1,0 +1,692 @@
+{
+  "type": "replace_all",
+  "elements": [
+    {
+      "id": "bg-1",
+      "type": "rectangle",
+      "x": 0,
+      "y": 0,
+      "width": 1200,
+      "height": 800,
+      "zIndex": 0,
+      "props": {
+        "fill": "#FFFFFF",
+        "stroke": "none",
+        "strokeWidth": 0
+      }
+    },
+    {
+      "id": "title-1",
+      "type": "text",
+      "x": 500,
+      "y": 50,
+      "width": 200,
+      "height": 40,
+      "zIndex": 1,
+      "props": {
+        "text": "Windows 设置",
+        "fontSize": 32,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "search-box-1",
+      "type": "rectangle",
+      "x": 400,
+      "y": 110,
+      "width": 400,
+      "height": 40,
+      "zIndex": 1,
+      "props": {
+        "fill": "#FFFFFF",
+        "stroke": "#CCCCCC",
+        "strokeWidth": 1,
+        "cornerRadius": 4
+      }
+    },
+    {
+      "id": "search-placeholder-1",
+      "type": "text",
+      "x": 420,
+      "y": 120,
+      "width": 160,
+      "height": 20,
+      "zIndex": 2,
+      "props": {
+        "text": "查找设置",
+        "fontSize": 14,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#999999"
+      }
+    },
+    {
+      "id": "search-icon-1",
+      "type": "icon",
+      "x": 770,
+      "y": 120,
+      "width": 20,
+      "height": 20,
+      "zIndex": 2,
+      "props": {
+        "iconPath": "search",
+        "stroke": "#999999",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "icon-system",
+      "type": "icon",
+      "x": 60,
+      "y": 200,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "monitor",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-system",
+      "type": "text",
+      "x": 100,
+      "y": 200,
+      "width": 60,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "系统",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-system",
+      "type": "text",
+      "x": 100,
+      "y": 224,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "显示、声音、通知、电源",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-device",
+      "type": "icon",
+      "x": 300,
+      "y": 200,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "smartphone",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-device",
+      "type": "text",
+      "x": 340,
+      "y": 200,
+      "width": 60,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "设备",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-device",
+      "type": "text",
+      "x": 340,
+      "y": 224,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "蓝牙、打印机、鼠标",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-mobile",
+      "type": "icon",
+      "x": 540,
+      "y": 200,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "smartphone",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-mobile",
+      "type": "text",
+      "x": 580,
+      "y": 200,
+      "width": 120,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "移动设备",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-mobile",
+      "type": "text",
+      "x": 580,
+      "y": 224,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "连接 Android 设备和 iPhone",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-network",
+      "type": "icon",
+      "x": 780,
+      "y": 200,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "globe",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-network",
+      "type": "text",
+      "x": 820,
+      "y": 200,
+      "width": 180,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "网络和 Internet",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-network",
+      "type": "text",
+      "x": 820,
+      "y": 224,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "WLAN、飞行模式、VPN",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-personalization",
+      "type": "icon",
+      "x": 60,
+      "y": 300,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "edit",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-personalization",
+      "type": "text",
+      "x": 100,
+      "y": 300,
+      "width": 120,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "个性化",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-personalization",
+      "type": "text",
+      "x": 100,
+      "y": 324,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "背景、锁屏、颜色",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-apps",
+      "type": "icon",
+      "x": 300,
+      "y": 300,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "list",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-apps",
+      "type": "text",
+      "x": 340,
+      "y": 300,
+      "width": 60,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "应用",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-apps",
+      "type": "text",
+      "x": 340,
+      "y": 324,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "卸载、默认值",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-account",
+      "type": "icon",
+      "x": 540,
+      "y": 300,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "user",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-account",
+      "type": "text",
+      "x": 580,
+      "y": 300,
+      "width": 60,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "帐户",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-account",
+      "type": "text",
+      "x": 580,
+      "y": 324,
+      "width": 180,
+      "height": 40,
+      "zIndex": 1,
+      "props": {
+        "text": "你的帐户、电子邮件、同步设置、工作、家庭",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-time",
+      "type": "icon",
+      "x": 780,
+      "y": 300,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "clock",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-time",
+      "type": "text",
+      "x": 820,
+      "y": 300,
+      "width": 150,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "时间和语言",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-time",
+      "type": "text",
+      "x": 820,
+      "y": 324,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "语音、区域、日期",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-gaming",
+      "type": "icon",
+      "x": 60,
+      "y": 400,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "gamepad",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-gaming",
+      "type": "text",
+      "x": 100,
+      "y": 400,
+      "width": 60,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "游戏",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-gaming",
+      "type": "text",
+      "x": 100,
+      "y": 424,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "Game Bar、捕获、游戏模式",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-ease",
+      "type": "icon",
+      "x": 300,
+      "y": 400,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "eye",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-ease",
+      "type": "text",
+      "x": 340,
+      "y": 400,
+      "width": 120,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "轻松使用",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-ease",
+      "type": "text",
+      "x": 340,
+      "y": 424,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "讲述人、放大镜、高对比度",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-search",
+      "type": "icon",
+      "x": 540,
+      "y": 400,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "search",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-search",
+      "type": "text",
+      "x": 580,
+      "y": 400,
+      "width": 60,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "搜索",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-search",
+      "type": "text",
+      "x": 580,
+      "y": 424,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "查找我的文件、权限",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-privacy",
+      "type": "icon",
+      "x": 780,
+      "y": 400,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "lock",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-privacy",
+      "type": "text",
+      "x": 820,
+      "y": 400,
+      "width": 60,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "隐私",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-privacy",
+      "type": "text",
+      "x": 820,
+      "y": 424,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "位置、摄像头、麦克风",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    },
+    {
+      "id": "icon-update",
+      "type": "icon",
+      "x": 60,
+      "y": 500,
+      "width": 32,
+      "height": 32,
+      "zIndex": 1,
+      "props": {
+        "iconPath": "refresh-cw",
+        "stroke": "#0078D4",
+        "strokeWidth": 2,
+        "fill": "none"
+      }
+    },
+    {
+      "id": "title-update",
+      "type": "text",
+      "x": 100,
+      "y": 500,
+      "width": 150,
+      "height": 24,
+      "zIndex": 1,
+      "props": {
+        "text": "更新和安全",
+        "fontSize": 18,
+        "fontFamily": "system-ui",
+        "fontWeight": 600,
+        "fill": "#333333"
+      }
+    },
+    {
+      "id": "desc-update",
+      "type": "text",
+      "x": 100,
+      "y": 524,
+      "width": 180,
+      "height": 20,
+      "zIndex": 1,
+      "props": {
+        "text": "Windows 更新、恢复、备份",
+        "fontSize": 12,
+        "fontFamily": "system-ui",
+        "fontWeight": 400,
+        "fill": "#666666"
+      }
+    }
+  ]
+}

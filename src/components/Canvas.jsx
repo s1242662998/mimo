@@ -1,6 +1,24 @@
 import { Stage, Layer, Rect, Circle, Ellipse, Line, Arrow, Text, Path, Transformer, Group, Image as KonvaImage } from 'react-konva';
 import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import './Canvas.css';
+import { iconLibrary } from '../data/icons';
+
+// 图标ID到SVG路径的映射
+const iconPathMap = {};
+iconLibrary.forEach(icon => {
+  iconPathMap[icon.id] = icon.path;
+});
+
+// 根据图标ID或直接路径获取SVG路径
+const getIconPath = (iconPath) => {
+  if (!iconPath) return '';
+  // 如果是直接的SVG路径（包含M、L、Z等命令），直接返回
+  if (/[MLHVCSQTAZ]/i.test(iconPath)) {
+    return iconPath;
+  }
+  // 否则当作图标ID查找
+  return iconPathMap[iconPath] || '';
+};
 
 const HANDLE_SIZE = 8;
 const ROTATE_HANDLE_OFFSET = 20;
@@ -715,7 +733,9 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
   const shouldHideInPreview = isPreviewMode && shape.visibleIf && !isVisibleByCondition;
   const isHiddenByCondition = !isPreviewMode && shape.visibleIf && !isVisibleByCondition;
 
-  const activeProps = { ...(isHovered && shape.hoverProps ? { ...shape.props, ...shape.hoverProps } : shape.props) };
+  // 只有在预览模式下且存在 onHover 交互时才应用 hoverProps
+  const hasHoverInteraction = shape.interactions?.some(ix => ix.trigger === 'onHover');
+  const activeProps = { ...(isPreviewMode && isHovered && hasHoverInteraction && shape.hoverProps ? { ...shape.props, ...shape.hoverProps } : shape.props) };
   if (isHiddenByCondition) {
     activeProps.opacity = (activeProps.opacity || 1) * 0.3; // 编辑模式下条件不满足时半透明显示
   }
@@ -1812,7 +1832,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
       case 'icon': {
         const iconWidth = activeProps.width || 24;
         const iconHeight = activeProps.height || 24;
-        const iconPath = activeProps.iconPath || '';
+        const iconPath = iconPathMap[activeProps.iconPath] || '';
         const iconStroke = activeProps.stroke || '#64748B';
         const iconStrokeWidth = activeProps.strokeWidth || 2;
         const iconFill = activeProps.fill || '#FFFFFF';

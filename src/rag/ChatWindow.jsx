@@ -1,13 +1,110 @@
 import { useState, useEffect } from 'react';
 import { IconMap, TypeNameMap, Icons } from '../components/ComponentPanel';
-import { buildSystemPrompt } from '../utils/buildSystemPrompt';
+import { buildContextualSystemPrompt } from '../utils/buildSystemPromptFromSkill';
 import './ChatWindow.css';
 
 const DEFAULT_PROVIDERS = [
-  { id: 'mimo-v2-pro', name: 'Xiaomi MiMo (mimo-v2-pro)', baseUrl: 'https://api.xiaomimimo.com/v1', isDefault: true },
-  { id: 'mimo-v2-omni', name: 'Xiaomi MiMo Omni (多模态)', baseUrl: 'https://api.xiaomimimo.com/v1', isDefault: true },
-  { id: 'openai-gpt-4', name: 'OpenAI (GPT-4)', baseUrl: 'https://api.openai.com/v1', isDefault: true }
+  { id: 'mimo-v2-pro', name: 'Xiaomi MiMo (mimo-v2-pro)', baseUrl: 'https://api.xiaomimimo.com/v1', apiFormat: 'openai', isDefault: true },
+  { id: 'mimo-v2-omni', name: 'Xiaomi MiMo Omni (多模态)', baseUrl: 'https://api.xiaomimimo.com/v1', apiFormat: 'openai', isDefault: true },
+  { id: 'openai-gpt-4', name: 'OpenAI (GPT-4)', baseUrl: 'https://api.openai.com/v1', apiFormat: 'openai', isDefault: true },
+  { id: 'anthropic-claude', name: 'Anthropic Claude', baseUrl: 'https://api.anthropic.com/v1', apiFormat: 'anthropic', isDefault: true }
 ];
+
+/**
+ * 尝试修复被截断的 JSON 字符串
+ */
+function tryFixJson(str) {
+  if (!str) return null;
+  try {
+    return JSON.parse(str); // 先尝试直接解析
+  } catch (e) {
+    // 解析失败，尝试修复
+    let fixed = str;
+
+    // 方法1：尝试修复 batchUpdates 数组（用于更新现有元素）
+    const batchMatch = fixed.match(/"batchUpdates"\s*:\s*\[([\s\S]*)$/);
+    if (batchMatch) {
+      const afterBatch = batchMatch[1];
+      let braceCount = 0;
+      let lastValidEnd = -1;
+
+      for (let i = 0; i < afterBatch.length; i++) {
+        if (afterBatch[i] === '{') braceCount++;
+        else if (afterBatch[i] === '}') {
+          braceCount--;
+          if (braceCount === 0) {
+            lastValidEnd = i + 1;
+          }
+        }
+      }
+
+      if (lastValidEnd > 0) {
+        const validBatch = afterBatch.substring(0, lastValidEnd);
+        fixed = fixed.substring(0, fixed.indexOf('"batchUpdates"') + '"batchUpdates"'.length) + '[' + validBatch + ']]';
+      }
+    }
+
+    // 方法2：尝试修复 elements 数组（全替换时）
+    const elementsMatch = fixed.match(/"elements"\s*:\s*\[([\s\S]*)$/);
+    if (elementsMatch) {
+      const afterElements = elementsMatch[1];
+      let braceCount = 0;
+      let lastValidEnd = -1;
+
+      for (let i = 0; i < afterElements.length; i++) {
+        if (afterElements[i] === '{') braceCount++;
+        else if (afterElements[i] === '}') {
+          braceCount--;
+          if (braceCount === 0) {
+            lastValidEnd = i + 1;
+          }
+        }
+      }
+
+      if (lastValidEnd > 0) {
+        const validElements = afterElements.substring(0, lastValidEnd);
+        fixed = fixed.substring(0, fixed.indexOf('"elements"') + '"elements"'.length) + '[' + validElements + ']]';
+      }
+    }
+
+    // 方法3：补全缺失的括号
+    let openBraces = (fixed.match(/{/g) || []).length;
+    let closeBraces = (fixed.match(/}/g) || []).length;
+    let openBrackets = (fixed.match(/\[/g) || []).length;
+    let closeBrackets = (fixed.match(/\]/g) || []).length;
+
+    while (closeBraces > openBraces) {
+      fixed = '{' + fixed;
+      openBraces++;
+    }
+    while (closeBrackets > openBrackets) {
+      fixed = '[' + fixed;
+      openBrackets++;
+    }
+    if (openBraces > closeBraces) {
+      fixed = fixed + '}'.repeat(openBraces - closeBraces);
+    }
+    if (openBrackets > closeBrackets) {
+      fixed = fixed + ']'.repeat(openBrackets - closeBrackets);
+    }
+
+    try {
+      return JSON.parse(fixed);
+    } catch (e2) {
+      // 还是失败，尝试更激进的修复
+      try {
+        const lastBrace = fixed.lastIndexOf('}');
+        const lastBracket = fixed.lastIndexOf(']');
+        if (lastBrace > lastBracket) {
+          fixed = fixed + ']';
+        }
+        return JSON.parse(fixed);
+      } catch (e3) {
+        return null;
+      }
+    }
+  }
+}
 
 export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatContextShapes = [], setChatContextShapes }) {
   const [messages, setMessages] = useState(() => {
@@ -37,6 +134,7 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
   const [newModelName, setNewModelName] = useState('');
   const [newModelId, setNewModelId] = useState('');
   const [newModelBaseUrl, setNewModelBaseUrl] = useState('');
+  const [newModelApiFormat, setNewModelApiFormat] = useState('openai');
   const [isLoading, setIsLoading] = useState(false);
   
   // 图片上传相关状态
@@ -106,12 +204,17 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
       alert('请填写完整的模型信息');
       return;
     }
-    
-    // 确保 baseUrl 包含 /v1 (这只是一个简单的提示，并不强制修改)
-    if (!url.includes('/v1')) {
+
+    // Anthropic 格式不需要 /v1 后缀
+    if (newModelApiFormat === 'openai' && !url.includes('/v1')) {
       if(!window.confirm('你输入的 Base URL 似乎不包含 /v1。对于大多数 OpenAI 兼容接口，URL 应该以 /v1 结尾。是否继续？')) {
         return;
       }
+    }
+
+    // Anthropic 默认 URL
+    if (newModelApiFormat === 'anthropic' && url === 'https://api.anthropic.com/v1') {
+      // 用户没改默认 URL，这是正常的
     }
 
     // 生成一个内部唯一标识符，以支持同名 ID
@@ -122,9 +225,10 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
       originalId: id, // 保存用户输入的真实 ID，用于后续 API 请求
       name: name,
       baseUrl: url,
+      apiFormat: newModelApiFormat,
       isDefault: false
     };
-    
+
     setProviders(prevProviders => {
       const updatedProviders = [...prevProviders, newProvider];
       // 保存自定义提供商（排除默认的）
@@ -132,15 +236,15 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
       localStorage.setItem('rag_custom_providers', JSON.stringify(customProviders));
       return updatedProviders;
     });
-    
+
     setSelectedProviderId(internalId);
     // 自动保存选中状态
     localStorage.setItem('rag_selected_provider', internalId);
-    
+
     setNewModelName('');
     setNewModelId('');
     setNewModelBaseUrl('');
-    
+
     alert(`模型 ${name} 添加成功并已自动保存！\n请在上方配置该模型的 API Key。`);
   };
 
@@ -245,13 +349,6 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
     const currentProvider = providers.find(p => p.id === selectedProviderId);
     const apiKey = apiKeys[selectedProviderId];
 
-    // 非多模态模型提示
-    if ((selectedImage || selectedVideo) && selectedProviderId !== 'mimo-v2-omni') {
-      alert('图片和视频功能需要使用多模态模型 (MiMo Omni)，请在设置中切换模型');
-      setShowSettings(true);
-      return;
-    }
-
     if (!apiKey) {
       alert(`请先在设置中配置 ${currentProvider?.name} 的 API Key`);
       setShowSettings(true);
@@ -282,43 +379,105 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
       })) || [];
       const canvasContext = `当前画布上的元素列表：${JSON.stringify(simplifiedShapes)}`;
 
-      // 组装发给 OpenAI 格式 API 的消息历史
+      // 获取 API 格式
+      const apiFormat = currentProvider.apiFormat || 'openai';
+
+      // 组装发给 API 的消息历史
       const apiMessages = newMessagesList.map(msg => {
-        // 视频消息：直接发送 video_url
-        if (msg.video && msg.video.dataUrl && selectedProviderId === 'mimo-v2-omni') {
-          const content = [];
-          content.push({
-            type: 'video_url',
-            video_url: {
-              url: msg.video.dataUrl
-            }
-          });
-          content.push({
-            type: 'text',
-            text: msg.content || '请分析这段视频内容并根据视频中的 UI 设计生成原型'
-          });
-          return { role: msg.role, content };
+        // 视频消息
+        if (msg.video && msg.video.dataUrl) {
+          if (apiFormat === 'anthropic') {
+            // Anthropic 格式：区分 base64 和 URL
+            const isBase64 = msg.video.dataUrl.startsWith('data:');
+            return {
+              role: msg.role,
+              content: [
+                {
+                  type: 'video',
+                  source: isBase64 ? {
+                    type: 'base64',
+                    media_type: 'video/mp4',
+                    data: msg.video.dataUrl.split(',')[1] || msg.video.dataUrl
+                  } : {
+                    type: 'url',
+                    url: msg.video.dataUrl
+                  }
+                },
+                {
+                  type: 'text',
+                  text: msg.content || '请分析这段视频内容'
+                }
+              ]
+            };
+          } else {
+            // OpenAI 格式
+            const content = [];
+            content.push({
+              type: 'video_url',
+              video_url: {
+                url: msg.video.dataUrl
+              }
+            });
+            content.push({
+              type: 'text',
+              text: msg.content || '请分析这段视频内容并根据视频中的 UI 设计生成原型'
+            });
+            return { role: msg.role, content };
+          }
         }
 
-        if (msg.image && selectedProviderId === 'mimo-v2-omni') {
-          // 多模态消息格式
-          return {
-            role: msg.role,
-            content: [
-              {
-                type: 'image_url',
-                image_url: {
-                  url: msg.image
+        // 图片消息
+        if (msg.image) {
+          if (apiFormat === 'anthropic') {
+            // Anthropic 格式：区分 base64 和 URL
+            const isBase64 = msg.image.startsWith('data:');
+            return {
+              role: msg.role,
+              content: [
+                {
+                  type: 'image',
+                  source: isBase64 ? {
+                    type: 'base64',
+                    media_type: 'image/jpeg',
+                    data: msg.image.split(',')[1] || msg.image
+                  } : {
+                    type: 'url',
+                    url: msg.image
+                  }
+                },
+                {
+                  type: 'text',
+                  text: msg.content || '请描述这张图片'
                 }
-              },
-              {
-                type: 'text',
-                text: msg.content || '请描述这张图片'
-              }
-            ]
-          };
+              ]
+            };
+          } else {
+            // OpenAI 格式：确保图片是 proper format
+            const isBase64 = msg.image.startsWith('data:');
+            let imageUrl = msg.image;
+            // 如果是 data URL，提取纯 base64 部分（有些 API 不支持完整 data URL）
+            if (isBase64) {
+              const base64Data = msg.image.split(',')[1] || msg.image;
+              imageUrl = `data:image/jpeg;base64,${base64Data}`;
+            }
+            return {
+              role: msg.role,
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: imageUrl
+                  }
+                },
+                {
+                  type: 'text',
+                  text: msg.content || '请描述这张图片'
+                }
+              ]
+            };
+          }
         }
-        
+
         // 普通文本消息格式
         return {
           role: msg.role,
@@ -350,97 +509,190 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
         setChatContextShapes?.([]);
       }
 
-      // 如果是 MiMo，加上推荐的 system prompt
-      if (selectedProviderId.startsWith('mimo')) {
-        const today = new Date();
-        const dateStr = today.toISOString().split('T')[0];
-        const weekStr = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][today.getDay()];
+      // 为所有模型添加系统提示词（基于 skill 的提示词）
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+      const weekStr = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][today.getDay()];
+      const userQuery = input || '';
+      const systemPrompt = buildContextualSystemPrompt(dateStr, weekStr, userQuery, {
+        canvasShapes,
+        chatContextShapes
+      });
 
-        const systemPrompt = buildSystemPrompt(dateStr, weekStr);
+      apiMessages.unshift({
+        role: 'system',
+        content: systemPrompt
+      });
 
-        apiMessages.unshift({
-          role: 'system',
-          content: systemPrompt
-        });
-      }
-
-      // 注意 MiMo API 要求的 header 是 api-key，而标准 OpenAI 是 Authorization: Bearer
+      // 构建请求配置
       const isMimo = currentProvider.id.startsWith('mimo') || currentProvider.originalId?.startsWith('mimo');
-      const headers = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (isMimo) {
-        headers['api-key'] = apiKey;
-      } else {
-        headers['Authorization'] = `Bearer ${apiKey}`;
-      }
-
-      // 这里必须使用真实提供商的 originalId 或 id 来发起请求
       const actualModelId = currentProvider.originalId || currentProvider.id;
 
-      const requestBody = {
-        model: actualModelId,
-        messages: apiMessages,
-        max_completion_tokens: 8192,
-        temperature: 0.7,
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "modify_canvas_shapes",
-              description: "修改或重新布局画布上的组件，或根据截图生成全新画布。当用户要求修改元素，或者上传截图要求生成UI时调用此工具。",
-              parameters: {
-                type: "object",
-                properties: {
-                  type: {
-                    type: "string",
-                    enum: ["update", "delete", "add", "batch_update", "replace_all"],
-                    description: "操作类型。修改用 update/batch_update，从截图生成新画布必须使用 replace_all。"
-                  },
-                  targetIds: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "要操作的组件 ID 列表。仅在 update/delete 时需要。"
-                  },
-                  updates: {
-                    type: "object",
-                    description: "仅在 type='update' 时需要。包含要更新的属性（包括 hoverProps 和 interactions）。"
-                  },
-                  batchUpdates: {
-                    type: "array",
-                    items: {
+      let requestConfig = {};
+
+      if (apiFormat === 'anthropic') {
+        // Anthropic API 格式
+        const anthropicMessages = apiMessages.map(msg => {
+          // Anthropic 不支持 system role，直接合并到第一条 user message
+          if (msg.role === 'system') {
+            return null; // 稍后处理
+          }
+          return {
+            role: msg.role === 'assistant' ? 'assistant' : msg.role,
+            content: typeof msg.content === 'string' ? msg.content : msg.content
+          };
+        }).filter(Boolean);
+
+        // 处理 system prompt - Anthropic 使用特殊的 system 字段
+        let systemPrompt = '';
+        const systemMsg = apiMessages.find(m => m.role === 'system');
+        if (systemMsg) {
+          systemPrompt = systemMsg.content;
+        }
+
+        requestConfig = {
+          url: `${currentProvider.baseUrl}`,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+          },
+          body: {
+            model: actualModelId,
+            messages: anthropicMessages,
+            max_tokens: 16384,
+            temperature: 0.7,
+            system: systemPrompt,
+            tools: [
+              {
+                name: "modify_canvas_shapes",
+                description: "修改画布组件。参数: type(replace_all全替换/add添加/update更新/delete删除/batch_update批量), elements(组件数组), targetIds(ID列表), updates(更新属性)",
+                input: {
+                  type: "object",
+                  properties: {
+                    type: {
+                      type: "string",
+                      enum: ["update", "delete", "add", "batch_update", "replace_all"],
+                      description: "操作类型"
+                    },
+                    targetIds: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "组件ID列表"
+                    },
+                    updates: {
                       type: "object",
-                      properties: {
-                        id: { type: "string" },
-                        updates: { type: "object" }
+                      description: "更新的属性对象"
+                    },
+                    batchUpdates: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          updates: { type: "object" }
+                        }
+                      },
+                      description: "批量更新数组"
+                    },
+                    elements: {
+                      type: "array",
+                      items: {
+                        type: "object"
+                      },
+                      description: "组件数组"
+                    },
+                    newShape: {
+                      type: "object",
+                      description: "单个组件对象"
+                    }
+                  },
+                  required: ["type"]
+                }
+              }
+            ],
+            tool_choice: { type: "tool", name: "modify_canvas_shapes" }
+          }
+        };
+      } else {
+        // OpenAI 兼容格式
+        const headers = {
+          'Content-Type': 'application/json',
+        };
+
+        if (isMimo) {
+          headers['api-key'] = apiKey;
+        } else {
+          headers['Authorization'] = `Bearer ${apiKey}`;
+        }
+
+        requestConfig = {
+          url: `${currentProvider.baseUrl}/chat/completions`,
+          headers,
+          body: {
+            model: actualModelId,
+            messages: apiMessages,
+            max_completion_tokens: 32768,
+            temperature: 0.7,
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "modify_canvas_shapes",
+                  description: "修改画布组件。参数: type(replace_all全替换/add添加/update更新/delete删除/batch_update批量), elements(组件数组), targetIds(ID列表), updates(更新属性)",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      type: {
+                        type: "string",
+                        enum: ["update", "delete", "add", "batch_update", "replace_all"],
+                        description: "操作类型"
+                      },
+                      targetIds: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "组件ID列表"
+                      },
+                      updates: {
+                        type: "object",
+                        description: "更新的属性对象"
+                      },
+                      batchUpdates: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            updates: { type: "object" }
+                          }
+                        },
+                        description: "批量更新数组"
+                      },
+                      elements: {
+                        type: "array",
+                        items: {
+                          type: "object"
+                        },
+                        description: "组件数组"
+                      },
+                      newShape: {
+                        type: "object",
+                        description: "单个组件对象"
                       }
                     },
-                    description: "仅在 type='batch_update' 时需要。"
-                  },
-                  elements: {
-                    type: "array",
-                    items: {
-                      type: "object"
-                    },
-                    description: "当 type='replace_all'（生成整个页面）或 type='add'（批量添加多个组件）时需要。"
-                  },
-                  newShape: {
-                    type: "object",
-                    description: "仅在 type='add' 时需要（单元素）。包含要添加的组件对象。"
+                    required: ["type"]
                   }
-                },
-                required: ["type"]
+                }
               }
-            }
+            ]
           }
-        ]
-      };
+        };
+      }
 
-      const response = await fetch(`${currentProvider.baseUrl}/chat/completions`, {
+      const response = await fetch(requestConfig.url, {
         method: 'POST',
-        headers,
-        body: JSON.stringify(requestBody)
+        headers: requestConfig.headers,
+        body: JSON.stringify(requestConfig.body)
       });
 
       if (!response.ok) {
@@ -450,29 +702,64 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
 
       const data = await response.json();
       console.log("API Response:", data);
-      
-      const messageObj = data.choices?.[0]?.message || {};
-      let replyContent = messageObj.content || '';
-      const reasoningContent = messageObj.reasoning_content || '';
+
+      let replyContent = '';
+      let reasoningContent = '';
+      let toolCalls = [];
+
+      if (apiFormat === 'anthropic') {
+        // Anthropic 响应格式解析
+        const content = data.content || [];
+        for (const block of content) {
+          if (block.type === 'text') {
+            replyContent += block.text || '';
+          } else if (block.type === 'tool_use') {
+            toolCalls.push({
+              function: {
+                name: block.name,
+                arguments: JSON.stringify(block.input || {})
+              }
+            });
+          }
+        }
+      } else {
+        // OpenAI 响应格式解析
+        const messageObj = data.choices?.[0]?.message || {};
+        replyContent = messageObj.content || '';
+        reasoningContent = messageObj.reasoning_content || '';
+        toolCalls = messageObj.tool_calls || [];
+      }
       
       // 处理工具调用
-      if (messageObj.tool_calls && messageObj.tool_calls.length > 0) {
-        for (const toolCall of messageObj.tool_calls) {
+      if (toolCalls && toolCalls.length > 0) {
+        for (const toolCall of toolCalls) {
           if (toolCall.function.name === 'modify_canvas_shapes') {
             try {
-              const args = JSON.parse(toolCall.function.arguments);
+              // 尝试解析 JSON，如果失败则尝试修复
+              let args;
+              try {
+                args = JSON.parse(toolCall.function.arguments);
+              } catch (parseErr) {
+                console.warn('JSON 解析失败，尝试修复...', parseErr.message);
+                args = tryFixJson(toolCall.function.arguments);
+                if (!args) {
+                  throw new Error('JSON 格式错误且无法自动修复');
+                }
+                console.log('JSON 修复成功');
+              }
+
               if (onAiAction) {
                 onAiAction(args);
-                
+
                 // 构建详细的执行反馈内容
                 let actionFeedback = `✅ **已执行画布修改操作**\n\n`;
-                
+
                 if (reasoningContent) {
                   actionFeedback += `🤔 **AI 分析过程：**\n${reasoningContent}\n\n`;
                 }
-                
+
                 actionFeedback += `🛠️ **执行的具体指令：**\n\`\`\`json\n${JSON.stringify(args, null, 2)}\n\`\`\``;
-                
+
                 replyContent = actionFeedback;
               }
             } catch (e) {
@@ -710,27 +997,39 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
 
           <hr className="rag-settings-divider" />
 
-          <h4 className="rag-settings-subtitle">添加自定义模型 (OpenAI 兼容)</h4>
+          <h4 className="rag-settings-subtitle">添加自定义模型</h4>
           <div className="rag-settings-group">
-            <input 
-              type="text" 
+            <div className="rag-settings-group">
+              <label style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'block' }}>API 格式</label>
+              <select
+                value={newModelApiFormat}
+                onChange={(e) => setNewModelApiFormat(e.target.value)}
+                className="rag-settings-input"
+                style={{ marginBottom: '8px' }}
+              >
+                <option value="openai">OpenAI 兼容格式</option>
+                <option value="anthropic">Anthropic 格式</option>
+              </select>
+            </div>
+            <input
+              type="text"
               value={newModelName}
               onChange={(e) => setNewModelName(e.target.value)}
-              placeholder="显示名称 (如: DeepSeek)"
+              placeholder="显示名称 (如: Claude)"
               className="rag-settings-input"
             />
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={newModelId}
               onChange={(e) => setNewModelId(e.target.value)}
-              placeholder="模型 ID (如: deepseek-chat)"
+              placeholder={newModelApiFormat === 'anthropic' ? '模型 ID (如: claude-sonnet-4-20250514)' : '模型 ID (如: gpt-4)'}
               className="rag-settings-input"
             />
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={newModelBaseUrl}
               onChange={(e) => setNewModelBaseUrl(e.target.value)}
-              placeholder="Base URL (包含 /v1)"
+              placeholder={newModelApiFormat === 'anthropic' ? 'Base URL (如: https://api.anthropic.com/v1)' : 'Base URL (如: https://api.openai.com/v1)'}
               className="rag-settings-input"
             />
             <button onClick={handleAddCustomModel} className="rag-settings-add-btn">

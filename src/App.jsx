@@ -862,7 +862,13 @@ function App() {
       };
       const elType = typeMap[jsonType] || jsonType || 'rect';
       
-      const props = { ...restProps };
+      // 如果 el.props 存在（AI JSON 结构），需要正确合并到顶层
+      // AI JSON: { type: 'icon', width: 20, height: 20, props: { iconPath: 'search' } }
+      // 正确结构: shape.props = { width: 20, height: 20, iconPath: 'search' }
+      const { props: nestedProps, ...rest } = restProps;
+      const props = nestedProps && typeof nestedProps === 'object'
+        ? { ...nestedProps, ...rest }
+        : rest;
       if (['input', 'button', 'image', 'rectangle', 'checkbox', 'avatar'].includes(jsonType)) {
         if (props.stroke && props.strokeWidth === undefined) {
           props.strokeWidth = 1;
@@ -958,19 +964,28 @@ function App() {
         nextShapes = nextShapes.map(shape => {
           const specificUpdate = batchUpdates.find(u => u.id === shape.id);
           if (specificUpdate && specificUpdate.updates) {
-            let updatedShape = { ...shape };
+            let updatedShape = { ...shape, props: { ...shape.props } };
             const up = specificUpdate.updates;
-            
-            if (up.fill) updatedShape.props.fill = up.fill;
-            if (up.stroke) updatedShape.props.stroke = up.stroke;
-            if (up.text) updatedShape.props.text = up.text;
+
+            // 深度合并 props 对象
+            if (up.props) {
+              updatedShape.props = { ...updatedShape.props, ...up.props };
+            }
+
+            // 处理顶层属性
+            if (up.fill !== undefined) updatedShape.props.fill = up.fill;
+            if (up.stroke !== undefined) updatedShape.props.stroke = up.stroke;
+            if (up.text !== undefined) updatedShape.props.text = up.text;
             if (up.x !== undefined) updatedShape.x = up.x;
             if (up.y !== undefined) updatedShape.y = up.y;
-            
+            if (up.width !== undefined) updatedShape.width = up.width;
+            if (up.height !== undefined) updatedShape.height = up.height;
+            if (up.zIndex !== undefined) updatedShape.zIndex = up.zIndex;
+
             if (up.hoverProps !== undefined) updatedShape.hoverProps = { ...updatedShape.hoverProps, ...up.hoverProps };
             if (up.interactions !== undefined) updatedShape.interactions = up.interactions;
             if (up.visibleIf !== undefined) updatedShape.visibleIf = up.visibleIf;
-            
+
             return updatedShape;
           }
           return shape;

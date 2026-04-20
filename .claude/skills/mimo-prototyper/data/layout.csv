@@ -1,0 +1,16 @@
+pattern,structure,spacing,responsive
+flex-row,水平排列容器,x: 8-24px 间隔,min-width: 768px
+flex-column,垂直排列容器,y: 8-24px 间隔,min-width: 768px
+absolute,绝对定位,x,y 为绝对坐标,width/height 固定
+grid,网格布局,行列间距 8-24px,响应式调整列数
+card-row,卡片水平排列,16-24px 间隔,flex-wrap 换行
+card-grid,卡片网格,16-24px 间隔,3-4列
+sidebar-layout,侧边栏布局,侧边 200-280px,主内容自适应
+header-content,头部+内容,header 高度 48-64px,响应式收缩
+tab-content,标签页+内容,标签高度 40-48px,标签可滚动
+modal-overlay,弹窗遮罩,居中显示,width: 400-600px
+list-item,列表项,height: 48-64px,间隔 1px
+form-layout,表单布局,label 100-120px,input 自适应
+bento-grid,Bento网格布局,8-16px 间隔,自适应网格
+sticky-header,固定头部,header 固定 top:0,滚动时保持
+floating-action,浮动操作按钮,右下角固定,fixed 定位
