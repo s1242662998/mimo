@@ -1,5 +1,74 @@
 # 原型设计工具 - 更新日志
 
+## 版本 1.14.0 (2026-04-20)
+
+### 🤖 AI 提示词系统重构
+
+#### 1. 新增 mimo-prototyper 自定义 Skill
+- **Skill 目录**：`.claude/skills/mimo-prototyper/`
+- **核心文件**：
+  - `SKILL.md` - Skill 定义文件
+  - `scripts/search.py` - BM25 搜索算法，支持设计系统生成
+  - `data/*.csv` - 组件、交互、布局、UX、颜色数据
+- **功能**：基于项目的组件系统整合 ui-ux-pro-max 设计风格数据
+
+#### 2. 新增动态提示词生成器
+- **文件**：`src/utils/buildSystemPromptFromSkill.js`
+- **11 种设计风格**：Data-Dashboard、Minimalism、Glassmorphism、Card UI、Sidebar Layout、Form/Input、Modal/Dialog、Hero Section、Tab Navigation、List/Table、Social/Mobile
+- **17 种组件**：button、input、text、image、rectangle、circle、line、dynamicPanel、switch、checkbox、radio、badge、slider、progress、divider、avatar、icon
+- **180+ 图标**：navigation、action、status、communication、user、media、commerce、data、file、arrows、device、shapes、editor 分类
+
+#### 3. 关键规则强化
+- **输出规则**：禁止在回复文本中输出 JSON，必须使用 modify_canvas_shapes 工具
+- **坐标规则**：(0,0) 在左上角，x 向右，y 向下，每个元素有独立坐标
+- **颜色规则**：仅支持 HEX 格式（#FFFFFF），禁止 transparent/none/white/black
+- **图标规则**：icon 的 fill 必须为 #FFFFFF，禁止 none/transparent
+- **ID 规则**：格式为 type-N（如 button-1），同一页面内不可重复
+
+#### 4. 生成流程规范化
+- **6 步流程**：分析 UI 类型 → 识别元素 → 分配坐标 → 提取颜色 → 调用工具 → 生成 JSON
+- **操作类型决策**：
+  - generate/create/new design → replace_all
+  - update/change/modify → batch_update
+  - add elements → add
+
+#### 5. batch_update 深度修复
+- **问题**：props 深度合并失效，子属性被整体覆盖
+- **修复**：`App.jsx` 中 `handleAiAction` 对 batch_update 进行深度 merge：
+  ```javascript
+  if (up.props) {
+    updatedShape.props = { ...updatedShape.props, ...up.props };
+  }
+  ```
+
+#### 6. ChatWindow.jsx tryFixJson 增强
+- **新增 batchUpdates 修复**：处理 `"batchUpdates": [{...}]` 格式的截断 JSON
+- **正则匹配**：`/"batchUpdates"\s*:\s*\[([\s\S]*)$/`
+
+### 📁 更新文件清单 (v1.14.0)
+
+| 文件 | 变更内容 |
+|------|----------|
+| `.claude/skills/mimo-prototyper/SKILL.md` | **新增**：Skill 定义 |
+| `.claude/skills/mimo-prototyper/scripts/search.py` | **新增**：BM25 搜索、设计系统生成 |
+| `.claude/skills/mimo-prototyper/data/*.csv` | **新增**：components、interactions、layout、ux、color、styles 数据 |
+| `src/utils/buildSystemPromptFromSkill.js` | **新增**：动态提示词生成器，整合设计风格、组件、图标系统 |
+| `src/rag/ChatWindow.jsx` | 改用 buildContextualSystemPrompt；tryFixJson 支持 batchUpdates |
+| `src/App.jsx` | batch_update props 深度合并修复 |
+
+### 💡 AI 沟通最佳实践
+
+| 场景 | 建议沟通方式 |
+|------|-------------|
+| 全新设计 | "帮我生成一个 dashboard/form/card 风格的原型" |
+| 样式调整 | "把这个按钮改成蓝色，调整一下位置" |
+| 添加元素 | "在左侧添加一个菜单图标" |
+| 风格切换 | "换成科技风格" |
+
+**有效关键词**：dashboard、form、card、modal、sidebar、minimal、glassmorphism、hero、tabs
+
+---
+
 ## 版本 1.10.0 (2026-04-10)
 
 ### 🎯 新增核心体验闭环功能

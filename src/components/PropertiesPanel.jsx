@@ -438,14 +438,8 @@ function PropertyInput({ config, value, onChange }) {
 }
 
 export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }) {
-  const [editMode, setEditMode] = useState('default');
-  
   const [localProps, setLocalProps] = useState(() => {
     return selectedShape ? { ...selectedShape.props } : {};
-  });
-
-  const [localHoverProps, setLocalHoverProps] = useState(() => {
-    return selectedShape ? { ...(selectedShape.hoverProps || {}) } : {};
   });
 
   // 用于本地维护 ID 文本框的值，防止 onChange 时过于频繁触发报错
@@ -455,7 +449,6 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
     if (selectedShape) {
       const timer = setTimeout(() => {
         setLocalProps({ ...selectedShape.props });
-        setLocalHoverProps({ ...(selectedShape.hoverProps || {}) });
         setLocalId(selectedShape.id);
       }, 0);
       return () => clearTimeout(timer);
@@ -496,15 +489,9 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
   const typeName = TypeNameMap[shapeType] || '形状';
 
   const handleChange = (key, value) => {
-    if (editMode === 'hover') {
-      const newHoverProps = { ...localHoverProps, [key]: value };
-      setLocalHoverProps(newHoverProps);
-      onUpdate({ ...selectedShape, hoverProps: newHoverProps });
-    } else {
-      const newProps = { ...localProps, [key]: value };
-      setLocalProps(newProps);
-      onUpdate({ ...selectedShape, props: newProps });
-    }
+    const newProps = { ...localProps, [key]: value };
+    setLocalProps(newProps);
+    onUpdate({ ...selectedShape, props: newProps });
   };
 
   const handlePositionChange = (axis, value) => {
@@ -680,26 +667,9 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
           </div>
         </div>
 
-        <div className="state-toggle-container">
-          <div className="state-toggle">
-            <button 
-              className={editMode === 'default' ? 'active' : ''} 
-              onClick={() => setEditMode('default')}
-            >
-              默认状态
-            </button>
-            <button 
-              className={editMode === 'hover' ? 'active' : ''} 
-              onClick={() => setEditMode('hover')}
-            >
-              悬浮状态
-            </button>
-          </div>
-        </div>
 
-        {editMode === 'default' && (
-          <div className="properties-section">
-            <div className="section-title">变换</div>
+        <div className="properties-section">
+          <div className="section-title">变换</div>
             <div className="property-row">
               <label>X</label>
               <input
@@ -742,7 +712,6 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
               </div>
             </div>
           </div>
-        )}
 
         <div className="properties-section">
           <div className="section-title">样式</div>
@@ -751,7 +720,7 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
               <label>{config.label}</label>
               <PropertyInput
                 config={config}
-                value={editMode === 'hover' ? localHoverProps[config.key] : localProps[config.key]}
+                value={localProps[config.key]}
                 onChange={handleChange}
               />
             </div>
@@ -801,52 +770,50 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
           </div>
         )}
 
-        {editMode === 'default' && (
-          <div className="properties-section">
-            <div className="section-title">快捷操作</div>
-            <div className="quick-actions">
-              <button
-                className="quick-action-btn"
-                onClick={() => {
-                  const newProps = { ...localProps };
-                  if (newProps.width) newProps.width = Math.round(newProps.width * 0.5);
-                  if (newProps.height) newProps.height = Math.round(newProps.height * 0.5);
-                  if (newProps.radius) newProps.radius = Math.round(newProps.radius * 0.5);
-                  setLocalProps(newProps);
-                  onUpdate({ ...selectedShape, props: newProps });
-                }}
-                title="缩小50%"
-              >
-                50%
-              </button>
-              <button
-                className="quick-action-btn"
-                onClick={() => {
-                  const newProps = { ...localProps };
-                  if (newProps.width) newProps.width = Math.round(newProps.width * 2);
-                  if (newProps.height) newProps.height = Math.round(newProps.height * 2);
-                  if (newProps.radius) newProps.radius = Math.round(newProps.radius * 2);
-                  setLocalProps(newProps);
-                  onUpdate({ ...selectedShape, props: newProps });
-                }}
-                title="放大200%"
-              >
-                200%
-              </button>
-              <button
-                className="quick-action-btn"
-                onClick={() => {
-                  onUpdate({ ...selectedShape, rotation: 0 });
-                }}
-                title="重置旋转"
-              >
-                重置角度
-              </button>
-            </div>
+        <div className="properties-section">
+          <div className="section-title">快捷操作</div>
+          <div className="quick-actions">
+            <button
+              className="quick-action-btn"
+              onClick={() => {
+                const newProps = { ...localProps };
+                if (newProps.width) newProps.width = Math.round(newProps.width * 0.5);
+                if (newProps.height) newProps.height = Math.round(newProps.height * 0.5);
+                if (newProps.radius) newProps.radius = Math.round(newProps.radius * 0.5);
+                setLocalProps(newProps);
+                onUpdate({ ...selectedShape, props: newProps });
+              }}
+              title="缩小50%"
+            >
+              50%
+            </button>
+            <button
+              className="quick-action-btn"
+              onClick={() => {
+                const newProps = { ...localProps };
+                if (newProps.width) newProps.width = Math.round(newProps.width * 2);
+                if (newProps.height) newProps.height = Math.round(newProps.height * 2);
+                if (newProps.radius) newProps.radius = Math.round(newProps.radius * 2);
+                setLocalProps(newProps);
+                onUpdate({ ...selectedShape, props: newProps });
+              }}
+              title="放大200%"
+            >
+              200%
+            </button>
+            <button
+              className="quick-action-btn"
+              onClick={() => {
+                onUpdate({ ...selectedShape, rotation: 0 });
+              }}
+              title="重置旋转"
+            >
+              重置角度
+            </button>
           </div>
-        )}
+        </div>
 
-        {shapeType === 'dynamicPanel' && editMode === 'default' && (
+        {shapeType === 'dynamicPanel' && (
           <div className="properties-section">
             <div className="section-title">状态管理</div>
             <div className="states-list">
@@ -941,9 +908,8 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
           </div>
         )}
 
-        {editMode === 'default' && (
-          <div className="properties-section">
-            <div className="section-title">条件渲染 (Visible If)</div>
+        <div className="properties-section">
+          <div className="section-title">条件渲染 (Visible If)</div>
             <div className="property-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', width: '100%' }}>
                 <input 
@@ -999,7 +965,6 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
               )}
             </div>
           </div>
-        )}
 
         <div className="properties-section interactions-section">
           <div className="section-title">交互 (Interactions)</div>
@@ -1021,10 +986,36 @@ export default function PropertiesPanel({ selectedShape, shapes = [], onUpdate }
                       <option value="onClick">点击 (Alt+Click)</option>
                       <option value="onMouseEnter">鼠标移入</option>
                       <option value="onMouseLeave">鼠标移出</option>
+                      <option value="onHover">悬浮状态</option>
                       <option value="onLoad">加载完成时 (onLoad)</option>
                       <option value="onChange">值改变时 (onChange)</option>
                     </select>
                   </div>
+                  {ix.trigger === 'onHover' && (
+                    <div className="interaction-payload-config">
+                      <div className="payload-divider"></div>
+                      <div className="payload-title">悬浮状态属性配置</div>
+                      <div className="property-row payload-row" style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', fontSize: '11px' }}>
+                        设置鼠标悬浮在该组件上时的属性变化
+                      </div>
+                      {properties.map((config) => {
+                        const hoverProps = selectedShape.hoverProps || {};
+                        return (
+                          <div className="property-row payload-row" key={config.key}>
+                            <label>{config.label}</label>
+                            <PropertyInput
+                              config={config}
+                              value={hoverProps[config.key]}
+                              onChange={(key, value) => {
+                                const newHoverProps = { ...hoverProps, [key]: value };
+                                onUpdate({ ...selectedShape, hoverProps: newHoverProps });
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   <div className="interaction-field">
                     <label>动作</label>
                     <select value={ix.action} onChange={(e) => handleUpdateInteraction(idx, 'action', e.target.value)} className="property-select">

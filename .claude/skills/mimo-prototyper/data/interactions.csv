@@ -1,0 +1,11 @@
+pattern,trigger,action,example
+按钮点击切换显示,toggleVisibility,onClick,toggleVisibility: 点击按钮显示/隐藏面板
+按钮点击切换状态,toggleChecked,onClick,toggleChecked: 点击切换复选框
+鼠标进入高亮,setProps,onMouseEnter,setProps: 鼠标进入按钮改变填充色
+鼠标离开恢复,setProps,onMouseLeave,setProps: 鼠标离开恢复原填充色
+点击切换选项卡,switchState,onClick,switchState: 点击标签切换动态面板状态
+点击打开弹窗,setVariable,onClick,setVariable: 设置变量控制弹窗显示
+滑块值改变,setValue,onChange,setValue: 滑块拖动改变数值
+数值加减,incrementValue,onClick,incrementValue: 点击+/-按钮增减数值
+动画播放控制,startAnimation,onClick,startAnimation: 点击播放动画
+动画暂停控制,stopAnimation,onClick,stopAnimation: stopAnimation: 点击暂停动画
