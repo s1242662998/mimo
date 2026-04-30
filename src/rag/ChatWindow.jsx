@@ -38,7 +38,9 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
   const [newModelId, setNewModelId] = useState('');
   const [newModelBaseUrl, setNewModelBaseUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+  // AI 处理阶段状态
+  const [aiProcessingStage, setAiProcessingStage] = useState('');
+
   // 图片上传相关状态
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
@@ -245,13 +247,6 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
     const currentProvider = providers.find(p => p.id === selectedProviderId);
     const apiKey = apiKeys[selectedProviderId];
 
-    // 非多模态模型提示
-    if ((selectedImage || selectedVideo) && selectedProviderId !== 'mimo-v2-omni') {
-      alert('图片和视频功能需要使用多模态模型 (MiMo Omni)，请在设置中切换模型');
-      setShowSettings(true);
-      return;
-    }
-
     if (!apiKey) {
       alert(`请先在设置中配置 ${currentProvider?.name} 的 API Key`);
       setShowSettings(true);
@@ -272,9 +267,11 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
     removeImage(); // 发送后清除图片预览
     removeVideo(); // 发送后清除视频预览
     setIsLoading(true);
+    setAiProcessingStage('构建消息中...');
 
     try {
       // 组装画布上下文信息
+      setAiProcessingStage('读取画布上下文...');
       const simplifiedShapes = canvasShapes?.map(s => ({
         id: s.id, type: s.type, x: s.x, y: s.y, fill: s.fill, 
         ...(s.text ? {text: s.text} : {}),
@@ -285,7 +282,7 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
       // 组装发给 OpenAI 格式 API 的消息历史
       const apiMessages = newMessagesList.map(msg => {
         // 视频消息：直接发送 video_url
-        if (msg.video && msg.video.dataUrl && selectedProviderId === 'mimo-v2-omni') {
+        if (msg.video && msg.video.dataUrl) {
           const content = [];
           content.push({
             type: 'video_url',
@@ -300,7 +297,7 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
           return { role: msg.role, content };
         }
 
-        if (msg.image && selectedProviderId === 'mimo-v2-omni') {
+        if (msg.image) {
           // 多模态消息格式
           return {
             role: msg.role,
@@ -352,6 +349,7 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
 
       // 如果是 MiMo，加上推荐的 system prompt
       if (selectedProviderId.startsWith('mimo')) {
+        setAiProcessingStage('构建系统提示词...');
         const today = new Date();
         const dateStr = today.toISOString().split('T')[0];
         const weekStr = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][today.getDay()];
@@ -363,6 +361,8 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
           content: systemPrompt
         });
       }
+
+      setAiProcessingStage(selectedImage ? 'AI 正在分析截图中...' : 'AI 正在思考中...');
 
       // 注意 MiMo API 要求的 header 是 api-key，而标准 OpenAI 是 Authorization: Bearer
       const isMimo = currentProvider.id.startsWith('mimo') || currentProvider.originalId?.startsWith('mimo');
@@ -382,7 +382,7 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
       const requestBody = {
         model: actualModelId,
         messages: apiMessages,
-        max_completion_tokens: 8192,
+        max_completion_tokens: 131072,
         temperature: 0.7,
         tools: [
           {
@@ -457,9 +457,11 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
       
       // 处理工具调用
       if (messageObj.tool_calls && messageObj.tool_calls.length > 0) {
+        setAiProcessingStage('解析 AI 响应中...');
         for (const toolCall of messageObj.tool_calls) {
           if (toolCall.function.name === 'modify_canvas_shapes') {
             try {
+              setAiProcessingStage('生成组件中...');
               const args = JSON.parse(toolCall.function.arguments);
               if (onAiAction) {
                 onAiAction(args);
@@ -505,6 +507,7 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
       }]);
     } finally {
       setIsLoading(false);
+      setAiProcessingStage('');
     }
   };
 
@@ -796,7 +799,11 @@ export default function ChatWindow({ onClose, canvasShapes, onAiAction, chatCont
             {isLoading && (
               <div className="rag-message assistant">
                 <div className="rag-message-content loading">
-                  <span className="dot"></span><span className="dot"></span><span className="dot"></span>
+                  {aiProcessingStage ? (
+                    <div className="ai-processing-stage">{aiProcessingStage}</div>
+                  ) : (
+                    <><span className="dot"></span><span className="dot"></span><span className="dot"></span></>
+                  )}
                 </div>
               </div>
             )}

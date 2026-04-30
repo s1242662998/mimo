@@ -1,5 +1,6 @@
 import { Stage, Layer, Rect, Circle, Ellipse, Line, Arrow, Text, Path, Transformer, Group, Image as KonvaImage } from 'react-konva';
 import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { iconLibrary } from '../data/icons';
 import './Canvas.css';
 
 const HANDLE_SIZE = 8;
@@ -1812,7 +1813,11 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
       case 'icon': {
         const iconWidth = activeProps.width || 24;
         const iconHeight = activeProps.height || 24;
-        const iconPath = activeProps.iconPath || '';
+        // 优先使用 iconId 查找 path，其次使用直接提供的 iconPath
+        const iconId = activeProps.iconId;
+        const iconPath = iconId
+          ? (iconLibrary.find(i => i.id === iconId)?.path || activeProps.iconPath || '')
+          : (activeProps.iconPath || '');
         const iconStroke = activeProps.stroke || '#64748B';
         const iconStrokeWidth = activeProps.strokeWidth || 2;
         const iconFill = activeProps.fill || '#FFFFFF';
