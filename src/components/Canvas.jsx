@@ -8,6 +8,43 @@ const ROTATE_HANDLE_OFFSET = 20;
 const SNAP_THRESHOLD = 8;
 const GRID_SIZE = 10;
 
+/**
+ * 溢出裁剪：Konva 没有 CSS overflow 的概念，
+ * 浏览器会裁掉超出祖先 overflow:hidden 的内容，Konva 不会。
+ * 典型症状：列表只显示 3 条时，第 4 条照样画出来。
+ *
+ * 解析层只在**真的超出**时写入 clipLeft/clipRight/clipTop/clipBottom，
+ * 这里是把它换算成相对元素自身左上角的矩形区域。
+ * 返回 null 表示无需裁剪（避免给绝大多数元素挂 clipFunc 拖慢渲染）。
+ *
+ * 注：必须定义在 ImageShape 之前——虽然函数声明会被运行时提升，
+ * 但 eslint 的 no-undef 不做该推理，会把「定义在使用之后」判为错误。
+ */
+function buildOverflowClip(props, width, height) {
+  const cl = Number(props.clipLeft) || 0;
+  const ct = Number(props.clipTop) || 0;
+  const cr = Number(props.clipRight) || 0;
+  const cb = Number(props.clipBottom) || 0;
+  if (cl <= 0 && ct <= 0 && cr <= 0 && cb <= 0) return null;
+  return {
+    // Konva 的 clip 区域相对节点坐标系（本项目所有 Group 都以中心为原点）
+    x: -width / 2 + cl,
+    y: -height / 2 + ct,
+    width: Math.max(1, width - cl - cr),
+    height: Math.max(1, height - ct - cb),
+  };
+}
+
+/** 生成 Group 的 clipFunc（矩形裁剪），供各分支挂在 Group 上 */
+function makeClipFunc(clip) {
+  if (!clip) return undefined;
+  return (ctx) => {
+    ctx.beginPath();
+    ctx.rect(clip.x, clip.y, clip.width, clip.height);
+    ctx.closePath();
+  };
+}
+
 // 计算选中形状相对于其他形状的吸附偏移和辅助线
 function computeSnapGuides(selectedBounds, allShapes, excludeId) {
   const selectedCenterX = selectedBounds.x + selectedBounds.width / 2;
@@ -165,17 +202,36 @@ function ImageShape({ shape, activeProps, shapeRef, rotation, shapeProps, onChan
   const centerX = shape.x + width / 2;
   const centerY = shape.y + height / 2;
   const [imageObj, setImageObj] = useState(null);
+  // 加载失败时（如占位图 URL 不可达）也要给个视觉反馈，
+  // 否则头像这类小图会完全消失，用户看不出这里本该有个图
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  // imageData（base64）与 imageSrc（URL）都要支持。
+  // 改造前只认 imageData，导致解析层写入的 props.imageSrc 完全被忽略——
+  // 截图复刻里的所有 <img src="https://..."> 都画不出来。
+  const src = activeProps.imageData || activeProps.imageSrc;
 
   useEffect(() => {
-    if (activeProps.imageData) {
-      const img = new window.Image();
-      img.src = activeProps.imageData;
-      img.onload = () => setImageObj(img);
-    } else {
+    if (!src) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setImageObj(null);
+      setLoadFailed(false);
+      return;
     }
-  }, [activeProps.imageData]);
+    const img = new window.Image();
+    // 占位图服务常设跨域隔离，Konva 绘制需要 canvas 可读
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      setImageObj(img);
+      setLoadFailed(false);
+    };
+    img.onerror = () => {
+      setImageObj(null);
+      setLoadFailed(true);
+    };
+    img.src = src;
+    return () => { img.onload = null; img.onerror = null; };
+  }, [src]);
 
   return (
     <Group
@@ -184,6 +240,8 @@ function ImageShape({ shape, activeProps, shapeRef, rotation, shapeProps, onChan
       x={centerX}
       y={centerY}
       rotation={rotation}
+      // 【溢出裁剪】图片被容器裁剪（头像圆角图、缩略图裁切）
+      clipFunc={makeClipFunc(buildOverflowClip(activeProps, width, height))}
       draggable
       onClick={shapeProps.onClick}
       onTap={shapeProps.onTap}
@@ -227,11 +285,19 @@ function ImageShape({ shape, activeProps, shapeRef, rotation, shapeProps, onChan
         y={-height / 2}
         width={width}
         height={height}
-        fill={activeProps.fill}
+        fill={imageObj ? activeProps.fill : (activeProps.fill || (loadFailed ? '#CBD5E1' : '#E2E8F0'))}
         stroke={activeProps.stroke}
         strokeWidth={activeProps.strokeWidth}
         cornerRadius={activeProps.cornerRadius}
         opacity={activeProps.opacity}
+        // 图片阴影：与 rect 同样挂在兜底矩形上，保证未加载时也能看到阴影位置
+        {...(activeProps.shadowColor ? {
+          shadowColor: activeProps.shadowColor,
+          shadowBlur: Number(activeProps.shadowBlur) || 0,
+          shadowOffsetX: Number(activeProps.shadowOffsetX) || 0,
+          shadowOffsetY: Number(activeProps.shadowOffsetY) || 0,
+          shadowOpacity: activeProps.opacity ?? 1,
+        } : null)}
       />
       {imageObj && (
         <KonvaImage
@@ -241,6 +307,15 @@ function ImageShape({ shape, activeProps, shapeRef, rotation, shapeProps, onChan
           height={height}
           image={imageObj}
           cornerRadius={activeProps.cornerRadius}
+        />
+      )}
+      {!imageObj && loadFailed && (
+        // 加载失败占位：斜杠标记，明确这里是个图片而非空矩形
+        <Line
+          points={[-width / 2, height / 2, width / 2, -height / 2]}
+          stroke="#94A3B8"
+          strokeWidth={1}
+          listening={false}
         />
       )}
     </Group>
@@ -266,11 +341,19 @@ function getShapeBounds(shape) {
     boundsX = x;
     boundsY = y;
   } else if (type === 'text') {
-    // 文本组件的高度根据 fontSize 和 lineHeight 计算
-    width = props.width || 150;
+    // 文本组件的高度按 fontSize / lineHeight / 实际行数计算。
+    // 改造前恒取单行高度，多行文本（解析层写入 \n）的包围盒会明显偏小，
+    // 导致选中框、拖拽、对齐参考线全部错位。
     const fontSize = props.fontSize || 16;
     const lineHeight = props.lineHeight || 1.4;
-    height = fontSize * lineHeight;
+    const lineCount = Math.max(1, String(props.text || '').split('\n').length);
+    // 【与渲染层保持同一套语义】包围盒必须等于实际画出来的矩形，
+    // 否则选中框会比可见气泡大一圈（用户点一下就发现框比气泡宽）。
+    // props.width/height 来自浏览器实测 rect，是已含 padding 的 border-box 尺寸，
+    // 因此这里绝不能再叠加 padding —— 那会让选中框宽出约 24px。
+    // 无背景时 props.width 是行盒实测宽，同样不含 padding。两种情况统一取值。
+    width = Math.max(props.width || 150, 1);
+    height = Math.max(props.height || 0, fontSize * lineHeight * lineCount);
     boundsX = x;
     boundsY = y;
   } else {
@@ -1066,8 +1149,50 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
     }));
   };
 
-  const renderShape = () => {
+/**
+ * 渐变填充：解析层把 CSS linear-gradient 翻成了 Konva 的渐变参数，
+ * 这里原样透传。Konva 会在渲染时用 canvas 的 createLinearGradient 绘制。
+ *
+ * 注意：Konva 的渐变坐标是形状**局部归一化坐标**（0~1），
+ * 解析层已按此约定输出，无需在此换算。
+ *
+ * 没有渐变时返回 null，避免给每个形状都挂 6 个无用属性。
+ */
+/**
+ * 【本轮诊断】矩形渲染日志的去重集合。
+ *
+ * 渲染函数在每次 Konva 重绘时都会执行，直接 console.log 会刷屏。
+ * key 由「shape.id + 关键视觉字段」组成 —— 只要这些字段没变就说明是同一个形状的重复绘制，
+ * 只在首次出现时输出。视觉字段变化（改色/改尺寸）会重新输出，符合诊断需要。
+ */
+const RECT_DEBUG_SEEN = new Set();
+
+function buildGradientFill(props) {  if (!props.gradientColorStops) return null;
+  return {
+    fillLinearGradientStartPointX: props.gradientStartX,
+    fillLinearGradientStartPointY: props.gradientStartY,
+    fillLinearGradientEndPointX: props.gradientEndX,
+    fillLinearGradientEndPointY: props.gradientEndY,
+    fillLinearGradientColorStops: props.gradientColorStops,
+  };
+}
+
+const renderShape = () => {
     const rotation = shape.rotation || 0;
+
+    // 【box-shadow 接入】解析层已把 CSS box-shadow 拆成 Konva 的 4 个 shadow* 字段，
+    // 但此前 Canvas 各分支均未读取，导致所有阴影静默丢失（卡片悬浮感完全消失）。
+    // Konva 的 shadow* 必须挂在「画形状的那个节点」上，不能挂在包裹的 Group 上——
+    // 挂 Group 会让阴影套在包含文字的整个包围盒上，文字下方也出现阴影块。
+    const shadow = activeProps.shadowColor ? {
+      shadowColor: activeProps.shadowColor,
+      shadowBlur: Number(activeProps.shadowBlur) || 0,
+      shadowOffsetX: Number(activeProps.shadowOffsetX) || 0,
+      shadowOffsetY: Number(activeProps.shadowOffsetY) || 0,
+      shadowOpacity: activeProps.opacity ?? 1,
+      // 只对填充/描边投影，不对文字描边投影（后者会画出字形轮廓的影子）
+      shadowForStrokeEnabled: false,
+    } : null;
 
     switch (shape.type) {
       case 'image':
@@ -1088,6 +1213,8 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
       case 'rect':
         // 输入框或按钮类型需要显示内部文本
         if ((shape.componentType || shape.id).startsWith('input') || (shape.componentType || shape.id).startsWith('button')) {
+          // 末尾不兜 ''：Konva Text 传空串会抛异常并弄坏整个 Group，
+          // 空输入框不该渲染 Text 节点（下面已用 activeProps.text 守卫）。
           const displayText = activeProps.text || activeProps.placeholder || '';
           const textColor = (shape.componentType || shape.id).startsWith('input') 
             ? (activeProps.textColor || '#0F172A')
@@ -1152,7 +1279,9 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 cornerRadius={activeProps.cornerRadius}
                 opacity={activeProps.opacity}
               />
-              {!isEditing && (
+              {/* 【Konva Text 不接受空串】空输入框（text 与 placeholder 都为空）
+                  必须整块不渲染，否则会抛异常并连带弄坏 Group。 */}
+              {!isEditing && displayText ? (
                 <Text
                   text={displayText}
                   x={-width / 2 + textX}
@@ -1168,7 +1297,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                   lineHeight={activeProps.lineHeight || 1.4}
                   listening={false}
                 />
-              )}
+              ) : null}
             </Group>
           );
         }
@@ -1334,16 +1463,32 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 height={height}
                 fill={activeProps.fill || '#EF4444'}
                 cornerRadius={activeProps.cornerRadius || 10}
+                stroke={activeProps.stroke}
+                strokeWidth={activeProps.stroke ? (activeProps.strokeWidth || 1) : 0}
               />
               <Text
                 text={activeProps.text || '5'}
-                x={-width / 2}
-                y={-fontSize / 2}
-                width={width}
+                // 【防截尾】Konva Text 的截断判据是
+                //   if (fixedWidth && lineWidth > maxWidth) { 二分砍尾 }
+                // 它在 wrap 判断**之前**执行，所以 wrap="none" 只关折行、关不掉截尾。
+                // 徽标宽度来自浏览器实测，而 Konva 用 Inter 重新量字，度量略有偏差
+                // 就会把「即将下线」砍成「即将下」。
+                //
+                // 做法：把文字盒向左右各放宽一截（x 左移同样的量，保持几何中心不变），
+                // 再配 wrap="none" 彻底禁止折行。徽标文字短，放宽不改变居中观感。
+                x={-width}
+                y={-height / 2}
+                width={width * 2}
+                height={height}
                 fontSize={fontSize}
-                fontFamily="Inter"
+                fontFamily={activeProps.fontFamily || 'Inter'}
+                fontStyle={activeProps.fontStyle || 'normal'}
+                fontWeight={String(activeProps.fontWeight || '600')}
+                letterSpacing={activeProps.letterSpacing}
                 fill={activeProps.textColor || '#FFFFFF'}
                 align="center"
+                verticalAlign="middle"
+                wrap="none"
                 listening={false}
               />
             </Group>
@@ -1575,6 +1720,9 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               onMouseEnter={shapeProps.onMouseEnter}
               onMouseLeave={shapeProps.onMouseLeave}
             >
+              {/* 头像一律实色 + 首字母（用户选定的稳定形态）：
+                模型负责语义（谁是谁 → ZT/ME），这里负责颜色/圆角/文字定位。
+                解析层已把首字母提取到 props.text，这里不需要再判断来源。 */}
               <Rect
                 ref={shapeRef}
                 x={-width / 2}
@@ -1583,18 +1731,37 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 height={height}
                 fill={activeProps.fill || '#DBEAFE'}
                 cornerRadius={activeProps.cornerRadius || 20}
+                {...buildGradientFill(activeProps)}
               />
-              <Text
-                text={activeProps.text || 'A'}
-                x={-width / 2}
-                y={-fontSize / 2}
-                width={width}
-                fontSize={fontSize}
-                fontFamily="Inter"
-                fill={activeProps.textColor || '#1E40AF'}
-                align="center"
-                listening={false}
-              />
+              {/* 【Konva Text 不接受空串】直接传 '' 会抛
+                "Text components are not supported for now in ReactKonva. Your text is: ''"，
+                该异常发生在 Group 子节点挂载阶段，会连带把整个 Group 弄坏——
+                后续 Konva 遍历子节点时读 getParent() 抛
+                "Cannot read properties of undefined (reading 'getParent')"，
+                头像彻底不显示、控制台刷一屏红。
+                //
+                // 正确做法是「没有文字就不渲染 Text 节点」，而不是给 Konva 喂特殊值。
+                //
+                // 文字来源有二：① 提示词要求模型写的姓名首字母（ZT/ME），解析层提取到 props.text；
+                //② componentList 的模板自带 text:'A'，手动拖入时显示。
+                // 两者都没有时（如模型输出了色块型头像）不渲染 —— 不凭空补字母。*/}
+              {activeProps.text ? (
+                <Text
+                  text={activeProps.text}
+                  x={-width / 2}
+                  y={-height / 2}
+                  width={width}
+                  height={height}
+                  fontSize={fontSize}
+                  fontFamily="Inter"
+                  fontStyle={activeProps.fontStyle || 'normal'}
+                  fontWeight={String(activeProps.fontWeight || '600')}
+                  fill={activeProps.textColor || '#1E40AF'}
+                  align="center"
+                  verticalAlign="middle"
+                  listening={false}
+                />
+              ) : null}
             </Group>
           );
         }
@@ -1606,7 +1773,38 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
           const textColor = activeProps.textColor || '#0F172A';
           const centerX = shape.x + width / 2;
           const centerY = shape.y + height / 2;
-          
+          // 【溢出裁剪】解析层检测到元素超出 overflow:hidden 祖先时给出裁剪量
+          const clipRect = buildOverflowClip(activeProps, width, height);
+
+          // 【本轮诊断】白底矩形「解析出来但画不出来」的定位。
+          // Canvas 侧只有三种可能让一个矩形不可见，一次性全打出来：
+          //   · fill 为空且无渐变 → 没有填充色
+          //   · clipRect 存在 → 被裁剪函数裁掉了
+          //   · opacity 为 0 → 全透明
+          // 只打「看起来该可见却可能不可见」的（大面积 + 有尺寸），
+          // 避免每帧刷屏（用 useRef 之外的模块级去重键）。
+          if (width > 80 && height > 40) {
+            const key = `${shape.id}|${activeProps.fill}|${activeProps.clipLeft}|${activeProps.clipRight}|${activeProps.clipTop}|${activeProps.clipBottom}`;
+            if (RECT_DEBUG_SEEN.has(key)) {
+              // 已打过则不再重复输出
+            } else {
+              RECT_DEBUG_SEEN.add(key);
+              console.log('[矩形渲染]', {
+                id: shape.id,
+                size: `${Math.round(width)}x${Math.round(height)}`,
+                fill: activeProps.fill || 'NONE',
+                gradient: !!activeProps.gradientColorStops,
+                stroke: activeProps.stroke || 'none',
+                radius: activeProps.cornerRadius || 0,
+                opacity: activeProps.opacity ?? '(默认1)',
+                clip: clipRect
+                  ? `x=${Math.round(clipRect.x)} y=${Math.round(clipRect.y)} w=${Math.round(clipRect.width)} h=${Math.round(clipRect.height)}`
+                  : '无裁剪',
+                html: String(shape.html || '').slice(0, 60),
+              });
+            }
+          }
+
           return (
             <Group
 
@@ -1615,6 +1813,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               x={centerX}
               y={centerY}
               rotation={rotation}
+              clipFunc={makeClipFunc(clipRect)}
               draggable
               onClick={shapeProps.onClick}
               onTap={shapeProps.onTap}
@@ -1643,14 +1842,18 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 width={width}
                 height={height}
                 fill={activeProps.fill}
+                {...buildGradientFill(activeProps)}
                 stroke={activeProps.stroke}
                 strokeWidth={activeProps.strokeWidth}
                 cornerRadius={activeProps.cornerRadius}
                 opacity={activeProps.opacity}
+                {...shadow}
               />
-              {!isEditing && (
+              {/* 【Konva Text 不接受空串】见 avatar 分支的详细说明：
+                传 '' 会抛异常并弄坏整个 Group。此处统一「无文字就不渲染」。 */}
+              {!isEditing && activeProps.text ? (
                 <Text
-                  text={activeProps.text || ''}
+                  text={activeProps.text}
                   x={-width / 2}
                   y={-fontSize / 2}
                   width={width}
@@ -1660,7 +1863,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                   align="center"
                   listening={false}
                 />
-              )}
+              ) : null}
             </Group>
           );
         }
@@ -1752,6 +1955,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 radiusX={radius}
                 radiusY={radiusY}
                 fill={activeProps.fill}
+                {...buildGradientFill(activeProps)}
                 stroke={activeProps.stroke}
                 strokeWidth={activeProps.strokeWidth}
                 opacity={activeProps.opacity}
@@ -1764,11 +1968,12 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 stroke={activeProps.stroke}
                 strokeWidth={activeProps.strokeWidth}
                 opacity={activeProps.opacity}
+                {...shadow}
               />
             )}
-            {!isEditing && (
+            {!isEditing && activeProps.text ? (
               <Text
-                text={activeProps.text || ''}
+                text={activeProps.text}
                 x={-radius}
                 y={-fontSize / 2}
                 width={radius * 2}
@@ -1778,7 +1983,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
                 align="center"
                 listening={false}
               />
-            )}
+            ) : null}
           </Group>
         );
       }
@@ -1869,13 +2074,74 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
         );
       }
       case 'text': {
-        const textWidth = activeProps.width || 150;
         const fontSize = activeProps.fontSize || 16;
         const lineHeight = activeProps.lineHeight || 1.4;
-        const textHeight = fontSize * lineHeight;
+        // 解析层已按浏览器实测行数写入 props.height；
+        // 改造前这里恒取单行高度，导致多行文本（\n 换行）的包围盒和居中基准都是错的。
+        const lineCount = Math.max(1, String(activeProps.text || '').split('\n').length);
+
+        // 【内边距支持】text 组件此前没有 padding 概念，文字永远贴左上角。
+        // 聊天气泡 / 标签块 / 按钮这类「带背景的文字」必须靠内边距把文字推离边缘，
+        // 否则背景矩形画对了、文字却压在左上角，观感完全不对。
+        const padL = Number(activeProps.paddingLeft ?? activeProps.padding ?? 0) || 0;
+        const padR = Number(activeProps.paddingRight ?? activeProps.padding ?? 0) || 0;
+        const padT = Number(activeProps.paddingTop ?? activeProps.padding ?? 0) || 0;
+        const padB = Number(activeProps.paddingBottom ?? activeProps.padding ?? 0) || 0;
+
+        // 外框 = 内容 + 内边距；没有背景时外框应等于内容，避免凭空撑大
+        //
+        // 【宽度语义：含背景时 props.width 已经是外框宽，不能再加 padding】
+        // 解析层在 htmlToShapes.js 里对带背景的文本写的是
+        //   props.width = rect.width  —— 浏览器实测的 border-box 宽，padding 已包含在内。
+        // 此处若再 + padL + padR 就是把同一份 padding 加两遍，
+        // 气泡右侧凭空多出约 24px 空白（实测 padding 9px/12px 的一律如此），
+        // 且因为 Konva 画的是「以中心为原点」的矩形，多出的宽度还会向左溢出，
+        // 把气泡整体推离头像 → 视觉上就是「气泡宽度和头像间距都不对」。
+        const hasBox = !!(activeProps.backgroundFill || activeProps.stroke);
+        // 有背景：props.width 是浏览器实测外框宽，直接用，不再叠加 padding
+        // 无背景：props.width 是实测行盒宽（不含 padding），此时 padding 恒为 0
+        const textWidth = hasBox
+          ? Math.max(activeProps.width || 0, 8)
+          : Math.max(activeProps.width || 150, 8);
+
+        // 【防截尾余量】Konva Text 的截断判据是
+        //   if (fixedWidth && lineWidth > maxWidth) { 二分砍尾，只绘制 match }
+        // 这个分支在 for 循环内、**不在 shouldWrap 守卫内** —— wrap="none"
+        // 只关掉「自动折行」，**关不掉「静默截尾」**（实测 19px 标题被砍掉最后一个字母）。
+        //
+        // 根因是**度量源不一致**：
+        //   · props.width     = 浏览器用真实 CSS 字体栈（Arial/PingFang）量的行盒宽
+        //   · Konva 量宽     = 用 props.fontFamily（默认 Inter）走 Canvas 2D measureText
+        // Inter 比 Arial 略宽 → Konva 判定放不下 → 砍尾。字号越大误差越大。
+        //
+        // 修法：直接用解析层量好的 props.textWidth（它就是「Konva 字体下的宽度」）
+        // 再加 2px 保险。
+        // 【为什么不能只补差值的一部分】曾写成 diff * 0.08 + 2，结果 19px 标题
+        // 差值 5.43px、只补了 2.43px，仍然被截。余量必须 **覆盖整个差值**，
+        // 否则等于没修 —— 这是本轮测试模拟直接暴露出来的错误。
+        //
+        // 【为什么可以放心加宽】Konva 在 align='left' 时把文字画在 width 盒左侧，
+        // 加宽只向右延伸、不移动起点；而解析层早已把 x 定位交给浏览器实测的行盒坐标。
+        // 背景矩形与 Group 定位用的都是未加余量的 textWidth，视觉框尺寸与位置均不变。
+        const TEXT_WIDTH_SLACK_PX = 2;
+        const textSlack = Math.max(
+          Math.max(activeProps.textWidth || 0, textWidth) - textWidth + TEXT_WIDTH_SLACK_PX,
+          0
+        );
+        // 高度同理：带背景时 props.height 来自浏览器 rect.height，
+        // 已经是含padding 的 border-box 高，不能再叠加 padT/padB；
+        // 无背景时 props.height 是行盒实测高，同样不含 padding。
+        // 两种情况统一用同一个值，只与「字号×行高×行数」取较大值兜底
+        //（字体回退可能让实测高度偏小，需要按行数撑开）。
+        const textHeight = Math.max(
+          activeProps.height || 0,
+          fontSize * lineHeight * lineCount
+        );
         const centerX = shape.x + textWidth / 2;
         const centerY = shape.y + textHeight / 2;
-        // 使用Group包裹以支持正确的旋转
+        // 【溢出裁剪】文字被容器裁掉是最常见场景（固定高度的列表项、截断摘要）
+        const clipRect = buildOverflowClip(activeProps, textWidth, textHeight);
+        // 使用 Group 包裹以支持正确的旋转
         return (
           <Group
 
@@ -1884,6 +2150,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
             x={centerX}
             y={centerY}
             rotation={rotation}
+            clipFunc={makeClipFunc(clipRect)}
             draggable
             onClick={shapeProps.onClick}
             onTap={shapeProps.onTap}
@@ -1905,21 +2172,60 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
             onMouseEnter={shapeProps.onMouseEnter}
             onMouseLeave={shapeProps.onMouseLeave}
           >
+            {activeProps.backgroundFill && (
+              // 带背景的文本（如聊天气泡）：背景矩形画在文字下层。
+              // 解析层把 backgroundColor 单独放进 backgroundFill，
+              // fill 留给文字颜色 —— 两者混用会导致文字与底色同色而隐形。
+              // box-shadow 挂在这个矩形上而非 Group 上：挂 Group 会让文字下面也压出一块阴影。
+              <Rect
+                x={-textWidth / 2}
+                y={-textHeight / 2}
+                width={textWidth}
+                height={textHeight}
+                fill={activeProps.backgroundFill}
+                cornerRadius={activeProps.cornerRadius || 0}
+                listening={false}
+                {...shadow}
+                {...buildGradientFill(activeProps)}
+              />
+            )}
+            {activeProps.stroke && activeProps.strokeWidth > 0 && (
+              <Rect
+                x={-textWidth / 2}
+                y={-textHeight / 2}
+                width={textWidth}
+                height={textHeight}
+                stroke={activeProps.stroke}
+                strokeWidth={activeProps.strokeWidth}
+                cornerRadius={activeProps.cornerRadius || 0}
+                listening={false}
+              />
+            )}
             {!isEditing && (
               <Text
                 ref={shapeRef}
-                x={-textWidth / 2}
-                y={-textHeight / 2}
+                x={-textWidth / 2 + padL}
+                y={-textHeight / 2 + padT}
                 text={activeProps.text}
-                width={textWidth}
+                width={Math.max(textWidth - padL - padR + textSlack, 1)}
+                height={Math.max(textHeight - padT - padB, 1)}
+                verticalAlign={activeProps.verticalAlign || (hasBox ? 'middle' : 'top')}
                 fontSize={fontSize}
-                fontFamily={activeProps.fontFamily}
+                fontFamily={activeProps.fontFamily || 'Inter'}
                 fill={activeProps.fill}
                 fontStyle={activeProps.fontStyle === 'italic' ? 'italic' : 'normal'}
                 fontWeight={String(activeProps.fontWeight || '400')}
                 textDecoration={activeProps.textDecoration || 'none'}
                 align={activeProps.align || 'left'}
                 lineHeight={lineHeight}
+                // 【字间距】Konva Text 原生支持 letterSpacing。
+                // 必须与解析层实测的 width 配合：Range API 量到的行盒宽
+                // 已包含浏览器算好的字间距，因此这里直接透传、
+                // 且 props.width 不再额外补偿（补偿会导致二次加宽）。
+                letterSpacing={activeProps.letterSpacing || 0}
+                // 关掉 Konva 自动折行：解析层已用 \n 固化浏览器的换行决策，
+                // 若仍允许自动折行会在窄容器里二次折行，把文字挤变形。
+                wrap="none"
                 opacity={activeProps.opacity}
               />
             )}
@@ -2149,6 +2455,7 @@ function ShapeRenderer({ shape, shapes, isSelected, isMultiSelected, isEditing, 
               width={width}
               height={height}
               fill={activeProps.fill}
+              {...buildGradientFill(activeProps)}
               stroke={activeProps.stroke}
               strokeWidth={activeProps.strokeWidth}
               cornerRadius={activeProps.cornerRadius}

@@ -1,11 +1,29 @@
 import { componentList } from '../components/componentList';
 import { propertyConfigs } from '../components/PropertiesPanel';
+import { iconLibrary } from '../data/icons';
+import { VALID_COMPONENT_TYPES } from './componentSchema';
 
 /**
  * 根据 componentList 和 propertyConfigs 动态生成 AI system prompt
  * 保证代码新增组件/属性时 prompt 自动同步
  */
-export function buildSystemPrompt(dateStr, weekStr) {
+export function buildSystemPrompt() {
+  // --- 0. 图标库清单（自动生成，避免手写清单与 icons.js 漂移）---
+  // 改造前这里手写了约 20 个 id，其中 unlink/volume/music/info/help/warning/error
+  // 等在icons.js 中根本不存在，AI 照着写就会渲染成空白；另有 40+ 个图标未告知 AI。
+  const iconsByCategory = iconLibrary.reduce((acc, icon) => {
+    (acc[icon.category || 'other'] ||= []).push(icon.id);
+    return acc;
+  }, {});
+  const iconIdList = [
+    '',
+    '=== 可用图标库 (iconId) ===',
+    ...Object.entries(iconsByCategory).map(
+      ([category, ids]) => `**${category}**: ${ids.join(', ')}`
+    ),
+    '',
+  ].join('\n');
+
   // --- 1. 组件类型及属性描述（自动生成） ---
   const componentDescriptions = componentList.map(comp => {
     const props = propertyConfigs[comp.id];
@@ -36,7 +54,7 @@ export function buildSystemPrompt(dateStr, weekStr) {
 #### 复刻流程
 1. **先观察，再描述**：在生成前，先描述截图的整体结构：布局分区、主要元素、视觉层次
 2. **按视觉层次分组**：从背景到前景依次绘制元素
-3. **风格颜色**：生成原型图，采用黑白灰构建页面结构和层次即可，不需要复刻颜色，尽量整洁
+3. **严格复刻配色**：截图中的背景色、文字色、强调色、边框色都要按截图实际取值填入 fill/stroke/textColor，不要简化成黑白灰
 4. **还原间距和对齐**：
    - 测量元素间的像素距离
    - 注意内边距(padding)和外边距(margin)
@@ -68,39 +86,28 @@ export function buildSystemPrompt(dateStr, weekStr) {
 - 如果无法从截图判断精确值，用合理估计值并在描述中说明
 - 有多层阴影或渐变时，尽量还原最明显的那一层
 - 计算好组件长高的4个顶点位置，不要发生元素重叠或过与紧凑等明显不符合设计规范的情况
+- **禁止编造不存在的组件类型**，type 只能取下列合法值
+- **禁止编造不存在的 iconId**，只能从下方图标库中选取
 `;
 
   // --- 6. 规则汇总 ---
   const rules = `
 === 全局规则 ===
-- 坐标系：(0,0) 是左上角。
+- 坐标系：(0,0) 是左上角，画布尺寸见下方画布上下文。
 - 颜色必须使用 HEX 格式（例如 #FFFFFF）。
 - Z-index：先列出的元素在背景，后列出的元素在前景。
 - 所有元素必须具有 x、y 和 type。'id' 应遵循 "type-N" 模式（例如 "button-1", "text-2"）。
-- 对于 'icon' 类型，只需提供 'iconId'（系统会自动查找对应的 SVG 路径），'iconId'从下方内容中选择，如果都不合适，则默认使用'lock'。
-
-=== 可用图标库 (iconId) ===
-
-**箭头类 (arrows)**: arrow-up, arrow-down, arrow-left, arrow-right, chevron-up, chevron-down, chevron-left, chevron-right, refresh
-
-**操作类 (actions)**: plus, minus, check, x, search, edit, trash, copy, save, download, upload, link, unlink, zoom-in, zoom-out, eye, eye-off, lock, unlock
-
-**界面类 (ui)**: home, menu, settings, bell, user, users, calendar, clock, star, heart, flag, bookmark, filter, layers, grid, list
-
-**媒体类 (media)**: image, camera, video, music, volume, volume-off, play, pause
-
-**通讯类 (communication)**: mail, phone, message, send, share
-
-**文件类 (files)**: file, folder, file-text
-
-**形状类 (shapes)**: square, circle, triangle, hexagon
-
-**符号类 (symbols)**: info, help, warning, error, check-circle
-
-**编辑类 (editor)**: bold, italic, underline, align-left, align-center, align-right
-
+- type 只能取以下合法值，**不得发明新类型**：${VALID_COMPONENT_TYPES.join(', ')}
+- 对于 'icon' 类型，只需提供 'iconId'（系统会自动查找对应的 SVG 路径），iconId 必须来自下方图标库；若都不合适才使用 'lock'。
+${iconIdList}
 - 对于 'text' 类型，'text' 属性保存内容。必须始终为文本元素指定 'width'——根据文本长度和 fontSize 充分估算。
 - 添加多个元素时，使用 type='add' 并将所有新元素放在 'elements' 数组中，而不是使用 'newShape'。
+
+=== 局部修改原则（重要）===
+- 用户只是想改几个元素的样式或位置时，**必须用 update / batch_update**，只修改用户指定的 targetIds。
+- **只有在用户上传截图/视频、要求从零生成或整体重做时，才使用 replace_all。**
+- 局部修改时不要重建未提及的元素，否则会覆盖用户的手工微调。
+- 修改后请在回复中简要说明你改了哪些元素。
 
 === 重要：形状数据结构 ===
 elements 数组中的所有元素都是扁平的同级组件。没有像 HTML 那样的嵌套/父子层次结构。
@@ -108,7 +115,6 @@ elements 数组中的所有元素都是扁平的同级组件。没有像 HTML �
 - 元素没有 "children" 字段。只有 dynamicPanel 状态有 children。
 - 要对相关元素进行分组（例如带有背景+标题+描述的卡片），将它们作为数组中具有手动计算位置的独立元素放置。
 - 不要使用矩形组件代替icon，不要更改icon的填充颜色，只更改描边颜色。
-
 `;
 
   // --- 精简JSON结构说明 ---
@@ -117,19 +123,22 @@ elements 数组中的所有元素都是扁平的同级组件。没有像 HTML �
 
 // 基础字段
 id: string      // 唯一标识，格式 "type-N"
-type: string   // rectangle|button|input|text|circle|image|line|arrow|icon|switch|checkbox|radio|badge|slider|progress|divider|avatar|dynamicPanel
-x, y: number   // 左上角坐标
+type: string    // ${VALID_COMPONENT_TYPES.join('|')}
+x, y: number    // 左上角坐标
 
 // 通用属性
 width?, height?, radius?, fill?, stroke?, strokeWidth?, cornerRadius?, opacity?
 
 // props对象 (组件专有属性)
 props: {
-  text?, fontSize?, fontFamily?, fontWeight?, textColor?,     // 文字类
-  placeholder?, strokeWidth?,                                 // 输入框
-  checked?, checkColor?,                                     // 开关/复选/单选
-  value?, barFill?, knobColor?,                               // 滑块/进度
-  ...其他属性
+  text?, fontSize?, fontFamily?, fontWeight?,        // 文字类
+  fontStyle?, textDecoration?, align?, lineHeight?,  // 文字类
+  textColor?,                                       // 文字类
+  placeholder?,        // 输入框
+  checked?, checkColor?,                           // 开关/复选/单选
+  value?, barFill?, knobColor?, fillOff?,           // 滑块/进度/开关
+  iconId?, iconPath?,// 图标
+  imageData?,points?           // 图片 / 线条箭头
 }
 
 // 条件与效果
@@ -140,25 +149,25 @@ hoverProps?: { fill?, ... }
 states?: [{ id, name, elements: [...] }]
 activeStateId?: string
 
-// === 组件示例 ===
+// === 组件示例（注意：text/fontSize 等组件专有属性统一放在 props 里）===
 {"id":"rect-1","type":"rectangle","x":20,"y":80,"width":335,"height":200,"fill":"#F5F5F5","cornerRadius":12,"props":{"text":"标题","fontSize":16}}
-{"id":"text-1","type":"text","x":40,"y":120,"width":150,"text":"欢迎","fontSize":24,"fontWeight":"700","fill":"#0F172A"}
+{"id":"text-1","type":"text","x":40,"y":120,"width":150,"fill":"#0F172A","props":{"text":"欢迎","fontSize":24,"fontWeight":"700"}}
 {"id":"button-1","type":"button","x":20,"y":400,"width":335,"height":48,"fill":"#0891B2","cornerRadius":8,"props":{"text":"登录","fontSize":16}}
 {"id":"input-1","type":"input","x":20,"y":160,"width":335,"height":48,"fill":"#FFFFFF","stroke":"#E2E8F0","cornerRadius":8,"props":{"placeholder":"请输入"}}
 {"id":"image-1","type":"image","x":20,"y":240,"width":120,"height":80,"fill":"#F1F5F9","cornerRadius":8}
 {"id":"circle-1","type":"circle","x":300,"y":300,"radius":40,"fill":"#DCFCE7"}
-{"id":"icon-1","type":"icon","x":100,"y":100,"width":24,"height":24,"iconId":"home","stroke":"#64748B","strokeWidth":2}
-{"id":"switch-1","type":"switch","x":250,"y":160,"width":44,"height":24,"fill":"#22C55E","fillOff":"#E2E8F0","knobColor":"#FFF","cornerRadius":12,"props":{"checked":"true"}}
-{"id":"checkbox-1","type":"checkbox","x":20,"y":230,"width":20,"height":20,"props":{"checked":"true"}}
-{"id":"radio-1","type":"radio","x":50,"y":230,"radius":10,"props":{"checked":"true"}}
+{"id":"icon-1","type":"icon","x":100,"y":100,"width":24,"height":24,"stroke":"#64748B","strokeWidth":2,"props":{"iconId":"home"}}
+{"id":"switch-1","type":"switch","x":250,"y":160,"width":44,"height":24,"fill":"#22C55E","cornerRadius":12,"props":{"checked":true,"fillOff":"#E2E8F0","knobColor":"#FFFFFF"}}
+{"id":"checkbox-1","type":"checkbox","x":20,"y":230,"width":20,"height":20,"props":{"checked":true,"checkColor":"#2563EB"}}
+{"id":"radio-1","type":"radio","x":50,"y":230,"radius":10,"props":{"checked":true,"checkColor":"#2563EB"}}
 {"id":"badge-1","type":"badge","x":320,"y":60,"width":20,"height":20,"fill":"#EF4444","cornerRadius":10,"props":{"text":"5","fontSize":11}}
-{"id":"slider-1","type":"slider","x":20,"y":320,"width":200,"height":20,"fill":"#E2E8F0","barFill":"#0891B2","props":{"value":50}}
-{"id":"progress-1","type":"progress","x":20,"y":360,"width":200,"height":8,"fill":"#E2E8F0","barFill":"#0891B2","props":{"value":60}}
+{"id":"slider-1","type":"slider","x":20,"y":320,"width":200,"height":20,"fill":"#E2E8F0","props":{"value":50,"barFill":"#0891B2"}}
+{"id":"progress-1","type":"progress","x":20,"y":360,"width":200,"height":8,"fill":"#E2E8F0","props":{"value":60,"barFill":"#0891B2"}}
 {"id":"divider-1","type":"divider","x":20,"y":380,"width":335,"height":1,"fill":"#E2E8F0"}
 {"id":"avatar-1","type":"avatar","x":20,"y":50,"width":40,"height":40,"fill":"#DBEAFE","cornerRadius":20,"props":{"text":"A","fontSize":16}}
-{"id":"line-1","type":"line","x":0,"y":0,"points":[0,0,100,0],"stroke":"#64748B","strokeWidth":2}
-{"id":"arrow-1","type":"arrow","x":0,"y":0,"points":[0,0,100,50],"stroke":"#64748B","strokeWidth":2}
-{"id":"panel-1","type":"dynamicPanel","x":0,"y":0,"width":300,"height":200,"fill":"#FFF","cornerRadius":12,"states":[{"id":"s1","name":"状态1","elements":[{"id":"e1","type":"text","x":10,"y":10,"text":"内容"}]}]}
+{"id":"line-1","type":"line","x":0,"y":0,"stroke":"#64748B","strokeWidth":2,"props":{"points":[0,0,100,0]}}
+{"id":"arrow-1","type":"arrow","x":0,"y":0,"stroke":"#64748B","strokeWidth":2,"props":{"points":[0,0,100,50]}}
+{"id":"panel-1","type":"dynamicPanel","x":0,"y":0,"width":300,"height":200,"fill":"#FFFFFF","cornerRadius":12,"states":[{"id":"s1","name":"状态1","elements":[{"id":"e1","type":"text","x":10,"y":10,"width":100,"props":{"text":"内容"}}]}]}
 `;
 
   // --- 组装最终 prompt ---
@@ -169,6 +178,13 @@ activeStateId?: string
 2. 如果用户上传 UI 截图或视频并要求你生成或解析它，你必须使用 'modify_canvas_shapes' 工具，type='replace_all'，直接在画布上绘制。
 3. 不要在聊天回复中输出原始 JSON 代码块，除非用户明确要求 JSON 代码。只需静默使用工具完成任务并告诉用户已完成。
 4. 当需要向画布添加多个新元素时，使用 type='add' 并将所有新元素放在 'elements' 数组中，而不是使用 'newShape'。
+
+=== 操作选择规则（极其重要）===
+- **默认使用 update / batch_update 做局部修改**。用户调整样式、改文案、挪位置、重新排布，都要精确修改指定元素。
+- **只有以下情况才用 replace_all**：用户上传了截图/视频；用户明确说「重新生成整个页面」「重做」「全部重做」。
+- 用户在画布上已经选中了元素时，几乎总是应该用 update 改这些选中的元素。
+- **绝对不要用 replace_all 来做局部调整**——那会丢弃用户手工微调的所有内容，是最严重的错误。
+- updates 只需给出要改的字段，其余字段保持原样，不要重传整个元素。
 
 === 工具调用格式 ===
 调用 modify_canvas_shapes 时，参数必须是一个扁平的 JSON 对象，具有以下顶级字段：

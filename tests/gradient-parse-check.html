@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>渐变解析验证</title></head>
+<body>
+<div id="sandbox"></div>
+<script>
+function toHex(value) {
+  if (!value) return null;
+  const v = String(value).trim();
+  if (v === 'transparent') return null;
+  if (v.startsWith('#')) {
+    if (v.length === 4) return '#' + v[1]+v[1] + v[2]+v[2] + v[3]+v[3];
+    return v;
+  }
+  const rgb = v.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgb) {
+    const [r,g,b,a] = rgb[1].split(',').map(s => s.trim());
+    if (a !== undefined && parseFloat(a) === 0) return null;
+    return '#' + [r,g,b].map(n => Math.max(0,Math.min(255,Math.round(parseFloat(n)||0))).toString(16).padStart(2,'0')).join('');
+  }
+  let probe = document.getElementById('kw');
+  if (!probe) { probe = document.createElement('span'); probe.id='kw'; probe.style.display='none'; document.body.appendChild(probe); }
+  probe.style.color=''; probe.style.color = v;
+  const c = getComputedStyle(probe).color;
+  return c ? toHex(c) : null;
+}
+
+function parseLinearGradient(css) {
+  const str = String(css||'').trim();
+  const m = str.match(/^linear-gradient\s*\(([\s\S]*)\)$/i);
+  if (!m) return null;
+  const body = m[1];
+  const parts = []; let depth=0, cur='';
+  for (const ch of body) {
+    if (ch==='(') depth++; else if (ch===')') depth--;
+    if (ch===',' && depth===0) { parts.push(cur.trim()); cur=''; } else cur+=ch;
+  }
+  if (cur.trim()) parts.push(cur.trim());
+  if (parts.length < 2) return null;
+
+  let angleDeg = 180, startIdx = 0;
+  const first = parts[0];
+  const dirMatch = first.match(/^to\s+(left|right|top|bottom)(?:\s+(left|right|top|bottom))?$/i)
+    || first.match(/^(-?[\d.]+)\s*(deg|turn|rad)?$/i);
+  if (dirMatch) {
+    startIdx = 1;
+    if (dirMatch[2] !== undefined) {
+      const kv = (dirMatch[1]+' '+dirMatch[2]).toLowerCase();
+      const table = {top:0,right:90,bottom:180,left:270,'left top':315,'right top':45,'right bottom':135,'left bottom':225,'top right':45,'bottom right':135,'bottom left':225,'top left':315};
+      angleDeg = table[kv] ?? 180;
+    } else {
+      const num = parseFloat(dirMatch[1]);
+      const unit = (dirMatch[3]||'').toLowerCase();
+      angleDeg = unit==='turn' ? num*360 : unit==='rad' ? num*180/Math.PI : num;
+    }
+  }
+
+  const colorStops = [];
+  for (const p of parts.slice(startIdx)) {
+    const cs = p.match(/^(rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}|[a-zA-Z]+)\s*([\d.]+)?%?$/);
+    if (!cs) continue;
+    const color = toHex(cs[1]);
+    if (!color) continue;
+    const pos = cs[2] !== undefined ? parseFloat(cs[2]) : null;
+    colorStops.push(pos === null ? null : [Math.max(0,Math.min(1,pos/100)), color]);
+  }
+  if (colorStops.length < 2) return null;
+
+  const known = colorStops.map(c => c !== null);
+  if (!known[0]) colorStops[0] = [0, colorStops.find((c,i)=>known[i])?.[1] ?? colorStops[0]?.[1] ?? '#000000'];
+  if (!known[colorStops.length-1]) {
+    const lastKnown = [...known].lastIndexOf(true);
+    colorStops[colorStops.length-1] = [1, colorStops[lastKnown]?.[1] ?? colorStops[0][1]];
+  }
+  for (let i=1;i<colorStops.length-1;i++) {
+    if (colorStops[i] !== null) continue;
+    let prev=i-1; while(prev>0 && colorStops[prev]===null) prev--;
+    let next=i+1; while(next<colorStops.length-1 && colorStops[next]===null) next++;
+    const pv = colorStops[prev]?.[0] ?? 0, nv = colorStops[next]?.[0] ?? 1;
+    colorStops[i] = [pv+(nv-pv)*((i-prev)/(next-prev)), colorStops[i+1]?.[1] ?? colorStops[prev][1]];
+  }
+
+  const rad = angleDeg*Math.PI/180;
+  const dx = Math.sin(rad), dy = Math.cos(rad), half = 0.5;
+  return { sx: half-dx*half, sy: half-dy*half, ex: half+dx*half, ey: half+dy*half, colorStops: colorStops.flat() };
+}
+
+// 关键：用 getComputedStyle 拿到浏览器规范化后的真实值
+const SAMPLES = [
+  ['模型实测头像A', 'width:42px;height:42px;border-radius:4px;background:linear-gradient(160deg,#e8d5c4 0%,#c9a88c 40%,#6b5b7a 100%)'],
+  ['模型实测头像B', 'width:42px;height:42px;border-radius:4px;background:linear-gradient(180deg,#9fc4dd 0%,#7fb069 55%,#3e6b48 100%)'],
+  ['方向词 to right', 'width:100px;height:50px;background:linear-gradient(to right, #ffffff, #000000)'],
+  ['英文颜色名', 'width:100px;height:50px;background:linear-gradient(90deg, white, black)'],
+  ['rgba+百分比', 'width:100px;height:50px;background:linear-gradient(45deg, rgba(255,0,0,0.5) 20%, blue)'],
+  ['全缺省位置', 'width:100px;height:50px;background:linear-gradient(#ff0000, #00ff00, #0000ff)'],
+  ['中间缺省', 'width:100px;height:50px;background:linear-gradient(90deg, #ff0000, #00ff00, #0000ff)'],
+  ['turn单位', 'width:100px;height:50px;background:linear-gradient(0.5turn, #ff0000, #0000ff)'],
+];
+
+const out = [];
+for (const [name, css] of SAMPLES) {
+  const el = document.createElement('div');
+  el.setAttribute('style', css);
+  document.getElementById('sandbox').appendChild(el);
+  const computed = getComputedStyle(el);
+  const bi = computed.backgroundImage;
+  const lg = parseLinearGradient(bi);
+  out.push({
+    name,
+    computedBgImage: bi,
+    ok: !!lg,
+    detail: lg ? { start: [+lg.sx.toFixed(3), +lg.sy.toFixed(3)], end: [+lg.ex.toFixed(3), +lg.ey.toFixed(3)], stops: lg.colorStops.map((c,i)=> i%2===0 ? c.toFixed(2)+'→'+lg.colorStops[i+1] : null).filter(Boolean) } : null,
+  });
+  el.remove();
+}
+window.__RESULT__ = out;
+</script>
+</body>
+</html>

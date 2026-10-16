@@ -7,6 +7,7 @@ import PropertiesPanel from './components/PropertiesPanel';
 import JsonImporter from './components/JsonImporter';
 import ChatWindow from './rag/ChatWindow';
 import PagePanel from './components/PagePanel';
+import { resolveComponentType } from './utils/componentSchema';
 import './App.css';
 
 let shapeIdCounter = 0;
@@ -46,6 +47,11 @@ function App() {
   const animationIntervals = useRef({}); // { [targetId]: { intervalId, delta } }
   const pendingTimeouts = useRef({}); // { [sourceId]: [timeoutId, ...] }
   const handleExecuteInteractionRef = useRef(null);
+
+  // AI 操作后需要把「变更后的画布」写入历史，
+  // 但 setShapes 的 updater 是异步的、外部拿不到结果，
+  // 用这个 ref 中转，避免 saveToHistory() 空参导致历史被压入空数组（撤销即清空画布）
+  const pendingAiShapesRef = useRef(null);
 
   // 清除指定 source 上所有待执行的延迟交互
   const clearPendingForShape = useCallback((sourceId) => {
@@ -841,27 +847,12 @@ function App() {
 
     // 辅助函数：将 AI 格式的形状转换为 Konva 需要的格式
     const convertAiShape = (el) => {
-      const { type: jsonType, x, y, visible, visibleIf, hoverProps, interactions, states, activeStateId, animation, autoPlay, ...restProps } = el;
-      
-      const typeMap = {
-        text: 'text',
-        button: 'rect',
-        input: 'rect',
-        rectangle: 'rect',
-        circle: 'circle',
-        image: 'image',
-        dynamicPanel: 'dynamicPanel',
-        switch: 'rect',
-        checkbox: 'rect',
-        radio: 'circle',
-        badge: 'rect',
-        slider: 'rect',
-        progress: 'rect',
-        divider: 'rect',
-        avatar: 'rect',
-      };
-      const elType = typeMap[jsonType] || jsonType || 'rect';
-      
+      const { type: jsonType, x, y, visible, visibleIf, hoverProps, interactions, states, activeStateId, animation, autoPlay, html, ...restProps } = el;
+
+      // 未知类型不再静默透传（会在 Canvas 里渲染成 null 导致元素凭空消失），
+      // 而是降级为矩形并告警，保证「不知道」变成「画错」而不是「看不见」
+      const { renderType: elType, componentType: finalComponentType } = resolveComponentType(jsonType);
+
       // 如果 el.props 存在（AI JSON 结构），需要正确合并到顶层
       // AI JSON: { type: 'icon', width: 20, height: 20, props: { iconPath: 'search' } }
       // 正确结构: shape.props = { width: 20, height: 20, iconPath: 'search' }
@@ -869,26 +860,40 @@ function App() {
       const props = nestedProps && typeof nestedProps === 'object'
         ? { ...nestedProps, ...rest }
         : rest;
-      if (['input', 'button', 'image', 'rectangle', 'checkbox', 'avatar'].includes(jsonType)) {
-        if (props.stroke && props.strokeWidth === undefined) {
-          props.strokeWidth = 1;
+      if (['input', 'button', 'image', 'rectangle', 'checkbox', 'avatar'].includes(finalComponentType)) {
+   if (props.stroke && props.strokeWidth === undefined) {
+    props.strokeWidth = 1;
         }
       }
-      if (['text', 'badge', 'avatar'].includes(jsonType)) {
+      // 线条类必须有 stroke 与 strokeWidth，否则 Konva 默认描边宽度为 0 → 完全画不出来。
+      // 实测：模型输出 {type:'line', stroke:'#E8E6E2'} 却看不见线，就是缺 strokeWidth。
+      if (elType === 'line' || elType === 'arrow') {
+        if (!props.stroke) props.stroke = '#94A3B8';
+        if (props.strokeWidth === undefined) props.strokeWidth = 1;
+        // points 缺失时用 width/height 兜出一条水平线
+        if (!Array.isArray(props.points) || props.points.length < 4) {
+          const w = Number(el.width) || Number(props.width) || 100;
+          const h = Number(el.height) || Number(props.height) || 0;
+          props.points = [0, 0, w, h];
+        }
+        props.width = Math.max(Math.abs(props.points[2] - props.points[0]), 1);
+        props.height = Math.max(Math.abs(props.points[3] - props.points[1]), 1);
+      }
+      if (['text', 'badge', 'avatar'].includes(finalComponentType)) {
          props.fontFamily = props.fontFamily || 'Inter';
       }
       // 文本组件：AI未指定宽度时，根据文本内容和字号自动估算宽度，避免文字被截断换行
-      if (jsonType === 'text' && !el.width && props.text) {
+      if (finalComponentType === 'text' && !el.width && props.text) {
         const fs = Number(props.fontSize) || 16;
         const fw = props.fontWeight === '700' || props.fontWeight === 'bold' ? 1.15 : 1;
         const estimatedWidth = Math.ceil(props.text.length * fs * 0.6 * fw) + 20;
         props.width = Math.max(150, estimatedWidth);
       }
-      
+
       const result = {
-        id: el.id || `${jsonType}-${shapeIdCounter++}`,
+        id: el.id || `${finalComponentType}-${shapeIdCounter++}`,
         type: elType,
-        componentType: jsonType, // 保留原始AI类型，用于Canvas渲染分发
+        componentType: finalComponentType, // 保留原始AI类型，用于Canvas渲染分发
         x: x || 0,
         y: y || 0,
         visible: visible !== false, // 默认显示
@@ -897,122 +902,168 @@ function App() {
         interactions: interactions || [],
         props: props
       };
-      
+
+      // 保留 HTML 源片段，供后续对话时作为上下文
+      if (html) result.html = html;
+
       // 动态面板特有属性
-      if (jsonType === 'dynamicPanel') {
+      if (finalComponentType === 'dynamicPanel') {
         result.states = states || [];
         result.activeStateId = activeStateId || (states && states[0]?.id);
         result.animation = animation || { type: 'none', duration: 300, direction: 'horizontal' };
         result.autoPlay = autoPlay || { enabled: false, interval: 3000, loop: true };
       }
-      
+
       return result;
     };
+
+    // 局部 patch 的通用合并逻辑：
+    // AI 只需给出要改的字段，其余原样保留——这是「不推倒重来」的关键
+    const applyUpdates = (shape, up) => {
+      if (!up) return shape;
+      const next = { ...shape, props: { ...shape.props } };
+
+      // 先把 AI 可能写的多种形态摊平（顶层 or props 嵌套）
+      const flat = { ...(up.props && typeof up.props === 'object' ? up.props : null), ...up };
+
+      // 顶层坐标类字段
+      ['x', 'y', 'rotation', 'zIndex', 'visible', 'width', 'height', 'radius'].forEach(k => {
+        if (flat[k] !== undefined) {
+          if (k === 'width' || k === 'height' || k === 'radius') {
+            next.props[k] = flat[k];   // 渲染读 props.xxx，必须写进 props
+          } else {
+            next[k] = flat[k];
+          }
+        }
+      });
+
+      // 其余全部视觉属性写进 props
+      const COORD_KEYS = new Set(['x', 'y', 'rotation', 'zIndex', 'visible', 'props']);
+      Object.keys(flat).forEach(k => {
+        if (COORD_KEYS.has(k)) return;
+        if (flat[k] === undefined) return;
+        next.props[k] = flat[k];
+      });
+
+      // 交互与悬浮状态
+      if (flat.hoverProps !== undefined) next.hoverProps = { ...next.hoverProps, ...flat.hoverProps };
+      if (flat.interactions !== undefined) next.interactions = flat.interactions;
+      if (flat.visibleIf !== undefined) next.visibleIf = flat.visibleIf;
+
+      // 缩放处理
+      if (flat.scale) {
+        if (shape.type === 'circle') {
+          next.props.radius = (next.props.radius || 40) * flat.scale;
+        } else {
+          next.props.width = (next.props.width || 100) * flat.scale;
+          next.props.height = (next.props.height || 100) * flat.scale;
+        }
+      }
+
+      return next;
+    };
+
+    let didChange = false;
 
     setShapes(prevShapes => {
       let nextShapes = [...prevShapes];
 
       if (type === 'replace_all') {
         if (!elements || !Array.isArray(elements)) {
-          console.error('replace_all requires elements array. Received args:', args);
+          console.error('[AI] replace_all 缺少 elements 数组，收到：', action);
+          pendingAiShapesRef.current = null;
           return nextShapes;
         }
         // 直接根据截图生成的元素替换整个画布
         console.log('AI replace_all elements:', elements.map(el => ({ id: el.id, type: el.type })));
         nextShapes = elements.map((el, index) => convertAiShape(el, index));
         console.log('Converted shapes:', nextShapes.map(s => ({ id: s.id, type: s.type, propsKeys: Object.keys(s.props) })));
-        setSelectedIds([]);
-        setSelectedId(null);
+        didChange = true;
+     // 重建画布后，剔除已不存在的选中项，但保留仍然存在的选中——
+        // 改造前无条件清空，导致用户无法接着对生成结果做局部调整
+      const newIds = new Set(nextShapes.map(s => s.id));
+        setSelectedIds(prev => prev.filter(id => newIds.has(id)));
       } else if (type === 'update') {
-        // 更新指定 ID 的组件
+        const ids = Array.isArray(targetIds) ? targetIds : [];
+        if (!ids.length) {
+          console.warn('[AI] update 缺少 targetIds，已跳过');
+          pendingAiShapesRef.current = null;
+          return nextShapes;
+        }
         nextShapes = nextShapes.map(shape => {
-          if ((targetIds && targetIds.includes(shape.id)) || (targetIds && targetIds.includes('all'))) {
-            let updatedShape = { ...shape };
-            
-            if (updates) {
-              // 基础属性覆盖 (注意需要更新到 shape.props 里面)
-              if (updates.fill) updatedShape.props.fill = updates.fill;
-              if (updates.stroke) updatedShape.props.stroke = updates.stroke;
-              if (updates.text) updatedShape.props.text = updates.text;
-              
-              // 坐标是在 shape 顶层
-              if (updates.x !== undefined) updatedShape.x = updates.x;
-              if (updates.y !== undefined) updatedShape.y = updates.y;
-              
-              // 交互与悬浮状态处理
-              if (updates.hoverProps !== undefined) updatedShape.hoverProps = { ...updatedShape.hoverProps, ...updates.hoverProps };
-              if (updates.interactions !== undefined) updatedShape.interactions = updates.interactions;
-              if (updates.visibleIf !== undefined) updatedShape.visibleIf = updates.visibleIf;
-              
-              // 缩放处理 (也是在 shape.props 里面)
-              if (updates.scale) {
-                if (shape.type === 'circle') {
-                  updatedShape.props.radius = (updatedShape.props.radius || 40) * updates.scale;
-                } else {
-                  updatedShape.props.width = (updatedShape.props.width || 100) * updates.scale;
-                  updatedShape.props.height = (updatedShape.props.height || 100) * updates.scale;
-                }
-              }
-            }
-            
-            return updatedShape;
+          if (ids.includes(shape.id) || ids.includes('all')) {
+            didChange = true;
+            return applyUpdates(shape, updates);
           }
           return shape;
         });
-      } else if (type === 'batch_update' && batchUpdates) {
+      } else if (type === 'batch_update' && Array.isArray(batchUpdates)) {
         // 批量精细更新（如重新布局）
         nextShapes = nextShapes.map(shape => {
           const specificUpdate = batchUpdates.find(u => u.id === shape.id);
-          if (specificUpdate && specificUpdate.updates) {
-            let updatedShape = { ...shape, props: { ...shape.props } };
-            const up = specificUpdate.updates;
-
-            // 深度合并 props 对象
-            if (up.props) {
-              updatedShape.props = { ...updatedShape.props, ...up.props };
-            }
-
-            // 处理顶层属性
-            if (up.fill !== undefined) updatedShape.props.fill = up.fill;
-            if (up.stroke !== undefined) updatedShape.props.stroke = up.stroke;
-            if (up.text !== undefined) updatedShape.props.text = up.text;
-            if (up.x !== undefined) updatedShape.x = up.x;
-            if (up.y !== undefined) updatedShape.y = up.y;
-            if (up.width !== undefined) updatedShape.width = up.width;
-            if (up.height !== undefined) updatedShape.height = up.height;
-            if (up.zIndex !== undefined) updatedShape.zIndex = up.zIndex;
-
-            if (up.hoverProps !== undefined) updatedShape.hoverProps = { ...updatedShape.hoverProps, ...up.hoverProps };
-            if (up.interactions !== undefined) updatedShape.interactions = up.interactions;
-            if (up.visibleIf !== undefined) updatedShape.visibleIf = up.visibleIf;
-
-            return updatedShape;
+          if (specificUpdate) {
+            didChange = true;
+            return applyUpdates(shape, specificUpdate.updates);
           }
           return shape;
         });
       } else if (type === 'delete') {
-        // 删除指定 ID 的组件
-        nextShapes = nextShapes.filter(shape => !targetIds.includes(shape.id));
+        const ids = Array.isArray(targetIds) ? targetIds : [];
+        nextShapes = nextShapes.filter(shape => !ids.includes(shape.id));
+        didChange = true;
         // 清理选中状态
-        if (targetIds.includes(selectedId)) setSelectedId(null);
-        setSelectedIds(prev => prev.filter(id => !targetIds.includes(id)));
+        if (selectedId && ids.includes(selectedId)) setSelectedId(null);
+        setSelectedIds(prev => prev.filter(id => !ids.includes(id)));
+      } else if (type === 'replace') {
+        // 一步完成「删旧 + 换新」。
+   //
+        // 为什么必须有这个操作：工具 schema 每次调用只能执行一种 type，
+     // 模型若想「删掉 4 个矩形 + 加 4 条横线」，必须发两次调用，
+   // 但第二次调用在多数模型上不会发生 —— 实测表现为
+        // 「矩形消失了，横线没出现」���用户完全没看到想要的结果。
+        const ids = Array.isArray(targetIds) ? targetIds : [];
+        const replacements = Array.isArray(elements) ? elements.map(el => convertAiShape(el)) : [];
+     if (!ids.length) {
+          console.warn('[AI] replace 缺少 targetIds，已跳过');
+        } else if (!replacements.length) {
+          console.warn('[AI] replace 缺少 elements（要替换成的新组件），已跳过');
+        } else {
+          nextShapes = nextShapes.filter(shape => !ids.includes(shape.id));
+        nextShapes.push(...replacements);
+          didChange = true;
+          console.log('[AI] replace:', {
+          removed: ids,
+            added: replacements.map(s => ({ id: s.id, type: s.type })),
+          });
+          // 选中态跟随新组件，用户可以立刻继续调整
+          if (selectedId && ids.includes(selectedId)) setSelectedId(null);
+          setSelectedIds(prev => prev.filter(id => !ids.includes(id)));
+}
       } else if (type === 'add') {
-        // 添加新组件 (支持批量或单个)
         if (elements && Array.isArray(elements)) {
-          const addedShapes = elements.map((el, index) => convertAiShape(el, index));
+          const addedShapes = elements.map((el) => convertAiShape(el));
           console.log('AI add elements:', addedShapes.map(s => ({ id: s.id, type: s.type })));
           nextShapes.push(...addedShapes);
+          didChange = true;
         } else if (newShape) {
           const added = convertAiShape(newShape);
           console.log('AI add single:', { id: added.id, type: added.type });
           nextShapes.push(added);
+          didChange = true;
         }
+      } else {
+        console.warn('[AI] 未知操作类型：', type);
       }
 
+      pendingAiShapesRef.current = didChange ? nextShapes : null;
       return nextShapes;
     });
 
-    saveToHistory();
+    // 用 ref 中转的真实结果写历史，避免撤销时压入空数组导致画布被清空
+    if (didChange && pendingAiShapesRef.current) {
+      saveToHistory(pendingAiShapesRef.current);
+    }
+    pendingAiShapesRef.current = null;
   }, [saveToHistory, selectedId]);
 
   const handleExportPNG = useCallback(() => {
@@ -1157,9 +1208,10 @@ function App() {
       )}
 
       {showRagChat && (
-        <ChatWindow 
-          onClose={() => setShowRagChat(false)} 
+        <ChatWindow
+          onClose={() => setShowRagChat(false)}
           canvasShapes={shapes}
+          selectedIds={selectedIds}
           onAiAction={handleAiAction}
           chatContextShapes={chatContextShapes}
           setChatContextShapes={setChatContextShapes}

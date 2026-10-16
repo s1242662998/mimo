@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node tests/verify-ai-refactor.mjs && node tests/verify-prompt.mjs && node tests/verify-provider-config.mjs && node tests/verify-html-parser-fix.mjs && node tests/verify-coordinate-bug.mjs && node tests/verify-timeout.mjs && node tests/verify-fidelity.mjs && node tests/verify-props-contract.mjs && node tests/verify-css-capability.mjs && node tests/verify-gradient-direction.mjs && node tests/verify-avatar-real.mjs && node tests/verify-component-catalog.mjs && node tests/verify-badge-props.mjs && node tests/verify-text-width.mjs && node tests/verify-icon-match.mjs && node tests/verify-offscreen-clip.mjs && node tests/verify-circle-geometry.mjs && node tests/verify-text-blank.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

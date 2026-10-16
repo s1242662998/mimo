@@ -586,3 +586,335 @@
   0%, 100% { opacity: 0.6; }
   50% { opacity: 1; }
 }
+
+/* 生成通道切换（HTML / 组件 双通道，对标墨刀两段式生成） */
+.rag-mode-switch {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px 0;
+  flex-shrink: 0;
+}
+
+.rag-mode-btn {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rag-mode-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.rag-mode-btn.active {
+  color: #fff;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* ============================================================
+   AI 模型配置（零预设，首次配置完成即保存）
+   ============================================================ */
+
+.provider-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.provider-setup-guide {
+  padding: 12px;
+  background: var(--color-secondary);
+  border-radius: 8px;
+}
+
+.provider-setup-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.provider-setup-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.provider-list-header {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.provider-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.provider-list-item:hover {
+  border-color: var(--color-text-muted);
+}
+
+.provider-list-item.active {
+  border-color: var(--color-primary);
+  background: var(--color-secondary);
+}
+
+.provider-list-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.provider-list-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.provider-badge-active {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #fff;
+  background: var(--color-primary);
+}
+
+.provider-list-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-list-ops {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.provider-op-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.provider-op-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.provider-op-btn.danger:hover {
+  color: #A32D2D;
+  border-color: #A32D2D;
+}
+
+.provider-edit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* 表单 */
+.provider-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.provider-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.provider-label {
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.provider-input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.provider-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.provider-hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.provider-msg {
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  border-radius: 6px;
+}
+
+.provider-msg-error {
+  color: #A32D2D;
+  background: #FCEBEB;
+}
+
+.provider-msg-warn {
+  color: #854F0B;
+  background: #FAEEDA;
+}
+
+.provider-msg-ok {
+  color: #0F6E56;
+  background: #E1F5EE;
+}
+
+.provider-model-list {
+  margin-top: 4px;
+}
+
+.provider-model-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.provider-model-chip {
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  color: #0C447C;
+  background: #E6F1FB;
+  border: 1px solid #B5D4F4;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.provider-model-chip:hover {
+  background: #B5D4F4;
+}
+
+.provider-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.provider-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.provider-btn-ghost {
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-border);
+}
+
+.provider-btn-ghost:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+}
+
+.provider-btn-primary {
+  color: #fff;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.provider-btn-primary:hover {
+  opacity: 0.88;
+}
+
+.provider-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* 当前模型快速切换 */
+.rag-current-model {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px 0;
+  flex-shrink: 0;
+}
+
+.rag-current-model-select {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.rag-current-model-config {
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.rag-current-model-config:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}

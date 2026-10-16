@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>htmlToShapes 解析诊断</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 20px; background: #fff; }
+  h1 { font-size: 18px; }
+  .case { border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .pass { color: #0F6E56; }
+  .fail { color: #A32D2D; font-weight: 500; }
+  pre { background: #F8FAFC; padding: 8px; border-radius: 4px; font-size: 11px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>htmlToShapes 解析诊断</h1>
+<p>打开控制台查看逐项结果。此页面仅供本地诊断，不参与构建。</p>
+<div id="out"></div>
+
+<script type="module">
+import { htmlToShapes } from '/src/utils/htmlToShapes.js';
+
+const CASES = [
+  {
+    name: '基础卡片（含背景/圆角/文本/按钮）',
+    html: `
+      <div style="width:300px;padding:16px;background:#FFFFFF;border-radius:12px;border:1px solid #E2E8F0;font-family:sans-serif">
+        <div style="font-size:18px;font-weight:700;color:#0F172A;margin-bottom:8px">登录</div>
+        <div style="font-size:13px;color:#64748B;margin-bottom:16px">请输入账号继续</div>
+        <button style="width:100%;height:44px;background:#2563EB;color:#FFFFFF;border:none;border-radius:8px;font-size:15px">立即登录</button>
+      </div>`,
+  },
+  {
+    name: 'flex 横向布局导航栏',
+    html: `
+      <div style="display:flex;align-items:center;gap:12px;width:400px;height:56px;padding:0 16px;background:#FFFFFF;border-bottom:1px solid #E2E8F0;font-family:sans-serif">
+        <span style="font-size:17px;font-weight:700;color:#0F172A">Logo</span>
+        <span style="font-size:14px;color:#64748B">产品</span>
+        <span style="font-size:14px;color:#64748B">定价</span>
+        <button style="margin-left:auto;height:32px;padding:0 16px;background:#2563EB;color:#fff;border:none;border-radius:6px;font-size:13px">登录</button>
+      </div>`,
+  },
+  {
+    name: '带输入框与图片占位',
+    html: `
+      <div style="width:340px;padding:20px;background:#F9FAFB;font-family:sans-serif">
+        <input placeholder="请输入手机号" style="width:100%;height:44px;border:1px solid #D1D5DB;border-radius:8px;padding:0 12px;font-size:14px" />
+        <div style="margin-top:16px;height:140px;background:#E5E7EB;border-radius:8px"></div>
+        <div style="margin-top:12px;font-size:13px;color:#6B7280">共 3 张图片</div>
+      </div>`,
+  },
+  {
+    name: '纯文本段落（多行）',
+    html: `<div style="font-family:sans-serif"><p style="font-size:16px;color:#0F172A;margin:0 0 8px">标题文字</p><p style="font-size:13px;color:#64748B;margin:0">这是描述文本，用于测试多行文本的宽高估算是否正确。</p></div>`,
+  },
+  {
+    name: '圆形头像（border-radius 50%）',
+    html: `<div style="display:flex;gap:12px;align-items:center"><div style="width:48px;height:48px;border-radius:50%;background:#3B82F6"></div><span style="font-size:15px;color:#0F172A;font-family:sans-serif">用户名</span></div>`,
+  },
+  {
+    name: '包裹在 ```html 代码块中',
+    html: '```html\n<div style="width:200px;height:80px;background:#FEE2E2;border-radius:8px;font-family:sans-serif"><span style="color:#991B1B;font-size:14px">红色块</span></div>\n```',
+  },
+];
+
+let pass = 0, fail = 0;
+const lines = [];
+
+for (const c of CASES) {
+  const shapes = htmlToShapes(c.html, { width: 800, idPrefix: 'diag' });
+  const box = document.createElement('div');
+  box.className = 'case';
+
+  const hasSize = shapes.every(s => {
+    if (s.type === 'circle') return (s.props.radius || 0) > 0;
+    return (s.props.width || 0) > 0 && (s.props.height || 0) > 0;
+  });
+  const allPositiveX = shapes.every(s => s.x >= -1);
+  const ok = shapes.length > 0 && hasSize && allPositiveX;
+
+  if (ok) pass++; else fail++;
+
+  box.innerHTML = `
+    <div class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'} — ${c.name}</div>
+    <div style="font-size:12px;color:#64748B;margin-top:4px">
+      组件数: ${shapes.length} · 全部有尺寸: ${hasSize} · 坐标非负: ${allPositiveX}
+    </div>
+    <pre>${JSON.stringify(shapes.map(s => ({
+  t: s.componentType,
+      x: Math.round(s.x), y: Math.round(s.y),
+      w: Math.round(s.props.width || s.props.radius || 0),
+      h: Math.round(s.props.height || s.props.radius || 0),
+      fill: s.props.fill || '',
+      text: (s.props.text || '').slice(0, 12),
+    })), null, 1)}</pre>`;
+  document.getElementById('out').appendChild(box);
+}
+
+const summary = document.createElement('div');
+summary.className = fail === 0 ? 'pass' : 'fail';
+summary.style.cssText = 'font-size:16px;font-weight:500;margin-top:16px';
+summary.textContent = `结果: ${pass} 通过, ${fail} 失败`;
+document.getElementById('out').appendChild(summary);
+console.log(`[诊断] ${pass} 通过, ${fail} 失败`);
+</script>
+</body>
+</html>

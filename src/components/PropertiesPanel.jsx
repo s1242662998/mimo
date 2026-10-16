@@ -151,6 +151,7 @@ export const propertyConfigs = {
   text: [
     { key: 'text', label: '内容', type: 'text' },
     { key: 'fontSize', label: '字号', type: 'number', min: 8, max: 200 },
+    { key: 'letterSpacing', label: '字间距', type: 'number', min: -10, max: 50, step: 0.5, defaultValue: 0 },
     { key: 'fontFamily', label: '字体', type: 'select', options: [
       { value: 'Inter', label: 'Inter' },
       { value: 'Arial', label: 'Arial' },
@@ -175,14 +176,28 @@ export const propertyConfigs = {
       { value: 'underline', label: '下划线' },
       { value: 'line-through', label: '删除线' },
     ]},
-    { key: 'align', label: '对齐', type: 'select', options: [
+    { key: 'align', label: '水平对齐', type: 'select', options: [
       { value: 'left', label: '左对齐' },
       { value: 'center', label: '居中' },
       { value: 'right', label: '右对齐' },
     ]},
+    { key: 'verticalAlign', label: '垂直对齐', type: 'select', options: [
+      { value: 'top', label: '顶部' },
+      { value: 'middle', label: '居中' },
+      { value: 'bottom', label: '底部' },
+    ]},
     { key: 'lineHeight', label: '行高', type: 'number', min: 0.5, max: 3, step: 0.1 },
-    { key: 'fill', label: '颜色', type: 'color' },
+    { key: 'fill', label: '文字颜色', type: 'color' },
+    { key: 'backgroundFill', label: '背景色', type: 'color' },
+    { key: 'stroke', label: '边框', type: 'color' },
+    { key: 'strokeWidth', label: '边框宽度', type: 'number', min: 0, max: 20 },
+    { key: 'cornerRadius', label: '圆角', type: 'number', min: 0, max: 100 },
+    { key: 'paddingLeft', label: '左内边距', type: 'number', min: 0, max: 200 },
+    { key: 'paddingRight', label: '右内边距', type: 'number', min: 0, max: 200 },
+    { key: 'paddingTop', label: '上内边距', type: 'number', min: 0, max: 200 },
+    { key: 'paddingBottom', label: '下内边距', type: 'number', min: 0, max: 200 },
     { key: 'width', label: '宽度', type: 'number', min: 20, max: 800 },
+    { key: 'height', label: '高度', type: 'number', min: 10, max: 600 },
     { key: 'opacity', label: '透明度', type: 'range', min: 0, max: 1, step: 0.1, defaultValue: 1 },
   ],
   image: [
